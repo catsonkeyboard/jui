@@ -5,6 +5,8 @@ import java.lang.foreign.MemorySegment;
 import java.util.ArrayList;
 import java.util.List;
 
+import jui.util.LongMap;
+
 /**
  * Glyph coverage, one byte a pixel, packed on shelves into one texture's
  * worth of memory: the renderer uploads the rectangle that changed. Each

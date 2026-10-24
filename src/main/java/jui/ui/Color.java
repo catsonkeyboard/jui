@@ -18,6 +18,17 @@ public record Color(int rgba) {
         return new Color((rgb << 8) | a);
     }
 
+    /** The color a share t (0 to 1) of the way to other, channel by channel, alpha too. */
+    public Color mix(Color other, float t) {
+        float k = Math.max(0, Math.min(1, t));
+        int mixed = 0;
+        for (int shift = 24; shift >= 0; shift -= 8) {
+            int a = (rgba >>> shift) & 0xFF, b = (other.rgba >>> shift) & 0xFF;
+            mixed |= Math.round(a + (b - a) * k) << shift;
+        }
+        return new Color(mixed);
+    }
+
     public boolean transparent() {
         return (rgba & 0xFF) == 0;
     }

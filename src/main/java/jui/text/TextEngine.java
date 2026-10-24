@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 import jui.ffi.ObjC;
+import jui.util.LongMap;
 
 import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
 import static java.lang.foreign.ValueLayout.JAVA_SHORT;

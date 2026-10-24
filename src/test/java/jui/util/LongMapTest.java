@@ -1,4 +1,4 @@
-package jui.text;
+package jui.util;
 
 import jui.testing.Check;
 
@@ -41,5 +41,15 @@ public final class LongMapTest {
         m.clear();
         Check.equal(0, m.size());
         Check.equal(null, m.get(5));
+    }
+
+    public void testRemoveKeepsTheOtherKeysFindable() {
+        LongMap<String> m = new LongMap<>();
+        for (long k = 0; k < 100; k++) m.put(k * 16, "v" + k);   // same low bits: long probe chains
+        Check.equal("v50", m.remove(50 * 16));
+        Check.equal(null, m.get(50 * 16));
+        for (long k = 0; k < 100; k++) if (k != 50) Check.equal("v" + k, m.get(k * 16));
+        Check.equal(99, m.size());
+        Check.equal(null, m.remove(12345));
     }
 }
