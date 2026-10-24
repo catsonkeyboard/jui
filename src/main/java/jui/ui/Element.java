@@ -232,6 +232,54 @@ public final class Element {
         return this;
     }
 
+    // The box's look.
+
+    public Element background(Color color) {
+        Node n = node();
+        if (n != null) {
+            n.background = color.rgba();
+        }
+        return this;
+    }
+
+    /** A border inside the box's edge, which insets the content as padding does. */
+    public Element border(float width, Color color) {
+        Node n = node();
+        if (n != null) {
+            n.border = width;
+            n.borderColor = color.rgba();
+        }
+        return this;
+    }
+
+    public Element radius(float r) {
+        return radius(r, r, r, r);
+    }
+
+    public Element radius(float topLeft, float topRight, float bottomRight, float bottomLeft) {
+        Node n = node();
+        if (n != null) {
+            n.radiusTL = topLeft;
+            n.radiusTR = topRight;
+            n.radiusBR = bottomRight;
+            n.radiusBL = bottomLeft;
+        }
+        return this;
+    }
+
+    /** A box shadow, as CSS's box-shadow: offset, blur and spread in DIPs. */
+    public Element shadow(float x, float y, float blur, float spread, Color color) {
+        Node n = node();
+        if (n != null) {
+            n.shadowX = x;
+            n.shadowY = y;
+            n.shadowBlur = blur;
+            n.shadowSpread = spread;
+            n.shadowColor = color.rgba();
+        }
+        return this;
+    }
+
     // Text style: set on any element, the text inside inherits it.
 
     public Element textColor(Color color) {

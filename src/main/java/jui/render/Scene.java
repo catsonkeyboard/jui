@@ -33,6 +33,15 @@ public final class Scene {
         this.atlas = atlas;
     }
 
+    /**
+     * A copy of instance i's 20 floats: rect 0–3, radii 4–7, color 8–11,
+     * border 12–15, params 16–19 (kind at 18: 0 box, 1 shadow, 2 glyph).
+     * Boxes and shadows are in points, glyphs in pixels. For tests.
+     */
+    public float[] instance(int i) {
+        return java.util.Arrays.copyOfRange(data, i * FLOATS, (i + 1) * FLOATS);
+    }
+
     public int count() {
         return count;
     }

@@ -73,6 +73,13 @@ public final class Engine {
         layout.layout(root, width, height);
     }
 
+    /** Paints the last layout into scene, which the caller began at its scale. */
+    public void paint(jui.render.Scene scene) {
+        if (pool.size() > 0) {
+            Paint.paint(pool, 0, scene, theme);
+        }
+    }
+
     /**
      * Resolves each node's text style from its own and its ancestors': nodes
      * come after their parents in the pool, so one pass in order does it,
