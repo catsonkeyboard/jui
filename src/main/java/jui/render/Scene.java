@@ -17,6 +17,7 @@ import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 public final class Scene {
     static final int FLOATS = 20;
     public static final int BYTES = FLOATS * 4;
+    private static final float KIND_BOX = 0;
     private static final float KIND_GLYPH = 2;
 
     private float[] data = new float[FLOATS * 64];
@@ -120,7 +121,8 @@ public final class Scene {
 
     /**
      * Writes up to {@code max} instances into {@code dst} in pixels, and
-     * returns how many it wrote.
+     * returns how many it wrote. Boxes' edges go to the nearest pixel, as
+     * crisp lines need; a box keeps at least a pixel each way it has size.
      */
     public int writeTo(MemorySegment dst, int max) {
         int n = Math.min(count, max);
@@ -133,8 +135,23 @@ public final class Scene {
                 boolean length = !glyph && (k < 8 || k == 16 || k == 17);
                 dst.setAtIndex(JAVA_FLOAT, o + k, length ? v * scale : v);
             }
+            if (data[o + 18] == KIND_BOX) {
+                snap(dst, o, data[o], data[o + 2]);
+                snap(dst, o + 1, data[o + 1], data[o + 3]);
+            }
         }
         return n;
+    }
+
+    /** Writes the start (at o) and size (at o + 2) of a box's edges on whole pixels. */
+    private void snap(MemorySegment dst, int o, float start, float size) {
+        float from = Math.round(start * scale);
+        float to = Math.round((start + size) * scale);
+        if (to == from && size > 0) {
+            to = from + 1;
+        }
+        dst.setAtIndex(JAVA_FLOAT, o, from);
+        dst.setAtIndex(JAVA_FLOAT, o + 2, to - from);
     }
 
     private int next() {
