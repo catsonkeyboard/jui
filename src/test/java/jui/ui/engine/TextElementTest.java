@@ -53,6 +53,16 @@ public final class TextElementTest {
         Check.isTrue(e.bounds("t").height() > line * 1.5f, "wraps");
     }
 
+    public void testAutoHeightColumnMeasuresTextAtItsMaxWidth() { // final review #1
+        float line = oneLine();
+        e.buildAndLayout(c -> column(c).width(300).children(() -> {
+            column(c).children(() -> text(c, LONG).maxWidth(100).label("t"));
+            box(c).height(10).label("below"); }), 2000, 2000);
+        Check.isTrue(e.bounds("t").height() > line * 3, "wraps at its max width of 100");
+        Check.isTrue(e.bounds("below").y() >= e.bounds("t").y() + e.bounds("t").height() - 0.01f,
+                "the box below starts after the text: " + e.bounds("t") + " " + e.bounds("below"));
+    }
+
     public void testEmptyAndUnbrokenText() { // Review Focus 3
         float line = oneLine();
         e.buildAndLayout(c -> column(c).width(100).children(() -> {

@@ -151,19 +151,17 @@ public final class FlexLayout {
                     h = 1;
                 }
             }
-            float mainSize = row ? w : h, crossFixed = row ? h : w;
-            float minCross = row ? n.minHeight : n.minWidth, maxCross = row ? n.maxHeight : n.maxWidth;
-            float cms = row ? n.marTop : n.marLeft, cme = row ? n.marBottom : n.marRight;
-            Align a = n.alignSelf != null ? n.alignSelf : p.alignItems;
+            float mainSize = row ? w : h;
             float cs;
-            if (!Float.isNaN(crossFixed)) {
-                cs = clamp(crossFixed, minCross, maxCross);
-            } else if (a == Align.STRETCH && !Float.isNaN(cross) && cms != Ui.AUTO && cme != Ui.AUTO) {
-                cs = clamp(cross - cms - cme, minCross, maxCross);
-            } else if (!row) { // a column's child: as wide as its content, within the column
-                cs = clamp(Math.min(contentWidth(c), Math.max(0, cross - m(cms) - m(cme))), minCross, maxCross);
+            if (!row) {
+                cs = columnChildWidth(p, c, innerW);
+            } else if (!Float.isNaN(h)) {
+                cs = clamp(h, n.minHeight, n.maxHeight);
+            } else if (alignOf(p, n) == Align.STRETCH && !Float.isNaN(cross) && n.marTop != Ui.AUTO
+                    && n.marBottom != Ui.AUTO) {
+                cs = clamp(cross - n.marTop - n.marBottom, n.minHeight, n.maxHeight);
             } else {
-                cs = Float.NaN;
+                cs = Float.NaN; // a row's child: as high as its content, once its width is known
             }
             n.crossSize = cs;
 
@@ -259,6 +257,31 @@ public final class FlexLayout {
         return free;
     }
 
+    /**
+     * The width of child c of column p, whose content box is innerW wide:
+     * its own width, else stretched across, else its content's within the
+     * column; always within its min and max width. Layout and measurement
+     * share it, so a column is as high as its children will be.
+     */
+    private float columnChildWidth(Node p, int c, float innerW) {
+        Node k = pool.node(c);
+        float w = resolved(k.width, k.widthPercent, innerW);
+        if (Float.isNaN(w)) {
+            if (alignOf(p, k) == Align.STRETCH && !Float.isNaN(innerW) && k.marLeft != Ui.AUTO
+                    && k.marRight != Ui.AUTO) {
+                w = innerW - k.marLeft - k.marRight;
+            } else {
+                float room = Float.isNaN(innerW) ? Float.POSITIVE_INFINITY : innerW - m(k.marLeft) - m(k.marRight);
+                w = Math.min(contentWidth(c), Math.max(0, room));
+            }
+        }
+        return clamp(w, k.minWidth, k.maxWidth);
+    }
+
+    private static Align alignOf(Node parent, Node child) {
+        return child.alignSelf != null ? child.alignSelf : parent.alignItems;
+    }
+
     // Content sizes.
 
     /** The width a node takes for its content, on one line: max-content. */
@@ -319,12 +342,7 @@ public final class FlexLayout {
                         int count = 0;
                         for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
                             Node k = pool.node(c);
-                            float kw = resolved(k.width, k.widthPercent, innerW);
-                            Align a = k.alignSelf != null ? k.alignSelf : n.alignItems;
-                            if (Float.isNaN(kw)) {
-                                float avail = Math.max(0, innerW - m(k.marLeft) - m(k.marRight));
-                                kw = a == Align.STRETCH ? avail : Math.min(contentWidth(c), avail);
-                            }
+                            float kw = columnChildWidth(n, c, innerW);
                             float kh = resolved(k.height, k.heightPercent, Float.NaN);
                             if (Float.isNaN(kh)) {
                                 kh = k.kind == Node.DIVIDER ? 1 : contentHeight(c, kw);
