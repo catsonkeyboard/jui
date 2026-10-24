@@ -1,5 +1,6 @@
 package jui.ui;
 
+import jui.ui.engine.Dev;
 import jui.ui.engine.Engine;
 import jui.ui.engine.Identity;
 
@@ -17,7 +18,7 @@ public final class Context {
      * during a later build still fails rather than reach the element now at
      * its index.
      */
-    static final boolean POOLED_HANDLES = !jui.ui.engine.Dev.ENABLED;
+    static final boolean POOLED_HANDLES = !Dev.ENABLED;
 
     private final Engine engine;
     private Element[] handles = new Element[64];
@@ -43,11 +44,17 @@ public final class Context {
     }
 
     public Context key(String key) {
+        if (key == null) {
+            return nullKey();
+        }
         return key(Identity.hash(key));
     }
 
     /** Keys by an object's value: equal strings, numbers and other objects key alike. */
     public Context key(Object key) {
+        if (key == null) {
+            return nullKey();
+        }
         if (key instanceof String s) {
             return key(s);
         }
@@ -55,6 +62,12 @@ public final class Context {
             return key((long) l);
         }
         return key((long) key.hashCode());
+    }
+
+    /** A null key is a mistake in dev mode; otherwise the element keeps its position's identity. */
+    private Context nullKey() {
+        Dev.fail("an element was keyed by null");
+        return this;
     }
 
     /** Asks for another frame. */

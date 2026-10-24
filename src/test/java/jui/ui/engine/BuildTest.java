@@ -54,6 +54,14 @@ public final class BuildTest {
         Check.isTrue(ms < 400, n + " keyed siblings took " + ms + " ms to build in dev mode");
     }
 
+    public void testNullKeyFailsWithAMessage() { // deferred minor: was a bare NullPointerException
+        View[] views = {c -> box(c.key((Object) null)), c -> box(c.key((String) null))};
+        for (View v : views) {
+            IllegalStateException x = Check.fails(IllegalStateException.class, () -> e.buildAndLayout(v, 100, 100));
+            Check.isTrue(x.getMessage().contains("null"), x.getMessage());
+        }
+    }
+
     public void testUnusedKeyFails() {
         Check.fails(IllegalStateException.class, () -> e.buildAndLayout(c -> c.key("lost"), 100, 100));
     }
