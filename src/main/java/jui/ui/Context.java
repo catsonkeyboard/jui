@@ -11,7 +11,7 @@ import jui.ui.engine.Identity;
  */
 public final class Context {
     /**
-     * One Element per node index, reused frame after frame, outside
+     * One Element per node, kept on the node and reused frame after frame, outside
      * development mode: in a native image escape analysis does not remove
      * handles made per element (24 bytes each, measured by AllocSpike).
      * Development mode makes a handle per element, so that one kept and used
@@ -21,7 +21,6 @@ public final class Context {
     static final boolean POOLED_HANDLES = !Dev.ENABLED;
 
     private final Engine engine;
-    private Element[] handles = new Element[64];
     private final Element dead = new Element(this, jui.ui.engine.Node.NONE, -1);
 
     /** Made by the window's engine. */
@@ -83,19 +82,16 @@ public final class Context {
         if (index == jui.ui.engine.Node.NONE) {
             return dead;
         }
-        long gen = engine.node(index).gen;
+        jui.ui.engine.Node n = engine.node(index);
         if (!POOLED_HANDLES) {
-            return new Element(this, index, gen);
+            return new Element(this, index, n.gen);
         }
-        if (index >= handles.length) {
-            handles = java.util.Arrays.copyOf(handles, Math.max(handles.length * 2, index + 1));
-        }
-        Element e = handles[index];
+        Element e = (Element) n.handle;
         if (e == null) {
-            e = new Element(this, index, gen);
-            handles[index] = e;
+            e = new Element(this, index, n.gen);
+            n.handle = e;
         } else {
-            e.gen = gen;
+            e.gen = n.gen;
         }
         return e;
     }

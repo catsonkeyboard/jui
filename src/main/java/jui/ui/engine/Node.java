@@ -20,6 +20,12 @@ public final class Node {
     public int parent, firstChild, lastChild, nextSibling, childCount;
     public byte kind;
     public String label;
+    /**
+     * The ui package's Element for this node, reused outside development
+     * mode; it goes with the node when the pool lets the node's chunk go.
+     * A use's reset keeps it.
+     */
+    public Object handle;
 
     // Layout input. NaN is auto (or no bound); Ui.AUTO is an automatic margin.
     public boolean row, reverse;
