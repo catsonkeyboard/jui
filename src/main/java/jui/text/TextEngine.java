@@ -29,7 +29,19 @@ public final class TextEngine {
     private final long language;
     private final Map<Long, Long> systemFonts = new HashMap<>();
     private final Set<Long> runFonts = new HashSet<>();
-    private final Map<LayoutKey, TextLayout> layouts = new HashMap<>();
+
+    /**
+     * Layouts in two generations: when the current one fills up, by count or
+     * by glyphs, it becomes the previous one and the old previous one goes;
+     * a layout found in the previous generation moves back into the current
+     * one. So the cache keeps what frames use and stays bounded, as a window
+     * resized across many widths or a text that keeps changing would grow it.
+     */
+    private static final int MAX_LAYOUTS = 2048;
+    private static final long MAX_GLYPHS = 100_000;
+    private LongMap<TextLayout> layouts = new LongMap<>();
+    private LongMap<TextLayout> previous = new LongMap<>();
+    private long glyphs, previousGlyphs;
 
     // Scratch memory for rasterizing.
     private final MemorySegment glyphArg = Arena.global().allocate(JAVA_SHORT);
@@ -41,36 +53,72 @@ public final class TextEngine {
     public int rasterized;
     public long layoutNanos, rasterNanos;
 
-    private record LayoutKey(String text, float size, int weight, float width) {}
-
     /** {@code language} picks the glyphs of fonts that have several, as Han characters in Chinese and Japanese. */
     public TextEngine(String language) {
         ObjC.framework("AppKit"); // the system font comes from NSFont, even without an app (as in tests)
         this.language = CoreText.string(language);
     }
 
+    /** Layouts the cache keeps, in both generations. */
+    public int cachedLayouts() {
+        return layouts.size() + previous.size();
+    }
+
+    /** Glyphs of the layouts the cache keeps, in both generations. */
+    public long cachedGlyphs() {
+        return glyphs + previousGlyphs;
+    }
+
     /**
      * Lays out {@code text} in the system font of {@code size} points and
      * {@code weight} (100 to 900), in lines at most {@code maxWidth} points
-     * wide (0 for no wrapping); lines also break at newlines.
+     * wide (0 for no wrapping); lines also break at newlines. A layout made
+     * before comes back without allocating.
      */
     public TextLayout layout(String text, float size, int weight, float maxWidth) {
-        LayoutKey key = new LayoutKey(text, size, weight, maxWidth);
+        long key = layoutKey(text, size, weight, maxWidth);
         TextLayout cached = layouts.get(key);
-        if (cached != null) {
+        if (cached != null && cached.is(text, size, weight, maxWidth)) {
             return cached;
+        }
+        TextLayout old = previous.get(key);
+        if (old != null && old.is(text, size, weight, maxWidth)) {
+            keep(key, old);
+            return old;
         }
         long started = System.nanoTime();
         TextLayout layout = shape(text, size, weight, maxWidth);
         layoutNanos += System.nanoTime() - started;
-        layouts.put(key, layout);
+        keep(key, layout);
         return layout;
+    }
+
+    /** Puts a layout in the current generation, which first ages into the previous one when full. */
+    private void keep(long key, TextLayout layout) {
+        if (layouts.size() >= MAX_LAYOUTS || glyphs + layout.count > MAX_GLYPHS) {
+            LongMap<TextLayout> spare = previous;
+            previous = layouts;
+            previousGlyphs = glyphs;
+            layouts = spare;
+            layouts.clear();
+            glyphs = 0;
+        }
+        layouts.put(key, layout);
+        glyphs += layout.count;
+    }
+
+    /** A hash of a layout's parameters; a hit is checked against them, so collisions only miss. */
+    private static long layoutKey(String text, float size, int weight, float maxWidth) {
+        long h = text.hashCode();
+        h = h * 0x9E3779B97F4A7C15L + Float.floatToIntBits(size);
+        h = h * 0x9E3779B97F4A7C15L + weight;
+        return h * 0x9E3779B97F4A7C15L + Float.floatToIntBits(maxWidth);
     }
 
     private TextLayout shape(String text, float size, int weight, float maxWidth) {
         long font = systemFont(size, weight);
         if (text.isEmpty()) {
-            return new TextLayout(size, 0, 0, 0, 0, new long[0], new short[0], new float[0], new float[0]);
+            return new TextLayout(text, size, weight, maxWidth, 0, 0, 0, 0, new long[0], new short[0], new float[0], new float[0]);
         }
         long str = CoreText.string(text);
         long attrs = CoreText.dictionary(
@@ -145,7 +193,7 @@ public final class TextEngine {
             CoreText.release(attrs);
             CoreText.release(str);
         }
-        return new TextLayout(size, (float) widest, (float) top, lines, count, fonts, glyphs, xs, ys);
+        return new TextLayout(text, size, weight, maxWidth, (float) widest, (float) top, lines, count, fonts, glyphs, xs, ys);
     }
 
     /** The system font, as NSFont gives it with its weights, cached. */

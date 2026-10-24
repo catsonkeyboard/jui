@@ -12,14 +12,22 @@ public final class TextLayout {
     public final float width, height;
     public final int lines;
 
+    // What it was laid out from, for the engine's cache to check a hit.
+    final String text;
+    final int weight;
+    final float maxWidth;
+
     final int count;
     final long[] fonts;
     final short[] glyphs;
     /** The pen position of each glyph, and its baseline. */
     final float[] xs, ys;
 
-    TextLayout(float size, float width, float height, int lines,
+    TextLayout(String text, float size, int weight, float maxWidth, float width, float height, int lines,
                int count, long[] fonts, short[] glyphs, float[] xs, float[] ys) {
+        this.text = text;
+        this.weight = weight;
+        this.maxWidth = maxWidth;
         this.size = size;
         this.width = width;
         this.height = height;
@@ -33,6 +41,11 @@ public final class TextLayout {
 
     public int glyphCount() {
         return count;
+    }
+
+    /** Whether this layout was made from these parameters. */
+    boolean is(String text, float size, int weight, float maxWidth) {
+        return this.size == size && this.weight == weight && this.maxWidth == maxWidth && this.text.equals(text);
     }
 
     public long font(int i) {
