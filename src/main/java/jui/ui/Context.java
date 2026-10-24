@@ -10,13 +10,14 @@ import jui.ui.engine.Identity;
  */
 public final class Context {
     /**
-     * One Element per node index, reused frame after frame: in a native
-     * image escape analysis does not remove handles made per element (24
-     * bytes each, measured by AllocSpike), so they are pooled. A handle used
-     * after its build pass still fails; one kept and used during a later
-     * build may reach the element now at its index.
+     * One Element per node index, reused frame after frame, outside
+     * development mode: in a native image escape analysis does not remove
+     * handles made per element (24 bytes each, measured by AllocSpike).
+     * Development mode makes a handle per element, so that one kept and used
+     * during a later build still fails rather than reach the element now at
+     * its index.
      */
-    static final boolean POOLED_HANDLES = true;
+    static final boolean POOLED_HANDLES = !jui.ui.engine.Dev.ENABLED;
 
     private final Engine engine;
     private Element[] handles = new Element[64];

@@ -52,6 +52,15 @@ public final class BuildTest {
         Check.isTrue(x.getMessage().contains("build pass"), "the message says why");
     }
 
+    public void testStaleElementUsedDuringALaterBuildFails() { // final review #2
+        Element[] kept = new Element[1];
+        e.buildAndLayout(c -> kept[0] = box(c).label("old"), 100, 100);
+        Check.fails(IllegalStateException.class, () -> e.buildAndLayout(c -> {
+            box(c).label("victim");     // takes the index the kept element had
+            kept[0].label("hijacked");  // must fail, not relabel the victim
+        }, 100, 100));
+    }
+
     public void testPoolIsReusedAcrossFrames() {
         View v = c -> { for (int i = 0; i < 1000; i++) box(c); };
         e.buildAndLayout(v, 100, 100);
