@@ -69,6 +69,16 @@ public final class Context {
         return this;
     }
 
+    /** Whether the window's shortcut was pressed; an element with focus that takes it comes first. */
+    public boolean shortcut(Shortcut s) {
+        return engine.windowShortcut(s);
+    }
+
+    /** The modifier keys held, as {@link Mod} bits. */
+    public int modifiers() {
+        return engine.modifiers();
+    }
+
     /** Asks for another frame. */
     public void invalidate() {
         engine.invalidate();

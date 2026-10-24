@@ -42,6 +42,23 @@ final class Input {
     long[] focusChain = new long[16];
     int focusChainCount;
 
+    // Shortcuts: registered by this pass, and by the last frame (for routing).
+    private long[] regIds = new long[16], lastRegIds = new long[16];
+    private int[] regMods = new int[16], lastRegMods = new int[16];
+    private jui.ui.Key[] regKeys = new jui.ui.Key[16], lastRegKeys = new jui.ui.Key[16];
+    private int regCount, lastRegCount;
+
+    // Keys waiting for a frame to route them, oldest first.
+    private jui.ui.Key[] queueKeys = new jui.ui.Key[8];
+    private int[] queueMods = new int[8];
+    private int queueCount;
+
+    /** The key this frame delivers in its first pass: to an identity (0 the window), or to whoever claims it. */
+    private jui.ui.Key deliveredKey;
+    private int deliveredMods;
+    private long deliveredTo;
+    private boolean unrouted;
+
     Input(Engine engine, HitList hits) {
         this.engine = engine;
         this.hits = hits;
@@ -159,8 +176,113 @@ final class Input {
                 stateAt(i).clicks++;
                 focusVisible = true;
                 engine.requestFrame();
+                return;
             }
         }
+        if (queueCount == queueKeys.length) {
+            queueKeys = Arrays.copyOf(queueKeys, queueCount * 2);
+            queueMods = Arrays.copyOf(queueMods, queueCount * 2);
+        }
+        queueKeys[queueCount] = key;
+        queueMods[queueCount] = mods;
+        queueCount++;
+        engine.requestFrame();
+    }
+
+    /**
+     * At a frame's start: takes the oldest waiting key and routes it by the
+     * last frame's registrations, to the innermost element of the focus
+     * chain that registered it, else the window; a key nobody registered may
+     * be claimed in the first pass by a shortcut this frame registers. One
+     * key a frame keeps repeated keys apart; the rest ask for more frames.
+     */
+    void routeKey() {
+        deliveredKey = null;
+        if (queueCount == 0) {
+            return;
+        }
+        jui.ui.Key key = queueKeys[0];
+        int mods = queueMods[0];
+        System.arraycopy(queueKeys, 1, queueKeys, 0, queueCount - 1);
+        System.arraycopy(queueMods, 1, queueMods, 0, queueCount - 1);
+        queueKeys[--queueCount] = null;
+        deliveredKey = key;
+        deliveredMods = mods;
+        unrouted = true;
+        for (int k = 0; k < focusChainCount && unrouted; k++) {
+            if (registered(focusChain[k], mods, key)) {
+                deliveredTo = focusChain[k];
+                unrouted = false;
+            }
+        }
+        if (unrouted && registered(0, mods, key)) {
+            deliveredTo = 0;
+            unrouted = false;
+        }
+        if (queueCount > 0) {
+            engine.requestFrame();
+        }
+    }
+
+    private boolean registered(long id, int mods, jui.ui.Key key) {
+        for (int k = 0; k < lastRegCount; k++) {
+            if (lastRegIds[k] == id && lastRegMods[k] == mods && lastRegKeys[k] == key) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Registers a shortcut of identity id (0 the window) in this pass, and
+     * reports whether this frame's key goes to it: in the first pass only,
+     * once. An element takes an unrouted key only with focus within it.
+     */
+    boolean shortcut(long id, jui.ui.Shortcut s, boolean firstPass) {
+        if (regCount == regIds.length) {
+            regIds = Arrays.copyOf(regIds, regCount * 2);
+            regMods = Arrays.copyOf(regMods, regCount * 2);
+            regKeys = Arrays.copyOf(regKeys, regCount * 2);
+        }
+        regIds[regCount] = id;
+        regMods[regCount] = s.mods();
+        regKeys[regCount] = s.key();
+        regCount++;
+        if (!firstPass || deliveredKey == null || !s.matches(deliveredMods, deliveredKey)) {
+            return false;
+        }
+        boolean mine = unrouted ? id == 0 || windowFocused && inFocusChain(id) : deliveredTo == id;
+        if (mine) {
+            deliveredKey = null;
+        }
+        return mine;
+    }
+
+    /** At a pass's start: its registrations start over. */
+    void beginPass() {
+        Arrays.fill(regKeys, 0, regCount, null);
+        regCount = 0;
+    }
+
+    /** After the first pass: a key nobody took is dropped. */
+    void dropKey() {
+        deliveredKey = null;
+    }
+
+    /** At commit: the last pass's registrations route the next frame's keys. */
+    void commitShortcuts() {
+        long[] ids = lastRegIds;
+        int[] ms = lastRegMods;
+        jui.ui.Key[] ks = lastRegKeys;
+        lastRegIds = regIds;
+        lastRegMods = regMods;
+        lastRegKeys = regKeys;
+        lastRegCount = regCount;
+        regIds = ids;
+        regMods = ms;
+        regKeys = ks;
+        Arrays.fill(regKeys, null);
+        regCount = 0;
     }
 
     /** Tab and Shift+Tab: the next or previous focusable element, around the end. */

@@ -161,7 +161,7 @@ public final class Tester {
     }
 
     /** Runs frames while the view asks for them, at most 20. */
-    void settle() {
+    public void settle() {
         for (int i = 0; i < 20 && pending; i++) {
             frame();
         }

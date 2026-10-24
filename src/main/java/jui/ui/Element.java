@@ -453,6 +453,15 @@ public final class Element {
         return node() != null && c.engine().focusWithin(index);
     }
 
+    /**
+     * Whether the shortcut was pressed while focus was within the element
+     * (the element or one inside it). The innermost such element takes it
+     * before the window does.
+     */
+    public boolean shortcut(Shortcut s) {
+        return node() != null && c.engine().shortcut(index, s);
+    }
+
     /** The element's local state map, or null when this element is stale. */
     java.util.Map<String, Object> locals() {
         return node() == null ? null : c.engine().locals(index);

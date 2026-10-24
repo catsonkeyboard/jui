@@ -75,10 +75,15 @@ public final class Engine {
             Dev.fail("views build only on the main thread");
         }
         frame++;
+        input.routeKey();
         for (pass = 0; pass < MAX_PASSES; pass++) {
             consumed = false;
+            input.beginPass();
             buildPass(view, width, height);
             endPass();
+            if (pass == 0) {
+                input.dropKey();
+            }
             if (!consumed) {
                 break;
             }
@@ -202,6 +207,7 @@ public final class Engine {
         }
         states.prune(frame, pass);
         input.commitFocus();
+        input.commitShortcuts();
         input.rehover();
     }
 
@@ -360,6 +366,35 @@ public final class Engine {
     /** A key went down; Tab and the activation keys act at once. */
     public void keyDown(jui.ui.Key key, int mods, boolean repeat) {
         input.keyDown(key, mods, repeat);
+    }
+
+    /** The modifier keys held changed; asks for no frame. */
+    public void modifiersChanged(int mods) {
+        input.mods = mods;
+    }
+
+    /** The modifier keys held, as {@link jui.ui.Mod} bits. */
+    public int modifiers() {
+        return input.mods;
+    }
+
+    /** Whether the node's shortcut s was pressed: focus must be within it. Registers it for routing. */
+    public boolean shortcut(int index, jui.ui.Shortcut s) {
+        Node n = pool.node(index);
+        boolean hit = input.shortcut(n.id, s, pass == 0) && !n.disabled;
+        consumed |= hit;
+        return hit;
+    }
+
+    /** Whether the window's shortcut s was pressed. Registers it for routing. */
+    public boolean windowShortcut(jui.ui.Shortcut s) {
+        if (!building) {
+            Dev.fail("UI functions run only while a view builds");
+            return false;
+        }
+        boolean hit = input.shortcut(0, s, pass == 0);
+        consumed |= hit;
+        return hit;
     }
 
     /** The window became, or stopped being, the key window. */
