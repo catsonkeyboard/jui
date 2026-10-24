@@ -19,12 +19,20 @@ public final class Engine {
     private final Runnable requestFrame;
     private final NodePool pool = new NodePool();
     private final StateTable states = new StateTable();
+    private final HitList hits = new HitList();
+    private final Input input = new Input(this, hits);
     private final Context context;
     private final FlexLayout layout = new FlexLayout(pool, this::measure);
+
+    /** The most passes a frame builds (design §4, MyGO's rule). */
+    private static final int MAX_PASSES = 3;
 
     /** Frames built so far, the one in progress included; and the pass of it being built. */
     private long frame;
     private int pass;
+    /** Whether the pass being built reported input or ran a callback, so another pass must show it. */
+    private boolean consumed;
+    private int passes;
 
     // The build in progress.
     private boolean building;
@@ -54,13 +62,35 @@ public final class Engine {
         return text;
     }
 
-    /** Builds the view for a window of width by height DIPs, then lays it out. */
+    /**
+     * Builds the view for a window of width by height DIPs, then lays it out
+     * and commits it. A pass that reports input or runs a callback is built
+     * again, at most 3 passes in all, so that the frame shows its result.
+     */
     public void buildAndLayout(View view, float width, float height) {
         if (Libc.pthreadMainNp() == 0) {
             Dev.fail("views build only on the main thread");
         }
         frame++;
-        pass = 0;
+        for (pass = 0; pass < MAX_PASSES; pass++) {
+            consumed = false;
+            buildPass(view, width, height);
+            endPass();
+            if (!consumed) {
+                break;
+            }
+        }
+        passes = Math.min(pass + 1, MAX_PASSES);
+        pass = passes - 1;
+        if (consumed) {
+            requestFrame.run(); // still reporting after the last pass: show the rest next frame
+        }
+        inheritTextStyle();
+        layout.layout(0, width, height);
+        commit();
+    }
+
+    private void buildPass(View view, float width, float height) {
         pool.reset();
         if (Dev.ENABLED) {
             nodesById.clear();
@@ -81,9 +111,30 @@ public final class Engine {
             building = false;
             parent = Node.NONE;
         }
-        inheritTextStyle();
-        layout.layout(root, width, height);
-        commit();
+    }
+
+    /** Forgets the input that this pass's elements could report: each input is reported once. */
+    private void endPass() {
+        for (int i = 0; i < pool.size(); i++) {
+            ElementState s = pool.node(i).state;
+            if (s != null && s.seenFrame == frame && s.seenPass == pass) {
+                s.clicks = s.rightClicks = s.doubleClicks = 0;
+                s.pressPending = false;
+                s.changed = false;
+                s.dragX = s.dragY = 0;
+                s.keyCount = 0;
+            }
+        }
+    }
+
+    /** Passes the last frame built. */
+    public int passes() {
+        return passes;
+    }
+
+    /** Marks the pass as having reported input, so another pass shows its result. */
+    public void consume() {
+        consumed = true;
     }
 
     /**
@@ -91,8 +142,10 @@ public final class Engine {
      * then lets go of the states this frame did not build.
      */
     private void commit() {
+        hits.clear();
         for (int i = 0; i < pool.size(); i++) {
             Node n = pool.node(i);
+            hits.add(n.id, n.x, n.y, n.w, n.h, n.parent, n.flags);
             ElementState s = n.state;
             if (s != null) {
                 s.x = n.x;
@@ -106,6 +159,7 @@ public final class Engine {
             }
         }
         states.prune(frame, pass);
+        input.rehover();
     }
 
     /** The frame being built, or the last one built: 1 for the first. */
@@ -131,6 +185,94 @@ public final class Engine {
             s.locals = new java.util.HashMap<>();
         }
         return s.locals;
+    }
+
+    StateTable states() {
+        return states;
+    }
+
+    // Pointer input: on the main thread, between frames.
+
+    /** The pointer moved to (x, y), in DIPs from the window's top left. */
+    public void pointerMove(float x, float y, int mods) {
+        input.pointerMove(x, y, mods);
+    }
+
+    /** A button went down: 0 the primary, 1 the secondary; clickCount is the platform's. */
+    public void pointerDown(float x, float y, int button, int clickCount, int mods) {
+        input.pointerDown(x, y, button, clickCount, mods);
+    }
+
+    public void pointerUp(float x, float y, int button, int mods) {
+        input.pointerUp(x, y, button, mods);
+    }
+
+    /** The pointer left the window. */
+    public void pointerLeave() {
+        input.pointerLeave();
+    }
+
+    // Queries, for Element: during a build.
+
+    public boolean hovered(int index) {
+        Node n = pool.node(index);
+        n.flags |= Node.HOVER;
+        if (input.pressedId != 0 && input.pressedId != n.id) {
+            return input.hovered(n.id, state(index));
+        }
+        return input.hovered(n.id, null);
+    }
+
+    public boolean pressed(int index) {
+        Node n = pool.node(index);
+        n.flags |= Node.CLICKABLE | Node.HOVER;
+        ElementState s = state(index);
+        boolean p = input.pressed(s);
+        if (p && s.pressPending) {
+            consumed = true;
+        }
+        return p;
+    }
+
+    public int clicks(int index) {
+        pool.node(index).flags |= Node.CLICKABLE;
+        int k = state(index).clicks;
+        if (k > 0) {
+            consumed = true;
+        }
+        return k;
+    }
+
+    public boolean doubleClicked(int index) {
+        pool.node(index).flags |= Node.CLICKABLE;
+        boolean d = state(index).doubleClicks > 0;
+        consumed |= d;
+        return d;
+    }
+
+    public boolean rightClicked(int index) {
+        pool.node(index).flags |= Node.CLICKABLE;
+        boolean r = state(index).rightClicks > 0;
+        consumed |= r;
+        return r;
+    }
+
+    public float dragX(int index) {
+        pool.node(index).flags |= Node.DRAG;
+        float d = state(index).dragX;
+        consumed |= d != 0;
+        return d;
+    }
+
+    public float dragY(int index) {
+        pool.node(index).flags |= Node.DRAG;
+        float d = state(index).dragY;
+        consumed |= d != 0;
+        return d;
+    }
+
+    void requestFrame() {
+        requestFrame.run();
     }
 
     /** Element states kept now: for tests. */
@@ -254,7 +396,8 @@ public final class Engine {
         return pool.node(index);
     }
 
-    public void requestFrame() {
+    /** Asks the window for a frame. */
+    public void invalidate() {
         requestFrame.run();
     }
 

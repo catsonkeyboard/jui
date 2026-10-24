@@ -20,6 +20,7 @@ public final class Tester {
     private final Scene scene = new Scene();
     private final Engine engine;
     private boolean pending;
+    private boolean started;
 
     private Tester(View view, float width, float height) {
         this.view = view;
@@ -35,6 +36,7 @@ public final class Tester {
 
     /** Builds, lays out and paints a frame. */
     public void frame() {
+        started = true;
         pending = false;
         engine.buildAndLayout(view, width, height);
         scene.begin(2, text, atlas);
@@ -62,6 +64,90 @@ public final class Tester {
     /** What the frame painted, as GPU instances. */
     public int instances() {
         return scene.count();
+    }
+
+    // Input, as a user gives it: each runs frames until none is asked for (at most 20).
+
+    /** Moves the pointer onto the element showing or labeled s, then clicks it. */
+    public void click(String s) {
+        float[] p = center(s);
+        engine.pointerMove(p[0], p[1], 0);
+        settle();
+        clickAt(p[0], p[1], 0, 1);
+    }
+
+    /** Clicks the element twice, as a double click. */
+    public void doubleClick(String s) {
+        float[] p = center(s);
+        engine.pointerMove(p[0], p[1], 0);
+        settle();
+        clickAt(p[0], p[1], 0, 1);
+        clickAt(p[0], p[1], 0, 2);
+    }
+
+    /** Clicks the element with the secondary button. */
+    public void rightClick(String s) {
+        float[] p = center(s);
+        engine.pointerMove(p[0], p[1], 0);
+        settle();
+        clickAt(p[0], p[1], 1, 1);
+    }
+
+    /** Moves the pointer onto the element's center. */
+    public void hover(String s) {
+        float[] p = center(s);
+        move(p[0], p[1]);
+    }
+
+    /** Presses the primary button at (x, y), in DIPs. */
+    public void press(float x, float y) {
+        started();
+        engine.pointerDown(x, y, 0, 1, 0);
+        settle();
+    }
+
+    public void move(float x, float y) {
+        started();
+        engine.pointerMove(x, y, 0);
+        settle();
+    }
+
+    public void release(float x, float y) {
+        started();
+        engine.pointerUp(x, y, 0, 0);
+        settle();
+    }
+
+    private void clickAt(float x, float y, int button, int clickCount) {
+        engine.pointerDown(x, y, button, clickCount, 0);
+        settle();
+        engine.pointerUp(x, y, button, 0);
+        settle();
+    }
+
+    private float[] center(String s) {
+        started();
+        Rect r = find(s);
+        return new float[] {r.x() + r.width() / 2, r.y() + r.height() / 2};
+    }
+
+    /** Runs a first frame if none has run: input needs what a frame commits. */
+    private void started() {
+        if (!started) {
+            frame();
+        }
+    }
+
+    /** Runs frames while the view asks for them, at most 20. */
+    void settle() {
+        for (int i = 0; i < 20 && pending; i++) {
+            frame();
+        }
+    }
+
+    /** The engine under the tester: for tests that drive it directly. */
+    public Engine engine() {
+        return engine;
     }
 
     /** Whether the view asked for another frame since the last one began. */

@@ -333,6 +333,45 @@ public final class Element {
         return new Rect(s.x, s.y, s.w, s.h);
     }
 
+    /** Whether the pointer is over the element (held on it, while a button is down). */
+    public boolean hovered() {
+        return node() != null && c.engine().hovered(index);
+    }
+
+    /** Whether a button is held on the element, with the pointer still over it. */
+    public boolean pressed() {
+        return node() != null && c.engine().pressed(index);
+    }
+
+    /** Whether the element was clicked: pressed and released on it, or activated by the keyboard. */
+    public boolean clicked() {
+        return clicks() > 0;
+    }
+
+    /** How many clicks the element took since the last pass that built it. */
+    public int clicks() {
+        return node() == null ? 0 : c.engine().clicks(index);
+    }
+
+    /** Whether the element was double-clicked; its clicks are reported too. */
+    public boolean doubleClicked() {
+        return node() != null && c.engine().doubleClicked(index);
+    }
+
+    /** Whether the element was clicked with the secondary button (or control-click). */
+    public boolean rightClicked() {
+        return node() != null && c.engine().rightClicked(index);
+    }
+
+    /** How far the pointer moved across while held on the element, since the last pass. */
+    public float dragX() {
+        return node() == null ? 0 : c.engine().dragX(index);
+    }
+
+    public float dragY() {
+        return node() == null ? 0 : c.engine().dragY(index);
+    }
+
     /** The element's local state map, or null when this element is stale. */
     java.util.Map<String, Object> locals() {
         return node() == null ? null : c.engine().locals(index);

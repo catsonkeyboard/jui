@@ -13,6 +13,9 @@ public final class Node {
     public static final byte BOX = 0, TEXT = 1, SPACER = 2, DIVIDER = 3;
     public static final int NONE = -1;
 
+    // Flags: what input the element takes, set by the queries and controls that build it.
+    public static final int CLICKABLE = 1, FOCUSABLE = 2, HOVER = 4, DRAG = 8, TOGGLE = 16, KEYS = 32;
+
     // Structure.
     public long id;
     /** Unique to this node's current use: an Element made for an earlier use does not match it. */
@@ -22,6 +25,7 @@ public final class Node {
     public String label;
     /** The element's state, if it has one: looked up as the node opens, made when a query needs it. */
     public ElementState state;
+    public int flags;
     /**
      * The ui package's Element for this node, reused outside development
      * mode; it goes with the node when the pool lets the node's chunk go.
@@ -77,6 +81,7 @@ public final class Node {
         kind = BOX;
         label = null;
         state = null;
+        flags = 0;
 
         row = reverse = false;
         width = height = minWidth = maxWidth = minHeight = maxHeight = Float.NaN;

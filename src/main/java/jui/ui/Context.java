@@ -71,7 +71,7 @@ public final class Context {
 
     /** Asks for another frame. */
     public void invalidate() {
-        engine.requestFrame();
+        engine.invalidate();
     }
 
     Engine engine() {
