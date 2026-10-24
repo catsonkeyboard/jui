@@ -81,16 +81,21 @@ public final class FlexLayout {
             case CENTER -> offset = free / 2;
             case END -> offset = free;
             case SPACE_BETWEEN -> between = free > 0 && count > 1 ? free / (count - 1) : 0;
+            // Without room to share, these center, as CSS Flexbox §8.2 says.
             case SPACE_AROUND -> {
                 if (free > 0) {
                     between = free / count;
                     offset = between / 2;
+                } else {
+                    offset = free / 2;
                 }
             }
             case SPACE_EVENLY -> {
                 if (free > 0) {
                     between = free / (count + 1);
                     offset = between;
+                } else {
+                    offset = free / 2;
                 }
             }
             default -> { }

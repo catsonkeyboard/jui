@@ -54,6 +54,15 @@ public final class FlexLayoutTest {
         }
     }
 
+    public void testSpaceAroundAndEvenlyCenterWhenTheyOverflow() { // deferred minor: CSS Flexbox §8.2
+        for (Justify j : new Justify[] {Justify.SPACE_AROUND, Justify.SPACE_EVENLY}) {
+            e.buildAndLayout(c -> row(c).size(300, 50).justify(j).children(() -> {
+                box(c).size(180, 10).shrink(0).label("a"); box(c).size(180, 10).shrink(0).label("b"); }), 300, 50);
+            Check.near(-30, at("a").x()); // 60 too wide: half overflows each side
+            Check.near(150, at("b").x());
+        }
+    }
+
     public void testPaddingInsetsContent() {
         e.buildAndLayout(c -> column(c).size(200, 200).padding(10).children(() -> box(c).height(20).label("a")), 200, 200);
         Check.near(10, at("a").x()); Check.near(10, at("a").y()); Check.near(180, at("a").width());
