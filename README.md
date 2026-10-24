@@ -72,6 +72,40 @@
 - 拖动改变窗口大小时的同步呈现路径：代码已经写了，没有手动拖动测试过。
 - Intel Mac：GraalVM 的 FFM 不支持 macOS x64。
 
+## M1 分配实测（2026-10-24）
+
+设计文档第 8 节要求在写控件之前，先在 native image 上测清楚 UI API 每帧分配多少内存。`./build.sh alloc` 会把 `jui.spike.AllocSpike` 编译成 native image 运行，再在 JVM 上跑一次作为参照。
+
+测量方法：
+- 统计的是主线程分配的字节数（`ThreadMXBean.getCurrentThreadAllocatedBytes`，native image 里也能用）；
+- 每个场景先预热 2 万帧，再测 1000 帧，扣除空帧后取平均；
+- 每一帧都包括构建和布局。
+
+| 场景（单位：字节） | 第一次 native | 启用句柄复用后 native | JVM 参照 |
+|---|---|---|---|
+| 空帧（整帧） | 0 | 0 | 0 |
+| `Element` 句柄（每个元素） | 24 | **0** | 0 |
+| 捕获变量的 `children` lambda（每个容器） | 64 | 16 | 0 |
+| 临时 `BoolRef` 传给控件（每次） | 64 | 16 | 0 |
+| `key(long)`（每行） | 24 | 0 | 0 |
+| `key(Object)`，传入装箱的 Long（每行） | 24 | 0 | 24 |
+| 模拟外壳整帧（200 句柄 + 60 lambda 容器 + 10 临时引用 + 30 带 key 行） | 10000 | **1120** | 0 |
+
+原始输出：
+
+```
+ALLOC mode=native empty_frame=0 handles=24.0 lambdas=64.0 temprefs=64.0 key_long=24.0 key_object=24.0 shell_frame=10000
+ALLOC mode=native empty_frame=0 handles=0.0 lambdas=16.0 temprefs=16.0 key_long=0.0 key_object=0.0 shell_frame=1120
+ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=0.0 key_long=0.0 key_object=24.0 shell_frame=0
+```
+
+结论：
+
+- **GraalVM 社区版的 native image 消除不掉 `Element` 句柄**，每个元素 24 字节（HotSpot 的 C2 编译器能消掉）。所以按设计 7.1 的退路启用了句柄复用（`Context.POOLED_HANDLES`）：每个节点编号对应一个固定的 `Element` 对象，每帧更新它的代数。
+- **启用后，框架内部的分配为 0**，满足“不能产生和元素数量成正比的分配”。
+- **剩下的 16 字节都来自应用代码的写法**：捕获变量的 lambda，以及临时创建的引用对象。模拟外壳整帧 1120 字节，远低于 32 KB 的预算，**公开 API 不需要调整**。
+- **复用的代价**：构建结束后再使用 `Element`，仍然会被发现（开发模式下报错）；但如果把 `Element` 存起来，到后面的构建里再用，它可能指向这一帧同一编号上的另一个元素，开发模式也发现不了。所以不要把 `Element` 存进字段。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。

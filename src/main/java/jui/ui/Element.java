@@ -11,7 +11,8 @@ import jui.ui.engine.Node;
 public final class Element {
     final Context c;
     final int index;
-    final long gen;
+    /** The node's generation when this element was handed out; a pooled handle takes each new one. */
+    long gen;
 
     Element(Context c, int index, long gen) {
         this.c = c;

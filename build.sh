@@ -6,6 +6,7 @@
 #   ./build.sh bench [runs]       measure startup, memory and size: native image, JVM,
 #                                 and the same app in Objective-C (baseline/spike.m)
 #   ./build.sh test [Class[#m]]   run the tests in src/test/java
+#   ./build.sh alloc              measure per-frame allocation of the UI API (native and JVM)
 #
 # Needs GraalVM 25 (GRAALVM_HOME, or found in ~/Library/Java/JavaVirtualMachines)
 # and Xcode's Metal compiler.
@@ -48,14 +49,29 @@ compile() {
     -d build/classes $(find src/main/java -name '*.java')
 }
 
-build_native() {
-  compile
+# native_image MAIN OUT [flags...] builds the compiled classes into a native image.
+native_image() {
+  local main=$1 out=$2
+  shift 2
   "$GRAALVM_HOME/bin/native-image" \
     --enable-native-access=ALL-UNNAMED \
     --features=jui.ffi.NativeImageFeature \
     --initialize-at-build-time=jui.ffi.Sigs,jui.ffi.Native \
     -H:NativeLinkerOption=-mmacosx-version-min="$MACOS_MIN" \
-    -cp build/classes -o "$BIN" "$@" jui.spike.Main
+    -cp build/classes -o "$out" "$@" "$main"
+}
+
+build_native() {
+  compile
+  native_image jui.spike.Main "$BIN" "$@"
+}
+
+# alloc measures what frames of the UI API allocate, in a native image and on the JVM.
+alloc() {
+  compile
+  native_image jui.spike.AllocSpike build/alloc-spike > build/alloc-build.log
+  build/alloc-spike
+  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.AllocSpike
 }
 
 run_jvm() {
@@ -128,5 +144,6 @@ case "${1:-native}" in
   native) shift || true; build_native "$@" ;;
   bench) shift; bench "$@" ;;
   test) shift; run_tests "$@" ;;
-  *) echo "usage: $0 jvm|native|bench|test" >&2; exit 2 ;;
+  alloc) alloc ;;
+  *) echo "usage: $0 jvm|native|bench|test|alloc" >&2; exit 2 ;;
 esac
