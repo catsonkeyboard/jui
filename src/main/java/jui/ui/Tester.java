@@ -107,6 +107,13 @@ public final class Tester {
         move(p[0], p[1]);
     }
 
+    /** Switches the system's appearance to dark or light, as a user would. */
+    public void setDark(boolean dark) {
+        started();
+        engine.setDark(dark);
+        settle();
+    }
+
     /** Presses and releases the shortcut's key with its modifiers held. */
     public void key(Shortcut s) {
         started();

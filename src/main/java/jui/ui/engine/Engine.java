@@ -15,7 +15,7 @@ import jui.ui.View;
  */
 public final class Engine {
     private final TextEngine text;
-    private final Theme theme;
+    private Theme theme;
     private final Runnable requestFrame;
     private final NodePool pool = new NodePool();
     private final StateTable states = new StateTable();
@@ -414,6 +414,15 @@ public final class Engine {
     /** A key went down; Tab and the activation keys act at once. */
     public void keyDown(jui.ui.Key key, int mods, boolean repeat) {
         input.keyDown(key, mods, repeat);
+    }
+
+    /** Follows the system's appearance: the dark theme or the light one. Asks for a frame if it changed. */
+    public void setDark(boolean dark) {
+        Theme next = Theme.of(dark);
+        if (next != theme) {
+            theme = next;
+            requestFrame.run();
+        }
     }
 
     /** The modifier keys held changed; asks for no frame. */
