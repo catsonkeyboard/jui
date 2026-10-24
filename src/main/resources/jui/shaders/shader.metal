@@ -10,7 +10,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-// One instance per box, as jui.metal.Scene writes them (80 bytes).
+// One instance per box, as jui.render.Scene writes them (80 bytes).
 struct Inst {
     float4 rect;   // x, y, width, height in pixels
     float4 radii;  // top-left, top-right, bottom-right, bottom-left; a glyph's x, y in the atlas

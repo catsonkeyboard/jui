@@ -1,4 +1,4 @@
-package jui.metal;
+package jui.render.metal;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 
 import jui.ffi.Native;
 import jui.ffi.ObjC;
+import jui.render.Scene;
 import jui.text.GlyphAtlas;
 
 import static java.lang.foreign.ValueLayout.JAVA_BYTE;

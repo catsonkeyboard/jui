@@ -5,6 +5,7 @@
 #   ./build.sh native [flags...]  build the native image build/jui-spike
 #   ./build.sh bench [runs]       measure startup, memory and size: native image, JVM,
 #                                 and the same app in Objective-C (baseline/spike.m)
+#   ./build.sh test [Class[#m]]   run the tests in src/test/java
 #
 # Needs GraalVM 25 (GRAALVM_HOME, or found in ~/Library/Java/JavaVirtualMachines)
 # and Xcode's Metal compiler.
@@ -32,7 +33,7 @@ JAVA="$GRAALVM_HOME/bin/java"
 BIN=build/jui-spike
 # The oldest macOS the binary and the shader run on. Left alone, native-image
 # targets the macOS that builds it, and the binary would not open on older ones.
-MACOS_MIN=${MACOS_MIN:-13.0}
+MACOS_MIN=${MACOS_MIN:-14.0}
 
 compile() {
   rm -rf build/classes
@@ -59,6 +60,17 @@ build_native() {
 
 run_jvm() {
   "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.Main "$@"
+}
+
+# run_tests compiles the tests in src/test/java and runs them with the
+# zero-dependency runner; $1, if given, picks a class or a Class#method.
+run_tests() {
+  compile
+  rm -rf build/test-classes
+  mkdir -p build/test-classes
+  "$GRAALVM_HOME/bin/javac" -cp build/classes -d build/test-classes $(find src/test/java -name '*.java')
+  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -Djui.dev=true \
+    -cp build/classes:build/test-classes jui.testing.RunTests "$@"
 }
 
 # median reads numbers, one a line.
@@ -115,5 +127,6 @@ case "${1:-native}" in
   jvm) shift; compile; run_jvm "$@" ;;
   native) shift || true; build_native "$@" ;;
   bench) shift; bench "$@" ;;
-  *) echo "usage: $0 jvm|native|bench" >&2; exit 2 ;;
+  test) shift; run_tests "$@" ;;
+  *) echo "usage: $0 jvm|native|bench|test" >&2; exit 2 ;;
 esac

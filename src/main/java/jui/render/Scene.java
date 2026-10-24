@@ -1,4 +1,4 @@
-package jui.metal;
+package jui.render;
 
 import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
@@ -113,7 +113,7 @@ public final class Scene {
      * Writes up to {@code max} instances into {@code dst} in pixels, and
      * returns how many it wrote.
      */
-    int writeTo(MemorySegment dst, int max) {
+    public int writeTo(MemorySegment dst, int max) {
         int n = Math.min(count, max);
         for (int i = 0; i < n; i++) {
             int o = i * FLOATS;

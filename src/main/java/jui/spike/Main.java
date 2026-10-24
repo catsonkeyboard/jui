@@ -3,9 +3,9 @@ package jui.spike;
 import java.util.Arrays;
 
 import jui.ffi.Libc;
-import jui.mac.MacApp;
-import jui.mac.MacWindow;
-import jui.metal.Scene;
+import jui.platform.mac.MacApp;
+import jui.platform.mac.MacWindow;
+import jui.render.Scene;
 import jui.text.TextEngine;
 import jui.text.TextLayout;
 

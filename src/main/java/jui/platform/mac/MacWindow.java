@@ -1,4 +1,4 @@
-package jui.mac;
+package jui.platform.mac;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -8,8 +8,8 @@ import jui.ffi.Blocks;
 import jui.ffi.Libc;
 import jui.ffi.ObjC;
 import jui.ffi.ObjCClass;
-import jui.metal.MetalRenderer;
-import jui.metal.Scene;
+import jui.render.metal.MetalRenderer;
+import jui.render.Scene;
 import jui.text.TextEngine;
 
 import static jui.ffi.ObjC.send;

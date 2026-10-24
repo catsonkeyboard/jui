@@ -1,4 +1,4 @@
-package jui.mac;
+package jui.platform.mac;
 
 import jui.ffi.Libc;
 import jui.ffi.ObjC;
