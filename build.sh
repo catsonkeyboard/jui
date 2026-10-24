@@ -7,8 +7,8 @@
 #                                 and the same app in Objective-C (baseline/spike.m)
 #   ./build.sh test [Class[#m]]   run the tests in src/test/java
 #   ./build.sh alloc              measure per-frame allocation of the UI API (native and JVM)
-#   ./build.sh demo [args]        run the card example (UI API) on the JVM
-#   ./build.sh native-demo [args] build the card example into build/card-demo and run it
+#   ./build.sh demo [Name] [args]        run an example on the JVM: Card (default), Counter or Todo
+#   ./build.sh native-demo [Name] [args] build an example into build/<name>-demo and run it
 #
 # Needs GraalVM 25 (GRAALVM_HOME, or found in ~/Library/Java/JavaVirtualMachines)
 # and Xcode's Metal compiler.
@@ -68,17 +68,30 @@ build_native() {
   native_image jui.spike.Main "$BIN" "$@"
 }
 
-# demo runs the card example (jui.examples.CardDemo) on the JVM.
-demo() {
-  compile
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.examples.CardDemo "$@"
+# example_name prints the example's name (jui.examples.<Name>Demo): $1 if it
+# is not a flag, else Card.
+example_name() {
+  if [[ $# -gt 0 && "$1" != -* ]]; then echo "$1"; else echo Card; fi
 }
 
-# native_demo builds the card example into build/card-demo and runs it.
+# demo runs an example on the JVM.
+demo() {
+  compile
+  local name
+  name=$(example_name "$@")
+  if [[ $# -gt 0 && "$1" != -* ]]; then shift; fi
+  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes "jui.examples.${name}Demo" "$@"
+}
+
+# native_demo builds an example into build/<name>-demo and runs it.
 native_demo() {
   compile
-  native_image jui.examples.CardDemo build/card-demo > build/card-demo-build.log
-  build/card-demo "$@"
+  local name lower
+  name=$(example_name "$@")
+  if [[ $# -gt 0 && "$1" != -* ]]; then shift; fi
+  lower=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+  native_image "jui.examples.${name}Demo" "build/${lower}-demo" > "build/${lower}-demo-build.log"
+  "build/${lower}-demo" "$@"
 }
 
 # alloc measures what frames of the UI API allocate, in a native image and on the JVM.
