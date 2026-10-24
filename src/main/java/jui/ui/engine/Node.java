@@ -30,6 +30,10 @@ public final class Node {
     public boolean disabled;
     /** The element's own opacity, 0 to 1; paint multiplies the ancestors'. */
     public float opacity;
+    /** No focus ring when this element has focus (a control draws its own on a part of it). */
+    public boolean noFocusRing;
+    /** Draws the focus ring around this node: the part of a control that shows its focus. */
+    public boolean ring;
     /**
      * The ui package's Element for this node, reused outside development
      * mode; it goes with the node when the pool lets the node's chunk go.
@@ -88,6 +92,8 @@ public final class Node {
         flags = 0;
         disabled = false;
         opacity = 1;
+        noFocusRing = false;
+        ring = false;
 
         row = reverse = false;
         width = height = minWidth = maxWidth = minHeight = maxHeight = Float.NaN;

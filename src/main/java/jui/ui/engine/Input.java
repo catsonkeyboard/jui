@@ -32,6 +32,16 @@ final class Input {
 
     private int[][] scratch = {new int[16]};
 
+    // Focus: the focused identity (0 for none), whether its ring shows, and the window's key state.
+    long focusedId;
+    boolean focusVisible;
+    boolean windowFocused = true;
+    /** Committed by the last frame: focusable, enabled identities in order, and the focus chain. */
+    long[] focusOrder = new long[16];
+    int focusCount;
+    long[] focusChain = new long[16];
+    int focusChainCount;
+
     Input(Engine engine, HitList hits) {
         this.engine = engine;
         this.hits = hits;
@@ -60,6 +70,20 @@ final class Input {
         place(x, y, mods);
         if (pressedId == 0) {
             rehover();
+        }
+        if (button == 0) {
+            // Focus goes to the innermost enabled focusable element under the pointer, or nowhere.
+            long focus = 0;
+            for (int k = 0; k < hoverCount; k++) {
+                if ((hoverFlags[k] & Node.FOCUSABLE) != 0 && (hoverFlags[k] & HitList.DISABLED) == 0) {
+                    focus = hoverIds[k];
+                    break;
+                }
+            }
+            if (focus != focusedId) {
+                focusedId = focus;
+                focusVisible = false;
+            }
         }
         int target = -1;
         for (int k = 0; k < hoverCount; k++) {
@@ -120,6 +144,80 @@ final class Input {
                 engine.requestFrame();
             }
         }
+    }
+
+    /** A key went down. Tab and the activation keys act at once; the rest wait for shortcuts. */
+    void keyDown(jui.ui.Key key, int mods, boolean repeat) {
+        this.mods = mods;
+        if (key == jui.ui.Key.TAB && (mods == 0 || mods == jui.ui.Mod.SHIFT)) {
+            moveFocus(mods == 0);
+            return;
+        }
+        if ((key == jui.ui.Key.ENTER || key == jui.ui.Key.SPACE) && mods == 0 && focusedId != 0) {
+            int i = hits.indexOf(focusedId);
+            if (i >= 0 && (hits.flags[i] & Node.CLICKABLE) != 0 && (hits.flags[i] & HitList.DISABLED) == 0) {
+                stateAt(i).clicks++;
+                focusVisible = true;
+                engine.requestFrame();
+            }
+        }
+    }
+
+    /** Tab and Shift+Tab: the next or previous focusable element, around the end. */
+    private void moveFocus(boolean forward) {
+        if (focusCount == 0) {
+            return;
+        }
+        int at = -1;
+        for (int k = 0; k < focusCount; k++) {
+            if (focusOrder[k] == focusedId) {
+                at = k;
+                break;
+            }
+        }
+        int next = at < 0 ? (forward ? 0 : focusCount - 1) : (at + (forward ? 1 : focusCount - 1)) % focusCount;
+        focusedId = focusOrder[next];
+        focusVisible = true;
+        engine.requestFrame();
+    }
+
+    void windowFocusChanged(boolean focused) {
+        windowFocused = focused;
+        engine.requestFrame();
+    }
+
+    /** Commits the focus order and the focus chain from the hit list just committed. */
+    void commitFocus() {
+        focusCount = 0;
+        focusChainCount = 0;
+        int focused = -1;
+        for (int i = 0; i < hits.size; i++) {
+            int f = hits.flags[i];
+            if ((f & Node.FOCUSABLE) != 0 && (f & HitList.DISABLED) == 0) {
+                if (focusCount == focusOrder.length) {
+                    focusOrder = Arrays.copyOf(focusOrder, focusCount * 2);
+                }
+                focusOrder[focusCount++] = hits.ids[i];
+            }
+            if (focusedId != 0 && hits.ids[i] == focusedId) {
+                focused = i;
+            }
+        }
+        for (int i = focused; i >= 0; i = hits.parent[i]) {
+            if (focusChainCount == focusChain.length) {
+                focusChain = Arrays.copyOf(focusChain, focusChainCount * 2);
+            }
+            focusChain[focusChainCount++] = hits.ids[i];
+        }
+    }
+
+    boolean inFocusChain(long id) {
+        for (int k = 0; k < focusChainCount; k++) {
+            if (focusChain[k] == id) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Queries, for the frame being built.

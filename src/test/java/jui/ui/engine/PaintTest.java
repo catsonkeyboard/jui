@@ -5,6 +5,9 @@ import jui.testing.Check;
 import jui.text.GlyphAtlas;
 import jui.text.TextEngine;
 import jui.ui.Color;
+import jui.ui.Key;
+import jui.ui.Shortcut;
+import jui.ui.Tester;
 import jui.ui.Theme;
 
 import static jui.ui.Ui.box;
@@ -87,5 +90,15 @@ public final class PaintTest {
         e.buildAndLayout(c -> box(c).opacity(0.5f).children(() ->
                 box(c).size(50, 50).opacity(0.8f).background(Color.rgb(0xFF0000))), 200, 100);
         Check.near(0.4, paint(1).instance(0)[11], 1e-3);
+    }
+
+    public void testFocusRingAfterTab() {
+        Tester tt = Tester.of(c -> column(c).padding(20).children(() -> box(c).size(80, 30).radius(4).focusable()), 200, 100);
+        tt.key(Shortcut.of(Key.TAB));
+        float[] ring = tt.scene().instance(tt.instances() - 1);
+        Check.near(17, ring[0]); Check.near(17, ring[1]); Check.near(86, ring[2]); Check.near(36, ring[3]);
+        Check.near(7, ring[4]);                  // radius 4 + 3
+        Check.near(2, ring[16]);                 // stroke
+        Check.near(0, ring[11]);                 // no fill
     }
 }

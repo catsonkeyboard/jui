@@ -51,6 +51,41 @@ public final class Element {
         return this;
     }
 
+    /** Lets the element take focus: by a click, by Tab, or by a {@link Handle}. */
+    public Element focusable() {
+        Node n = node();
+        if (n != null) {
+            n.flags |= Node.FOCUSABLE;
+        }
+        return this;
+    }
+
+    /** Takes focus as the element appears, as the first field of a dialog does. */
+    public Element autoFocus() {
+        if (node() != null) {
+            c.engine().autoFocus(index);
+        }
+        return this;
+    }
+
+    /** Binds the handle to this element, for this build: call it on every build. */
+    public Element bind(Handle handle) {
+        Node n = node();
+        if (n != null) {
+            handle.bind(c.engine(), n.id);
+        }
+        return this;
+    }
+
+    /** Whether the element shows a focus ring when it has focus from the keyboard (it does by default). */
+    public Element focusRing(boolean show) {
+        Node n = node();
+        if (n != null) {
+            n.noFocusRing = !show;
+        }
+        return this;
+    }
+
     /** Runs action once this pass's view is built, if the element was clicked. */
     public Element onClick(Runnable action) {
         if (node() != null) {
@@ -401,6 +436,21 @@ public final class Element {
 
     public float dragY() {
         return node() == null ? 0 : c.engine().dragY(index);
+    }
+
+    /** Whether the element has focus, in a focused window. */
+    public boolean focused() {
+        return node() != null && c.engine().focused(index);
+    }
+
+    /** Whether the element has focus that came from the keyboard, so its ring shows. */
+    public boolean focusVisible() {
+        return node() != null && c.engine().focusVisible(index);
+    }
+
+    /** Whether the element or one inside it had focus in the last frame. */
+    public boolean focusWithin() {
+        return node() != null && c.engine().focusWithin(index);
     }
 
     /** The element's local state map, or null when this element is stale. */

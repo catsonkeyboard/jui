@@ -16,7 +16,7 @@ final class Paint {
      * at its outermost disabled node.
      */
     static void paint(NodePool pool, int index, Scene scene, Theme theme, float parentOpacity,
-                      boolean parentDisabled) {
+                      boolean parentDisabled, long ringId) {
         Node n = pool.node(index);
         float o = parentOpacity * n.opacity * (n.disabled && !parentDisabled ? 0.5f : 1);
         int shadowColor = fade(n.shadowColor, o), background = fade(n.background, o);
@@ -39,7 +39,13 @@ final class Paint {
             scene.text(n.layout, n.x + n.padLeft + n.border, n.y + n.padTop + n.border, fade(n.resolvedColor, o));
         }
         for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
-            paint(pool, c, scene, theme, o, n.disabled);
+            paint(pool, c, scene, theme, o, n.disabled, ringId);
+        }
+        // The focus ring goes over the children: 3 DIPs out, 2 wide (as MyGO's paint.go).
+        if (n.ring || ringId != 0 && n.id == ringId && !n.noFocusRing) {
+            scene.box(n.x - 3, n.y - 3, n.w + 6, n.h + 6, Math.min(n.radiusTL, half) + 3,
+                    Math.min(n.radiusTR, half) + 3, Math.min(n.radiusBR, half) + 3, Math.min(n.radiusBL, half) + 3,
+                    0, 2, fade(theme.focusRing().rgba(), o));
         }
     }
 

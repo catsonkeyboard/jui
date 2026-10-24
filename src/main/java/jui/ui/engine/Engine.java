@@ -34,6 +34,8 @@ public final class Engine {
     /** Whether the pass being built reported input or ran a callback, so another pass must show it. */
     private boolean consumed;
     private int passes;
+    /** A focus asked for (by a Handle or autoFocus), applied after a pass that builds it enabled. */
+    private long focusRequest;
 
     // The build in progress.
     private boolean building;
@@ -112,12 +114,38 @@ public final class Engine {
             building = false;
             parent = Node.NONE;
         }
+        applyFocusRequest();
         // Callbacks run once the whole view is built, so they may change what it iterated.
         try {
             consumed |= clickActions.run(pool);
         } finally {
             clickActions.clear();
         }
+    }
+
+    /** Gives focus to the element asked for, if this pass built it enabled; else the request waits. */
+    private void applyFocusRequest() {
+        if (focusRequest == 0) {
+            return;
+        }
+        for (int i = 0; i < pool.size(); i++) {
+            Node n = pool.node(i);
+            if (n.id == focusRequest) {
+                if (!n.disabled) {
+                    if (input.focusedId != focusRequest) {
+                        input.focusedId = focusRequest;
+                        consumed = true;
+                    }
+                    focusRequest = 0;
+                }
+                return;
+            }
+        }
+    }
+
+    /** Asks for focus on identity id: see {@link #applyFocusRequest}. */
+    public void requestFocus(long id) {
+        focusRequest = id;
     }
 
     /** Runs action once this pass's view is built: the node was clicked. */
@@ -173,6 +201,7 @@ public final class Engine {
             }
         }
         states.prune(frame, pass);
+        input.commitFocus();
         input.rehover();
     }
 
@@ -291,6 +320,53 @@ public final class Engine {
         return d;
     }
 
+    // Focus.
+
+    /** Whether identity id has focus, in a focused window. */
+    public boolean focused(long id) {
+        return id != 0 && input.focusedId == id && input.windowFocused;
+    }
+
+    public boolean focused(int index) {
+        return focused(pool.node(index).id);
+    }
+
+    public boolean focusVisible(int index) {
+        return focused(index) && input.focusVisible;
+    }
+
+    /** Whether the node or one inside it had focus in the last frame. */
+    public boolean focusWithin(int index) {
+        return input.windowFocused && input.inFocusChain(pool.node(index).id);
+    }
+
+    /** Asks for focus on the node if its element appears in this frame. */
+    public void autoFocus(int index) {
+        if (state(index).born == frame) {
+            focusRequest = pool.node(index).id;
+        }
+    }
+
+    /** Whether the element showing or labeled s, or one around it, has focus: for Tester. */
+    public boolean focusIn(String s) {
+        for (int i = find(s); i != Node.NONE; i = pool.node(i).parent) {
+            if (focused(pool.node(i).id)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A key went down; Tab and the activation keys act at once. */
+    public void keyDown(jui.ui.Key key, int mods, boolean repeat) {
+        input.keyDown(key, mods, repeat);
+    }
+
+    /** The window became, or stopped being, the key window. */
+    public void windowFocusChanged(boolean focused) {
+        input.windowFocusChanged(focused);
+    }
+
     void requestFrame() {
         requestFrame.run();
     }
@@ -303,7 +379,8 @@ public final class Engine {
     /** Paints the last layout into scene, which the caller began at its scale. */
     public void paint(jui.render.Scene scene) {
         if (pool.size() > 0) {
-            Paint.paint(pool, 0, scene, theme, 1, false);
+            long ring = input.focusVisible && input.windowFocused ? input.focusedId : 0;
+            Paint.paint(pool, 0, scene, theme, 1, false, ring);
         }
     }
 

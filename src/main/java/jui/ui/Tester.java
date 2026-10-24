@@ -64,6 +64,11 @@ public final class Tester {
         return r;
     }
 
+    /** What the last frame painted. */
+    public Scene scene() {
+        return scene;
+    }
+
     /** What the frame painted, as GPU instances. */
     public int instances() {
         return scene.count();
@@ -100,6 +105,20 @@ public final class Tester {
     public void hover(String s) {
         float[] p = center(s);
         move(p[0], p[1]);
+    }
+
+    /** Presses and releases the shortcut's key with its modifiers held. */
+    public void key(Shortcut s) {
+        started();
+        engine.keyDown(s.key(), s.mods(), false);
+        settle();
+    }
+
+    /** Whether the element showing or labeled s, or one around it, has focus. */
+    public boolean focused(String s) {
+        started();
+        find(s);
+        return engine.focusIn(s);
     }
 
     /** Presses the primary button at (x, y), in DIPs. */
