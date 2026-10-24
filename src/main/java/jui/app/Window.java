@@ -1,5 +1,6 @@
 package jui.app;
 
+import jui.platform.mac.MacApp;
 import jui.platform.mac.MacWindow;
 import jui.ui.Theme;
 import jui.ui.View;
@@ -30,8 +31,12 @@ public final class Window {
         return new Window(options);
     }
 
-    /** Asks for a frame (main thread). */
+    /** Asks for a frame; any thread may call it. */
     public void invalidate() {
+        if (!MacApp.onMainThread()) {
+            MacApp.post(this::invalidate);
+            return;
+        }
         if (mac != null) {
             mac.requestFrame();
         }

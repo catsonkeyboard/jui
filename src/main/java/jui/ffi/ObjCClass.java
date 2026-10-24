@@ -5,7 +5,7 @@ import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
 import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
@@ -50,16 +50,16 @@ public final class ObjCClass {
         return MethodHandles.lookup().findStatic(ObjCClass.class, TARGET_NAMES[i], TARGET_SIGS[i].toMethodType());
     }
 
-    // Handlers by selector. All calls come on the main thread.
-    private static final Map<Long, Void0> VOID0 = new HashMap<>();
-    private static final Map<Long, Bool0> BOOL0 = new HashMap<>();
-    private static final Map<Long, Void1> VOID1 = new HashMap<>();
-    private static final Map<Long, Bool1> BOOL1 = new HashMap<>();
-    private static final Map<Long, VoidSize> VOID_SIZE = new HashMap<>();
+    // Handlers by selector: classes may be defined on any thread, their methods called on the main one.
+    private static final Map<Long, Void0> VOID0 = new ConcurrentHashMap<>();
+    private static final Map<Long, Bool0> BOOL0 = new ConcurrentHashMap<>();
+    private static final Map<Long, Void1> VOID1 = new ConcurrentHashMap<>();
+    private static final Map<Long, Bool1> BOOL1 = new ConcurrentHashMap<>();
+    private static final Map<Long, VoidSize> VOID_SIZE = new ConcurrentHashMap<>();
 
     private static final MemorySegment[] STUBS = new MemorySegment[TARGET_NAMES.length];
 
-    private static MemorySegment stub(int i) {
+    private static synchronized MemorySegment stub(int i) {
         if (STUBS[i] == null) {
             try {
                 STUBS[i] = ObjC.LINKER.upcallStub(target(i), TARGET_SIGS[i], Arena.global());
