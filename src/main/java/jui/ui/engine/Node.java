@@ -52,6 +52,10 @@ public final class Node {
     public TextLayout layout;
     public int resolvedColor;
 
+    // Layout's scratch while it resolves this node's size in its parent.
+    float flexBasis, flexTarget, crossSize, violation;
+    boolean frozen;
+
     /** Back to the defaults, for a new use; the generation is the pool's to set. */
     public void reset() {
         id = 0;

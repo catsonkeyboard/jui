@@ -19,6 +19,7 @@ public final class Engine {
     private final Runnable requestFrame;
     private final NodePool pool = new NodePool();
     private final Context context;
+    private final FlexLayout layout = new FlexLayout(pool, this::measure);
 
     // The build in progress.
     private boolean building;
@@ -68,6 +69,13 @@ public final class Engine {
             building = false;
             parent = Node.NONE;
         }
+        layout.layout(root, width, height);
+    }
+
+    /** Measures a node's own content: nothing but text has any. */
+    private void measure(int index, float maxWidth, float[] out) {
+        out[0] = 0;
+        out[1] = 0;
     }
 
     // Building, for the ui package.

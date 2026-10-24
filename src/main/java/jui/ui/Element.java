@@ -36,6 +36,201 @@ public final class Element {
         return this;
     }
 
+    // Layout, as CSS flexbox. Lengths are in DIPs.
+
+    public Element width(float w) {
+        Node n = node();
+        if (n != null) {
+            n.width = w;
+        }
+        return this;
+    }
+
+    public Element height(float h) {
+        Node n = node();
+        if (n != null) {
+            n.height = h;
+        }
+        return this;
+    }
+
+    public Element size(float w, float h) {
+        return width(w).height(h);
+    }
+
+    public Element minWidth(float w) {
+        Node n = node();
+        if (n != null) {
+            n.minWidth = w;
+        }
+        return this;
+    }
+
+    public Element maxWidth(float w) {
+        Node n = node();
+        if (n != null) {
+            n.maxWidth = w;
+        }
+        return this;
+    }
+
+    public Element minHeight(float h) {
+        Node n = node();
+        if (n != null) {
+            n.minHeight = h;
+        }
+        return this;
+    }
+
+    public Element maxHeight(float h) {
+        Node n = node();
+        if (n != null) {
+            n.maxHeight = h;
+        }
+        return this;
+    }
+
+    /** A share of the parent's content width, from 0 to 100. */
+    public Element widthPercent(float percent) {
+        Node n = node();
+        if (n != null) {
+            n.widthPercent = percent;
+        }
+        return this;
+    }
+
+    public Element heightPercent(float percent) {
+        Node n = node();
+        if (n != null) {
+            n.heightPercent = percent;
+        }
+        return this;
+    }
+
+    /** Takes the parent's whole content box. */
+    public Element fill() {
+        return widthPercent(100).heightPercent(100);
+    }
+
+    public Element fillWidth() {
+        return widthPercent(100);
+    }
+
+    public Element fillHeight() {
+        return heightPercent(100);
+    }
+
+    /** Takes a share of the free space along the parent's direction, as CSS's flex: g. */
+    public Element grow(float g) {
+        Node n = node();
+        if (n != null) {
+            n.grow = g;
+        }
+        return this;
+    }
+
+    public Element shrink(float s) {
+        Node n = node();
+        if (n != null) {
+            n.shrink = s;
+        }
+        return this;
+    }
+
+    public Element basis(float b) {
+        Node n = node();
+        if (n != null) {
+            n.basis = b;
+        }
+        return this;
+    }
+
+    /** Spaces the children apart. */
+    public Element gap(float g) {
+        Node n = node();
+        if (n != null) {
+            n.gap = g;
+        }
+        return this;
+    }
+
+    public Element padding(float all) {
+        return padding(all, all, all, all);
+    }
+
+    public Element padding(float vertical, float horizontal) {
+        return padding(vertical, horizontal, vertical, horizontal);
+    }
+
+    public Element padding(float top, float right, float bottom, float left) {
+        Node n = node();
+        if (n != null) {
+            n.padTop = top;
+            n.padRight = right;
+            n.padBottom = bottom;
+            n.padLeft = left;
+        }
+        return this;
+    }
+
+    /** Margins take {@link Ui#AUTO}, which takes the free space on its side. */
+    public Element margin(float all) {
+        return margin(all, all, all, all);
+    }
+
+    public Element margin(float vertical, float horizontal) {
+        return margin(vertical, horizontal, vertical, horizontal);
+    }
+
+    public Element margin(float top, float right, float bottom, float left) {
+        Node n = node();
+        if (n != null) {
+            n.marTop = top;
+            n.marRight = right;
+            n.marBottom = bottom;
+            n.marLeft = left;
+        }
+        return this;
+    }
+
+    public Element justify(Justify j) {
+        Node n = node();
+        if (n != null) {
+            n.justify = j;
+        }
+        return this;
+    }
+
+    public Element alignItems(Align a) {
+        Node n = node();
+        if (n != null) {
+            n.alignItems = a;
+        }
+        return this;
+    }
+
+    public Element alignSelf(Align a) {
+        Node n = node();
+        if (n != null) {
+            n.alignSelf = a;
+        }
+        return this;
+    }
+
+    /** Centers the children both ways. */
+    public Element center() {
+        return justify(Justify.CENTER).alignItems(Align.CENTER);
+    }
+
+    /** Lays the children out from the other end: the right of a row, the bottom of a column. */
+    public Element reverse() {
+        Node n = node();
+        if (n != null) {
+            n.reverse = true;
+        }
+        return this;
+    }
+
     /** The node, or null when this element is stale. */
     Node node() {
         if (c.engine().valid(index, gen)) {
