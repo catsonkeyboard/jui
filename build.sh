@@ -7,6 +7,8 @@
 #                                 and the same app in Objective-C (baseline/spike.m)
 #   ./build.sh test [Class[#m]]   run the tests in src/test/java
 #   ./build.sh alloc              measure per-frame allocation of the UI API (native and JVM)
+#   ./build.sh demo [args]        run the card example (UI API) on the JVM
+#   ./build.sh native-demo [args] build the card example into build/card-demo and run it
 #
 # Needs GraalVM 25 (GRAALVM_HOME, or found in ~/Library/Java/JavaVirtualMachines)
 # and Xcode's Metal compiler.
@@ -64,6 +66,19 @@ native_image() {
 build_native() {
   compile
   native_image jui.spike.Main "$BIN" "$@"
+}
+
+# demo runs the card example (jui.examples.CardDemo) on the JVM.
+demo() {
+  compile
+  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.examples.CardDemo "$@"
+}
+
+# native_demo builds the card example into build/card-demo and runs it.
+native_demo() {
+  compile
+  native_image jui.examples.CardDemo build/card-demo > build/card-demo-build.log
+  build/card-demo "$@"
 }
 
 # alloc measures what frames of the UI API allocate, in a native image and on the JVM.
@@ -145,5 +160,7 @@ case "${1:-native}" in
   bench) shift; bench "$@" ;;
   test) shift; run_tests "$@" ;;
   alloc) alloc ;;
-  *) echo "usage: $0 jvm|native|bench|test|alloc" >&2; exit 2 ;;
+  demo) shift; demo "$@" ;;
+  native-demo) shift; native_demo "$@" ;;
+  *) echo "usage: $0 jvm|native|bench|test|alloc|demo|native-demo" >&2; exit 2 ;;
 esac

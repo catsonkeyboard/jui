@@ -72,6 +72,45 @@
 - 拖动改变窗口大小时的同步呈现路径：代码已经写了，没有手动拖动测试过。
 - Intel Mac：GraalVM 的 FFM 不支持 macOS x64。
 
+## M1：即时模式 API 骨架（2026-10-25）
+
+按[设计文档](docs/design/2026-10-24-ui-api-design.md)和 [M1 计划](docs/plans/2026-10-24-m1-engine-skeleton.md)实现了 MyGO 风格 API 的骨架，包括：
+- `Context`、`Element`、节点池、身份和 key；
+- `box`、`row`、`column`、`spacer`、`divider`、`text`；
+- 不含换行和绝对定位的 flexbox；
+- 绘制到 `Scene`、按需出帧；
+- `Tester`，以及 `App` 和 `Window`。
+
+验收示例 `jui.examples.CardDemo` 用新 API 重写了原型的卡片，在 native image 下的画面如下：
+
+![M1 卡片示例](docs/m1-card.png)
+
+写法和 MyGO 一一对应（节选）：
+
+```java
+public static void view(Context c) {
+    box(c).fill().background(PAGE).padding(32).children(() ->
+        column(c).grow(1).background(WHITE).border(1, CARD_BORDER).radius(16)
+            .shadow(0, 8, 24, 0, CARD_SHADOW).padding(26, 32, 32, 32).children(() -> {
+                text(c, "j-ui 文字渲染").fontSize(26).bold().textColor(INK);
+                text(c, PARAGRAPH).fontSize(16).textColor(BODY).margin(16, 0, 0, 0);
+                ...
+                spacer(c);
+                row(c).gap(16).children(() -> {
+                    button(c, "确定 OK", ACCENT, null, WHITE).shadow(0, 4, 12, 0, ACCENT_SHADOW);
+                    button(c, "取消 Cancel", WHITE, BUTTON_BORDER, INK);
+                    spacer(c);
+                    box(c).size(44, 44).radius(22).background(ROSE);
+                });
+            }));
+}
+```
+
+- 测试：`./build.sh test`，37 个测试全部通过，用的是仓库里的零依赖运行器。
+- 运行：`./build.sh demo`（JVM）或 `./build.sh native-demo`（native image）。
+- native image 下：体积 12.8 MB，空闲内存 45.2 MB。
+- 分配：句柄复用后，框架内部每帧不分配，详见下一节。
+
 ## M1 分配实测（2026-10-24）
 
 设计文档第 8 节要求在写控件之前，先在 native image 上测清楚 UI API 每帧分配多少内存。`./build.sh alloc` 会把 `jui.spike.AllocSpike` 编译成 native image 运行，再在 JVM 上跑一次作为参照。
@@ -111,10 +150,13 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=0.0 key_long=0.0 k
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
 
 ```bash
-./build.sh jvm             # 在 JVM 上运行（开发时用）
-./build.sh native          # 编译 native image：build/jui-spike
-./build/jui-spike          # 运行 native image
-./build.sh bench 10        # 测启动时间、内存和体积（每种模式跑 10 次取中位数）
+./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
+./build.sh demo            # 用新 API 写的卡片示例，在 JVM 上运行
+./build.sh native-demo     # 同上，编译成 native image（build/card-demo）后运行
+./build.sh alloc           # 实测 UI API 每帧的分配（native image 和 JVM）
+./build.sh jvm             # 原型，在 JVM 上运行
+./build.sh native          # 原型，编译成 native image：build/jui-spike
+./build.sh bench 10        # 原型的启动时间、内存和体积（每种模式跑 10 次取中位数）
 ```
 
 ## 代码结构
@@ -128,14 +170,24 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=0.0 key_long=0.0 k
 | `jui/ffi/Blocks.java` | 在原生内存里手工构造 Objective-C block，由 Java 实现 | `objc.NewBlock` |
 | `jui/ffi/Libc.java` | 计时用的 libc 函数：进程启动时间、是否在主线程 | — |
 | `jui/ffi/NativeImageFeature.java` | 告诉 native-image 要登记的签名、回调目标和资源 | — |
-| `jui/mac/MacApp.java` | NSApplication、菜单、应用代理 | `internal/darwin/app.go` |
-| `jui/mac/MacWindow.java` | 窗口和自绘视图（layer-backed NSView + `updateLayer`） | `internal/darwin/surface.go` |
+| `jui/platform/mac/MacApp.java` | NSApplication、菜单、应用代理 | `internal/darwin/app.go` |
+| `jui/platform/mac/MacWindow.java` | 窗口和自绘视图（layer-backed NSView + `updateLayer`） | `internal/darwin/surface.go` |
 | `jui/text/CoreText.java` | Core Foundation、Core Text、Core Graphics 的 FFM 绑定 | `internal/text/coretext_darwin.go` |
 | `jui/text/TextEngine.java` | 排版（typesetter、字体回退、断行）和字形光栅化 | 同上 |
 | `jui/text/TextLayout.java` | 排版结果：每个字形的字体、编号、位置 | `internal/text/layout.go` |
 | `jui/text/GlyphAtlas.java` | 字形图集：货架式打包、记录改动区域 | `internal/scene` 的图集 |
-| `jui/metal/MetalRenderer.java` | CAMetalLayer、预编译着色器库、图集纹理、实例化绘制 | `internal/gpu/metal/metal.go` |
-| `jui/metal/Scene.java` | 一帧要画的方框、阴影和字形，每个 80 字节 | `internal/scene` |
+| `jui/render/metal/MetalRenderer.java` | CAMetalLayer、预编译着色器库、图集纹理、实例化绘制 | `internal/gpu/metal/metal.go` |
+| `jui/render/Scene.java` | 一帧要画的方框、阴影和字形，每个 80 字节 | `internal/scene` |
 | `resources/jui/shaders/shader.metal` | 距离场画圆角矩形、边框和阴影，按像素读图集画字形 | `internal/gpu/metal/shader.metal` |
 | `jui/spike/Main.java` | 演示窗口、启动计时和文字统计 | — |
+| `jui/spike/AllocSpike.java` | 在 native image 上实测 UI API 每帧的分配 | — |
 | `baseline/spike.m` | 对照组：同样的窗口和方框用 Objective-C 写，按同样口径计时 | — |
+| `jui/ui/{Ui,Context,Element,View}.java` | 公开 API：控件静态函数、每个窗口一个的上下文、元素句柄 | `ui` 包 |
+| `jui/ui/{Color,Theme,Align,Justify,Rect,BoolRef}.java` | 公开的值类型和引用对象 | 同上 |
+| `jui/ui/Tester.java` | 不开窗口测试视图 | `ui.Tester` |
+| `jui/ui/engine/{Engine,Node,NodePool,Identity,Dev}.java` | 每帧流程、节点池、身份、开发模式检查 | `ui/runtime.go` 等 |
+| `jui/ui/engine/FlexLayout.java` | flexbox（单行，CSS §9 的算法） | `ui/layout.go` |
+| `jui/ui/engine/Paint.java` | 把节点树绘制到 `Scene` | `ui` 的绘制 |
+| `jui/app/{App,Window,WindowOptions}.java` | 应用和窗口 | `mygo.App`、`mygo.NewWindow` |
+| `jui/examples/CardDemo.java` | M1 验收示例 | — |
+| `src/test/java/jui/testing/` | 零依赖的断言和测试运行器 | — |
