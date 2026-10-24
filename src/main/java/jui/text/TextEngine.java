@@ -237,14 +237,23 @@ public final class TextEngine {
 
     /** The shade of text of an sRGB color 0xRRGGBBAA: its luminance rounded to a quarter, at most 3/4. */
     public static int shadeOf(int rgba) {
-        double y = 0.2126 * linear((rgba >>> 24) & 0xFF) + 0.7152 * linear((rgba >>> 16) & 0xFF)
-                + 0.0722 * linear((rgba >>> 8) & 0xFF);
+        double y = 0.2126 * LINEAR[(rgba >>> 24) & 0xFF] + 0.7152 * LINEAR[(rgba >>> 16) & 0xFF]
+                + 0.0722 * LINEAR[(rgba >>> 8) & 0xFF];
         return (int) Math.min(y * SHADES + 0.5, SHADES - 1);
     }
 
-    private static double linear(int v) {
-        double c = v / 255.0;
-        return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    /**
+     * sRGB values in linear light, as MyGO tabulates them: every text a
+     * frame paints asks, and Math.pow allocates in a native image (216 bytes
+     * for the three of a shade, measured).
+     */
+    private static final double[] LINEAR = new double[256];
+
+    static {
+        for (int v = 0; v < 256; v++) {
+            double c = v / 255.0;
+            LINEAR[v] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        }
     }
 
     /** The gray that font smoothing fills glyphs of a shade with. */

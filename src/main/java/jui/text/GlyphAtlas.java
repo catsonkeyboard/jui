@@ -3,9 +3,7 @@ package jui.text;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Glyph coverage, one byte a pixel, packed on shelves into one texture's
@@ -19,14 +17,15 @@ import java.util.Map;
 public final class GlyphAtlas {
     public final int width, height;
     private final MemorySegment pixels;
-    private final Map<Key, Entry> entries = new HashMap<>();
+    /** Glyphs by key (see key): a frame looks up every glyph it draws, without allocating. */
+    private final LongMap<Entry> entries = new LongMap<>();
+    /** A small number for each font, which keys take in place of its 64-bit reference. */
+    private final LongMap<Integer> fontIds = new LongMap<>();
     private final List<int[]> shelves = new ArrayList<>(); // {y, height, next x}
     private int nextY;
     private boolean full;
     // The rectangle that changed since the last upload.
     private int dirtyX0 = Integer.MAX_VALUE, dirtyY0 = Integer.MAX_VALUE, dirtyX1, dirtyY1;
-
-    private record Key(long font, int glyph, int scale, int sub, int shade) {}
 
     /** Where a glyph's bitmap is in the atlas, and where it goes from the pen and baseline. */
     public record Entry(int x, int y, int width, int height, int left, int top) {
@@ -53,7 +52,7 @@ public final class GlyphAtlas {
      * full, and an empty entry for a glyph without ink.
      */
     public Entry get(TextEngine engine, long font, int glyph, float scale, int sub, int n, int shade) {
-        Key key = new Key(font, glyph, Math.round(scale * 256), sub, shade);
+        long key = key(font, glyph, scale, sub, shade);
         Entry e = entries.get(key);
         if (e != null) {
             return e;
@@ -82,6 +81,22 @@ public final class GlyphAtlas {
         e = new Entry(at[0], at[1], b.width(), b.height(), b.left(), b.top());
         entries.put(key, e);
         return e;
+    }
+
+    /**
+     * A glyph's key: its font's number, the glyph, the scale in 1/256ths of
+     * a pixel a point, the position within a pixel and the shade, in 16, 16,
+     * 16, 8 and 8 bits.
+     */
+    private long key(long font, int glyph, float scale, int sub, int shade) {
+        Integer id = fontIds.get(font);
+        if (id == null) {
+            id = fontIds.size();
+            fontIds.put(font, id);
+        }
+        long scale256 = Math.round(scale * 256) & 0xFFFF;
+        return ((long) (id & 0xFFFF) << 48) | ((long) (glyph & 0xFFFF) << 32) | (scale256 << 16)
+                | ((sub & 0xFF) << 8) | (shade & 0xFF);
     }
 
     /**

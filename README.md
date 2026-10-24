@@ -106,10 +106,10 @@ public static void view(Context c) {
 }
 ```
 
-- 测试：`./build.sh test`，37 个测试全部通过，用的是仓库里的零依赖运行器。
+- 测试：`./build.sh test`，47 个测试全部通过，用的是仓库里的零依赖运行器。
 - 运行：`./build.sh demo`（JVM）或 `./build.sh native-demo`（native image）。
 - native image 下：体积 12.8 MB，空闲内存 45.2 MB。
-- 分配：句柄复用后，框架内部每帧不分配，详见下一节。
+- 分配：native image 下，包括文字在内的整帧（构建、布局、绘制），框架内部不分配；卡片示例整帧 200 字节，全部来自示例自己的 lambda。详见下一节。
 
 ## M1 分配实测（2026-10-24）
 
@@ -118,7 +118,7 @@ public static void view(Context c) {
 测量方法：
 - 统计的是主线程分配的字节数（`ThreadMXBean.getCurrentThreadAllocatedBytes`，native image 里也能用）；
 - 每个场景先预热 2 万帧，再测 1000 帧，扣除空帧后取平均；
-- 每一帧都包括构建和布局。
+- 下表的场景每帧包括构建和布局；最后两个场景还包括绘制文字。
 
 | 场景（单位：字节） | 第一次 native | 启用句柄复用后 native | JVM 参照 |
 |---|---|---|---|
@@ -129,21 +129,27 @@ public static void view(Context c) {
 | `key(long)`（每行） | 24 | 0 | 0 |
 | `key(Object)`，传入装箱的 Long（每行） | 24 | 0 | 24 |
 | 模拟外壳整帧（200 句柄 + 60 lambda 容器 + 10 临时引用 + 30 带 key 行） | 10000 | **1120** | 0 |
+| 纯文字视图整帧，含绘制（5 段文字，157 个实例，没有 lambda） | 12616 → 2792 → **0** | — | 0 |
+| 卡片示例整帧，含绘制 | — | **200** | 544 |
 
-原始输出：
+最后两行是代码审查之后补测的。纯文字那一行的三个数字依次是：修复前；字形图集改用 `long` 键之后；`shadeOf` 改用查找表之后（`Math.pow` 在 native image 里每次调用都会分配）。排版缓存的命中原来也会分配一个键对象，同样改成了 `long` 键。
+
+原始输出（最后一行 native 是全部修复之后的结果）：
 
 ```
 ALLOC mode=native empty_frame=0 handles=24.0 lambdas=64.0 temprefs=64.0 key_long=24.0 key_object=24.0 shell_frame=10000
-ALLOC mode=native empty_frame=0 handles=0.0 lambdas=16.0 temprefs=16.0 key_long=0.0 key_object=0.0 shell_frame=1120
-ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=0.0 key_long=0.0 key_object=24.0 shell_frame=0
+ALLOC mode=native empty_frame=0 handles=0.0 lambdas=16.0 temprefs=16.0 key_long=0.0 key_object=0.0 shell_frame=1120 text_frame=0 text_instances=157 card_frame=200
+ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0 key_object=56.0 shell_frame=320 text_frame=0 text_instances=157 card_frame=544
 ```
+
+`./build.sh alloc` 现在也是一道检查：native image 下，纯文字视图平均每个实例分配超过 0.5 字节，或卡片示例整帧超过 32 KB，就返回失败。
 
 结论：
 
-- **GraalVM 社区版的 native image 消除不掉 `Element` 句柄**，每个元素 24 字节（HotSpot 的 C2 编译器能消掉）。所以按设计 7.1 的退路启用了句柄复用（`Context.POOLED_HANDLES`）：每个节点编号对应一个固定的 `Element` 对象，每帧更新它的代数。
-- **启用后，框架内部的分配为 0**，满足“不能产生和元素数量成正比的分配”。
-- **剩下的 16 字节都来自应用代码的写法**：捕获变量的 lambda，以及临时创建的引用对象。模拟外壳整帧 1120 字节，远低于 32 KB 的预算，**公开 API 不需要调整**。
-- **复用的代价**：构建结束后再使用 `Element`，仍然会被发现（开发模式下报错）；但如果把 `Element` 存起来，到后面的构建里再用，它可能指向这一帧同一编号上的另一个元素，开发模式也发现不了。所以不要把 `Element` 存进字段。
+- **GraalVM 社区版的 native image 消除不掉 `Element` 句柄**，每个元素 24 字节（HotSpot 的 C2 编译器能消掉）。所以按设计 7.1 的退路，正式版（开发模式关闭时）复用句柄（`Context.POOLED_HANDLES`）：每个节点编号对应一个固定的 `Element` 对象，每帧更新它的代数。开发模式仍然为每个元素新建句柄，这样即使把 `Element` 存起来、在后面的构建里再用，也能被发现。
+- **框架内部的分配为 0，包括文字的排版和绘制**，满足“不能产生和元素数量成正比的分配”。
+- **剩下的分配都来自应用代码的写法**：捕获变量的 lambda 和临时创建的引用对象，各 16 字节。模拟外壳整帧 1120 字节，卡片示例整帧 200 字节，都远低于 32 KB 的预算，**公开 API 不需要调整**。
+- 不要把 `Element` 存进字段：正式版不检查这种误用，它可能会修改到这一帧同一编号上的另一个元素。
 
 ## 运行
 

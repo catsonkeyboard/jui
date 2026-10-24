@@ -2,6 +2,10 @@ package jui.spike;
 
 import java.lang.management.ManagementFactory;
 
+import jui.examples.CardDemo;
+import jui.render.Scene;
+import jui.text.GlyphAtlas;
+import jui.text.TextEngine;
 import jui.ui.BoolRef;
 import jui.ui.Context;
 import jui.ui.Element;
@@ -11,6 +15,7 @@ import jui.ui.engine.Engine;
 
 import static jui.ui.Ui.box;
 import static jui.ui.Ui.row;
+import static jui.ui.Ui.text;
 
 /**
  * Measures what frames of the UI API allocate on this thread (design §8),
@@ -40,20 +45,67 @@ public final class AllocSpike {
             temprefs(c, 10);
             keyLong(c, 30);
         });
-        String mode = "runtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode")) ? "native" : "jvm";
+        // Frames with text, built, laid out and painted: the framework's own
+        // share (a view of texts and no lambdas), and the card example whole.
+        TextEngine text = new TextEngine("zh-Hans");
+        Engine te = new Engine(text, Theme.light(), () -> {});
+        Scene scene = new Scene();
+        GlyphAtlas atlas = new GlyphAtlas(1024, 1024);
+        View texts = c -> {
+            for (int i = 0; i < TEXTS.length; i++) {
+                text(c, TEXTS[i]).fontSize(11 + 3 * i);
+            }
+        };
+        double textFrame = perFrame(() -> {
+            te.buildAndLayout(texts, 760, 560);
+            scene.begin(2, text, atlas);
+            te.paint(scene);
+        });
+        int textInstances = scene.count();
+        View card = CardDemo::view;
+        double cardFrame = perFrame(() -> {
+            te.buildAndLayout(card, 760, 560);
+            scene.begin(2, text, atlas);
+            te.paint(scene);
+        });
+
+        boolean nativeImage = "runtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode"));
         System.out.printf("ALLOC mode=%s empty_frame=%.0f handles=%.1f lambdas=%.1f temprefs=%.1f"
-                        + " key_long=%.1f key_object=%.1f shell_frame=%.0f%n",
-                mode, empty, handles, lambdas, temprefs, keyLong, keyObject, shell);
+                        + " key_long=%.1f key_object=%.1f shell_frame=%.0f text_frame=%.0f text_instances=%d"
+                        + " card_frame=%.0f%n",
+                nativeImage ? "native" : "jvm", empty, handles, lambdas, temprefs, keyLong, keyObject, shell,
+                textFrame, textInstances, cardFrame);
+        // Design §8, checked where it ships: the framework allocates nothing
+        // per element, and a whole frame stays within 32 KB.
+        if (nativeImage && textFrame > 0.5 * textInstances) {
+            System.out.printf("FAIL: the framework allocates %.1f bytes per instance of a text frame%n",
+                    textFrame / textInstances);
+            System.exit(1);
+        }
+        if (nativeImage && cardFrame > 32768) {
+            System.out.printf("FAIL: a card frame allocates %.0f bytes, over 32 KB%n", cardFrame);
+            System.exit(1);
+        }
     }
+
+    private static final String[] TEXTS = {
+        "j-ui 文字渲染", "Core Text 排版 · Core Graphics 光栅化 · Metal 绘制",
+        "Java 通过 FFM 直接调用 Core Text：由它找字体，为缺字的字体回退。The quick brown fox jumps over the lazy dog.",
+        "Regular 常规", "11pt 小字号：永和九年，岁在癸丑，暮春之初。0123456789",
+    };
 
     /** Bytes this thread allocates in a frame of the view, on average. */
     private static double perFrame(Engine e, View view) {
+        return perFrame(() -> e.buildAndLayout(view, 800, 600));
+    }
+
+    private static double perFrame(Runnable frame) {
         for (int i = 0; i < WARMUP; i++) {
-            e.buildAndLayout(view, 800, 600);
+            frame.run();
         }
         long before = MX.getCurrentThreadAllocatedBytes();
         for (int i = 0; i < FRAMES; i++) {
-            e.buildAndLayout(view, 800, 600);
+            frame.run();
         }
         return (MX.getCurrentThreadAllocatedBytes() - before) / (double) FRAMES;
     }
