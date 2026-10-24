@@ -77,4 +77,15 @@ public final class PaintTest {
         // this W, ink 13 and 24), so the whole width grows by less than twice.
         Check.isTrue(two.instance(1)[2] > one.instance(1)[2] * 1.5f, "the glyph rasterized at twice the pixels");
     }
+
+    public void testDisabledPaintsAtHalfOpacity() {
+        e.buildAndLayout(c -> box(c).size(50, 50).background(Color.rgb(0xFF0000)).disabled(true), 200, 100);
+        Check.near(0.5, paint(1).instance(0)[11]);
+    }
+
+    public void testOpacityMultipliesDownTheTree() {
+        e.buildAndLayout(c -> box(c).opacity(0.5f).children(() ->
+                box(c).size(50, 50).opacity(0.8f).background(Color.rgb(0xFF0000))), 200, 100);
+        Check.near(0.4, paint(1).instance(0)[11], 1e-3);
+    }
 }

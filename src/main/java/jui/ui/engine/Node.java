@@ -26,6 +26,10 @@ public final class Node {
     /** The element's state, if it has one: looked up as the node opens, made when a query needs it. */
     public ElementState state;
     public int flags;
+    /** Disabled, by itself or an ancestor: takes no input and paints at half opacity. */
+    public boolean disabled;
+    /** The element's own opacity, 0 to 1; paint multiplies the ancestors'. */
+    public float opacity;
     /**
      * The ui package's Element for this node, reused outside development
      * mode; it goes with the node when the pool lets the node's chunk go.
@@ -82,6 +86,8 @@ public final class Node {
         label = null;
         state = null;
         flags = 0;
+        disabled = false;
+        opacity = 1;
 
         row = reverse = false;
         width = height = minWidth = maxWidth = minHeight = maxHeight = Float.NaN;

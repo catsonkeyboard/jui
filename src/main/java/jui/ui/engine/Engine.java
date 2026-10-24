@@ -21,6 +21,7 @@ public final class Engine {
     private final StateTable states = new StateTable();
     private final HitList hits = new HitList();
     private final Input input = new Input(this, hits);
+    private final Actions clickActions = new Actions();
     private final Context context;
     private final FlexLayout layout = new FlexLayout(pool, this::measure);
 
@@ -111,6 +112,19 @@ public final class Engine {
             building = false;
             parent = Node.NONE;
         }
+        // Callbacks run once the whole view is built, so they may change what it iterated.
+        try {
+            consumed |= clickActions.run(pool);
+        } finally {
+            clickActions.clear();
+        }
+    }
+
+    /** Runs action once this pass's view is built: the node was clicked. */
+    public void onClick(int index, Runnable action) {
+        if (clicks(index) > 0) {
+            clickActions.add(index, action);
+        }
     }
 
     /** Forgets the input that this pass's elements could report: each input is reported once. */
@@ -145,7 +159,7 @@ public final class Engine {
         hits.clear();
         for (int i = 0; i < pool.size(); i++) {
             Node n = pool.node(i);
-            hits.add(n.id, n.x, n.y, n.w, n.h, n.parent, n.flags);
+            hits.add(n.id, n.x, n.y, n.w, n.h, n.parent, n.disabled ? n.flags | HitList.DISABLED : n.flags);
             ElementState s = n.state;
             if (s != null) {
                 s.x = n.x;
@@ -217,6 +231,9 @@ public final class Engine {
     public boolean hovered(int index) {
         Node n = pool.node(index);
         n.flags |= Node.HOVER;
+        if (n.disabled) {
+            return false;
+        }
         if (input.pressedId != 0 && input.pressedId != n.id) {
             return input.hovered(n.id, state(index));
         }
@@ -227,7 +244,7 @@ public final class Engine {
         Node n = pool.node(index);
         n.flags |= Node.CLICKABLE | Node.HOVER;
         ElementState s = state(index);
-        boolean p = input.pressed(s);
+        boolean p = !n.disabled && input.pressed(s);
         if (p && s.pressPending) {
             consumed = true;
         }
@@ -235,8 +252,9 @@ public final class Engine {
     }
 
     public int clicks(int index) {
-        pool.node(index).flags |= Node.CLICKABLE;
-        int k = state(index).clicks;
+        Node n = pool.node(index);
+        n.flags |= Node.CLICKABLE;
+        int k = n.disabled ? 0 : state(index).clicks;
         if (k > 0) {
             consumed = true;
         }
@@ -244,15 +262,17 @@ public final class Engine {
     }
 
     public boolean doubleClicked(int index) {
-        pool.node(index).flags |= Node.CLICKABLE;
-        boolean d = state(index).doubleClicks > 0;
+        Node n = pool.node(index);
+        n.flags |= Node.CLICKABLE;
+        boolean d = !n.disabled && state(index).doubleClicks > 0;
         consumed |= d;
         return d;
     }
 
     public boolean rightClicked(int index) {
-        pool.node(index).flags |= Node.CLICKABLE;
-        boolean r = state(index).rightClicks > 0;
+        Node n = pool.node(index);
+        n.flags |= Node.CLICKABLE;
+        boolean r = !n.disabled && state(index).rightClicks > 0;
         consumed |= r;
         return r;
     }
@@ -283,7 +303,7 @@ public final class Engine {
     /** Paints the last layout into scene, which the caller began at its scale. */
     public void paint(jui.render.Scene scene) {
         if (pool.size() > 0) {
-            Paint.paint(pool, 0, scene, theme);
+            Paint.paint(pool, 0, scene, theme, 1, false);
         }
     }
 
@@ -338,6 +358,7 @@ public final class Engine {
         Node n = pool.node(index);
         n.kind = kind;
         n.parent = parent;
+        n.disabled = p.disabled;
         n.id = keyPending ? Identity.keyed(p.id, pendingKey) : Identity.child(p.id, p.childCount);
         keyPending = false;
         ElementState s = states.get(n.id);

@@ -45,15 +45,18 @@ public final class Tester {
 
     /** The texts of the frame's text elements, in build order. */
     public List<String> texts() {
+        started();
         return engine.texts();
     }
 
     public boolean hasText(String s) {
+        started();
         return engine.texts().contains(s);
     }
 
     /** The box, in DIPs, of the element showing or labeled s. */
     public Rect find(String s) {
+        started();
         Rect r = engine.bounds(s);
         if (r == null) {
             throw new AssertionError("no element shows or is labeled \"" + s + "\"; texts: " + texts());

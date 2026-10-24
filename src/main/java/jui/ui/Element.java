@@ -37,6 +37,28 @@ public final class Element {
         return this;
     }
 
+    // Behavior.
+
+    /**
+     * Disables the element and what it holds: no input, no focus, half
+     * opacity. An element inside a disabled one stays disabled.
+     */
+    public Element disabled(boolean disabled) {
+        Node n = node();
+        if (n != null) {
+            n.disabled = disabled || n.parent != Node.NONE && c.engine().node(n.parent).disabled;
+        }
+        return this;
+    }
+
+    /** Runs action once this pass's view is built, if the element was clicked. */
+    public Element onClick(Runnable action) {
+        if (node() != null) {
+            c.engine().onClick(index, action);
+        }
+        return this;
+    }
+
     // Layout, as CSS flexbox. Lengths are in DIPs.
 
     public Element width(float w) {
@@ -276,6 +298,15 @@ public final class Element {
             n.shadowBlur = blur;
             n.shadowSpread = spread;
             n.shadowColor = color.rgba();
+        }
+        return this;
+    }
+
+    /** The element's opacity, from 0 to 1, multiplied into what it holds. */
+    public Element opacity(float opacity) {
+        Node n = node();
+        if (n != null) {
+            n.opacity = Math.max(0, Math.min(1, opacity));
         }
         return this;
     }
