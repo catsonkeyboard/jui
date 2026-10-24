@@ -34,7 +34,8 @@ public final class Main {
         long[] marks = new long[2];
         MacApp.run(() -> {
             marks[0] = Libc.nowMicros();
-            MacWindow window = MacWindow.open("j-ui 验证原型", 760, 560, BACKGROUND, Main::paint);
+            TextEngine text = new TextEngine("zh-Hans");
+            MacWindow window = MacWindow.open("j-ui 验证原型", 760, 560, BACKGROUND, text, Main::paint);
             marks[1] = Libc.nowMicros();
             if (Arrays.asList(args).contains("--print-window")) {
                 System.out.println("window=" + window.windowNumber());
@@ -43,7 +44,7 @@ public final class Main {
                 window.onFirstFrame(done -> {
                     report(start, mainAt, marks[0], marks[1], window.firstCommitMicros, done,
                             window.renderer().libraryKind);
-                    reportText(window);
+                    reportText(window, text);
                     System.exit(done > 0 ? 0 : 1);
                 });
             }
@@ -126,8 +127,7 @@ public final class Main {
     }
 
     /** What the first frame's text cost, and what painting the same frame costs once its text is cached. */
-    private static void reportText(MacWindow window) {
-        TextEngine text = MacWindow.textEngine();
+    private static void reportText(MacWindow window, TextEngine text) {
         long cold = window.lastPaintNanos;
         long warm = Long.MAX_VALUE;
         for (int i = 0; i < 20; i++) {

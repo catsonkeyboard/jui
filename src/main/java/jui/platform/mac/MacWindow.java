@@ -36,9 +36,9 @@ public final class MacWindow {
 
     private static final Map<Long, MacWindow> BY_VIEW = new HashMap<>();
     private static long viewClass, viewSuperclass;
-    /** The app's text engine, made with the first window. */
-    private static TextEngine text;
 
+    /** The app's text engine, shared by its windows. */
+    private final TextEngine text;
     private final long window;
     private final long view;
     private final MetalRenderer renderer;
@@ -58,13 +58,11 @@ public final class MacWindow {
     /** Wall-clock microseconds at which the first frame was committed. */
     public long firstCommitMicros;
 
-    private MacWindow(String title, double width, double height, int background, Painter painter) {
+    private MacWindow(String title, double width, double height, int background, TextEngine text, Painter painter) {
         this.painter = painter;
         this.background = background;
+        this.text = text;
         defineViewClass();
-        if (text == null) {
-            text = new TextEngine("zh-Hans");
-        }
         long style = STYLE_TITLED | STYLE_CLOSABLE | STYLE_MINIATURIZABLE | STYLE_RESIZABLE;
         window = ObjC.initWindow(send(ObjC.cls("NSWindow"), "alloc"), 0, 0, width, height,
                 style, BACKING_BUFFERED, false);
@@ -84,11 +82,16 @@ public final class MacWindow {
         send(view, "setNeedsDisplay:", 1);
     }
 
-    /** Opens a window; call it on the main thread once the app is ready. */
-    public static MacWindow open(String title, double width, double height, int background, Painter painter) {
+    /**
+     * Opens a window whose frames painter paints, on {@code background}
+     * (0xRRGGBB), with text through the app's text engine; call it on the
+     * main thread once the app is ready.
+     */
+    public static MacWindow open(String title, double width, double height, int background, TextEngine text,
+                                 Painter painter) {
         long pool = ObjC.poolPush();
         try {
-            return new MacWindow(title, width, height, background, painter);
+            return new MacWindow(title, width, height, background, text, painter);
         } finally {
             ObjC.poolPop(pool);
         }
@@ -98,8 +101,9 @@ public final class MacWindow {
         return renderer;
     }
 
-    public static TextEngine textEngine() {
-        return text;
+    /** Asks for a frame: AppKit displays the view, and the painter paints, in its next pass. */
+    public void requestFrame() {
+        send(view, "setNeedsDisplay:", 1);
     }
 
     /** The window server's number for the window, as screencapture -l takes. */

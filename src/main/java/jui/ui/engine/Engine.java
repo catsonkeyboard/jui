@@ -210,6 +210,18 @@ public final class Engine {
         return new Rect(n.x, n.y, n.w, n.h);
     }
 
+    /** The texts of the last frame's text elements, in build order. */
+    public java.util.List<String> texts() {
+        java.util.List<String> texts = new java.util.ArrayList<>();
+        for (int i = 0; i < pool.size(); i++) {
+            Node n = pool.node(i);
+            if (n.kind == Node.TEXT && n.text != null) {
+                texts.add(n.text);
+            }
+        }
+        return texts;
+    }
+
     public int nodeCount() {
         return pool.size();
     }
