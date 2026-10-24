@@ -170,9 +170,22 @@ final class Input {
             moveFocus(mods == 0);
             return;
         }
-        if ((key == jui.ui.Key.ENTER || key == jui.ui.Key.SPACE) && mods == 0 && focusedId != 0) {
-            int i = hits.indexOf(focusedId);
-            if (i >= 0 && (hits.flags[i] & Node.CLICKABLE) != 0 && (hits.flags[i] & HitList.DISABLED) == 0) {
+        int i = focusedId == 0 ? -1 : hits.indexOf(focusedId);
+        boolean enabled = i >= 0 && (hits.flags[i] & HitList.DISABLED) == 0;
+        if (enabled && (hits.flags[i] & Node.KEYS) != 0 && mods == 0 && sliderKey(key) && !claimedInFocus(mods, key)) {
+            ElementState s = stateAt(i);
+            if (s.keyCount == s.keys.length) {
+                s.keys = Arrays.copyOf(s.keys, s.keyCount * 2);
+            }
+            s.keys[s.keyCount++] = key;
+            engine.requestFrame();
+            return;
+        }
+        if ((key == jui.ui.Key.ENTER || key == jui.ui.Key.SPACE) && mods == 0 && enabled
+                && (hits.flags[i] & Node.CLICKABLE) != 0) {
+            // A toggle yields Enter to a window shortcut for it; Space is always its own (as MyGO).
+            boolean yields = key == jui.ui.Key.ENTER && (hits.flags[i] & Node.TOGGLE) != 0 && registered(0, 0, key);
+            if (!yields) {
                 stateAt(i).clicks++;
                 focusVisible = true;
                 engine.requestFrame();
@@ -187,6 +200,40 @@ final class Input {
         queueMods[queueCount] = mods;
         queueCount++;
         engine.requestFrame();
+    }
+
+    private static boolean sliderKey(jui.ui.Key key) {
+        return switch (key) {
+            case LEFT, RIGHT, UP, DOWN, HOME, END, PAGE_UP, PAGE_DOWN -> true;
+            default -> false;
+        };
+    }
+
+    /** Whether an element of the focus chain registered the key, so it is a shortcut, not a control's key. */
+    private boolean claimedInFocus(int mods, jui.ui.Key key) {
+        for (int k = 0; k < focusChainCount; k++) {
+            if (registered(focusChain[k], mods, key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether a node, as committed, is hovered: for paint. */
+    boolean hoveredNode(Node n) {
+        if (pressedId != 0) {
+            return n.id == pressedId || inChain(n.id) && pointerInside && insideNode(n);
+        }
+        return inChain(n.id);
+    }
+
+    /** Whether a node, as committed, is held with the pointer over it: for paint. */
+    boolean downNode(Node n) {
+        return pressedId == n.id && pressButton == 0 && pointerInside && insideNode(n);
+    }
+
+    private boolean insideNode(Node n) {
+        return pointerX >= n.x && pointerX < n.x + n.w && pointerY >= n.y && pointerY < n.y + n.h;
     }
 
     /**

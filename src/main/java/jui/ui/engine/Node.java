@@ -10,7 +10,7 @@ import jui.ui.Justify;
  * public so that the ui package, layout and paint share them.
  */
 public final class Node {
-    public static final byte BOX = 0, TEXT = 1, SPACER = 2, DIVIDER = 3;
+    public static final byte BOX = 0, TEXT = 1, SPACER = 2, DIVIDER = 3, SLIDER = 4;
     public static final int NONE = -1;
 
     // Flags: what input the element takes, set by the queries and controls that build it.
@@ -34,6 +34,12 @@ public final class Node {
     public boolean noFocusRing;
     /** Draws the focus ring around this node: the part of a control that shows its focus. */
     public boolean ring;
+    /** Backgrounds while hovered and while pressed (0 for none), and whether it is, as of the commit. */
+    public int bgHover, bgPressed;
+    boolean hot, down;
+    /** A slider's value as a share of its range, and whether it is held. */
+    public float fraction;
+    public boolean held;
     /**
      * The ui package's Element for this node, reused outside development
      * mode; it goes with the node when the pool lets the node's chunk go.
@@ -94,6 +100,10 @@ public final class Node {
         opacity = 1;
         noFocusRing = false;
         ring = false;
+        bgHover = bgPressed = 0;
+        hot = down = false;
+        fraction = 0;
+        held = false;
 
         row = reverse = false;
         width = height = minWidth = maxWidth = minHeight = maxHeight = Float.NaN;

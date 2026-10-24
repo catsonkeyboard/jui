@@ -86,6 +86,14 @@ public final class Element {
         return this;
     }
 
+    /** Runs action once this pass's view is built, if the element's control changed its value. */
+    public Element onChange(Runnable action) {
+        if (node() != null) {
+            c.engine().onChange(index, action);
+        }
+        return this;
+    }
+
     /** Runs action once this pass's view is built, if the element was clicked. */
     public Element onClick(Runnable action) {
         if (node() != null) {
@@ -295,6 +303,7 @@ public final class Element {
         Node n = node();
         if (n != null) {
             n.background = color.rgba();
+            n.bgHover = n.bgPressed = 0; // a background set later wins over a control's hover looks
         }
         return this;
     }
@@ -436,6 +445,11 @@ public final class Element {
 
     public float dragY() {
         return node() == null ? 0 : c.engine().dragY(index);
+    }
+
+    /** Whether the element's control changed its bound value in this pass. */
+    public boolean changed() {
+        return node() != null && c.engine().changed(index);
     }
 
     /** Whether the element has focus, in a focused window. */

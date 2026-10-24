@@ -22,6 +22,7 @@ public final class Engine {
     private final HitList hits = new HitList();
     private final Input input = new Input(this, hits);
     private final Actions clickActions = new Actions();
+    private final Actions changeActions = new Actions();
     private final Context context;
     private final FlexLayout layout = new FlexLayout(pool, this::measure);
 
@@ -119,13 +120,52 @@ public final class Engine {
             building = false;
             parent = Node.NONE;
         }
-        applyFocusRequest();
-        // Callbacks run once the whole view is built, so they may change what it iterated.
+        // Callbacks run once the whole view is built, so they may change what it
+        // iterated: changes first, then focus requests, then clicks (as MyGO).
         try {
+            consumed |= changeActions.run(pool);
+            applyFocusRequest();
             consumed |= clickActions.run(pool);
         } finally {
+            changeActions.clear();
             clickActions.clear();
         }
+    }
+
+    /** Runs action once this pass's view is built: the node's control changed its value. */
+    public void onChange(int index, Runnable action) {
+        if (changed(index)) {
+            changeActions.add(index, action);
+        }
+    }
+
+    /** Whether the node's control changed its value in this pass. */
+    public boolean changed(int index) {
+        boolean ch = state(index).changed;
+        consumed |= ch;
+        return ch;
+    }
+
+    /** A control changed its bound value in this pass. */
+    public void markChanged(int index) {
+        state(index).changed = true;
+    }
+
+    /** Makes the node the parent of what is built next, and returns the parent to give back to {@link #exit}. */
+    public int enter(int index) {
+        int saved = parent;
+        parent = index;
+        return saved;
+    }
+
+    public void exit(int saved) {
+        checkKeyUsed();
+        parent = saved;
+    }
+
+    /** Where the pointer is, in DIPs: for controls that follow it. */
+    public float pointerX() {
+        return input.pointerX;
     }
 
     /** Gives focus to the element asked for, if this pass built it enabled; else the request waits. */
@@ -209,6 +249,14 @@ public final class Engine {
         input.commitFocus();
         input.commitShortcuts();
         input.rehover();
+        // The looks that hover and press pick at paint, as the pointer stands now.
+        for (int i = 0; i < pool.size(); i++) {
+            Node n = pool.node(i);
+            if (n.bgHover != 0 || n.bgPressed != 0) {
+                n.hot = !n.disabled && input.hoveredNode(n);
+                n.down = !n.disabled && input.downNode(n);
+            }
+        }
     }
 
     /** The frame being built, or the last one built: 1 for the first. */
