@@ -151,14 +151,70 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - **剩下的分配都来自应用代码的写法**：捕获变量的 lambda 和临时创建的引用对象，各 16 字节。模拟外壳整帧 1120 字节，卡片示例整帧 200 字节，都远低于 32 KB 的预算，**公开 API 不需要调整**。
 - 不要把 `Element` 存进字段：正式版不检查这种误用，它可能会修改到这一帧同一编号上的另一个元素。
 
+## M2：交互（2026-10-25）
+
+按 [M2 计划](docs/plans/2026-10-25-m2-interaction.md)实现了交互，行为对照 MyGO（commit `8049993`）的 `ui/input.go`、`ui/runtime.go` 和 `ui/widgets.go`。
+
+**指针**
+- 悬停、按下、点击、双击、右键（或 Control 加单击）、拖动。
+- 对应的查询：`hovered()`、`pressed()`、`clicked()`、`clicks()`、`doubleClicked()`、`rightClicked()`、`dragX()`/`dragY()`。
+- 按住期间悬停状态冻结，在别处松开不算点击。
+
+**重建规则**
+- 某一遍构建报告了输入或执行了回调，就再建一遍，一帧最多 3 遍。
+- 每次输入只报告一次。
+- 回调 `onClick`、`onChange` 在这一遍的视图建完后执行，所以可以修改正在遍历的列表。
+
+**焦点和键盘**
+- 点击聚焦；Tab、Shift+Tab 按构建顺序循环；回车和空格激活获得焦点的元素。
+- 焦点环只在用键盘切换焦点后显示。
+- `Handle` 可以从任意动作请求焦点，`autoFocus()` 让元素出现时就获得焦点。
+
+**快捷键**
+- `element.shortcut(...)` 在焦点位于该元素内部时报告，`c.shortcut(...)` 是窗口级的。
+- 获得焦点的元素优先于窗口；修饰键必须完全一致。
+
+**控件**
+- `button`、`primaryButton`、`checkbox`、`toggle`（开关）、`slider`。
+- 无外观的基础版：`buttonBase`、`toggleBase`、`sliderBase`。
+- 外观照 MyGO，主题改用 MyGO 的浅色和深色配色。
+
+**局部状态和其他**
+- `local`、`localBool`、`localFloat`，跟着元素的身份走，元素不再出现就回收。
+- `disabled()`（子元素继承）、`opacity()`、`bounds()`。
+
+**明暗切换**：默认跟随系统外观，系统切换时窗口跟着重画。
+
+**macOS 平台**
+- 视图接收鼠标、键盘、修饰键事件，同 MyGO 的 `internal/darwin/surface.go`。
+- 窗口代理报告窗口是否在前台，外观变化时视图会收到通知。
+
+两个验收示例在 native image 下的画面如下（这台 Mac 当时是深色外观）：
+
+| 计数器 `./build.sh demo Counter` | 待办清单 `./build.sh demo Todo` |
+|---|---|
+| ![计数器](docs/m2-counter.png) | ![待办清单](docs/m2-todo.png) |
+
+- **计数器**：照 MyGO 的 `examples/counter-native`，加了一个步长滑块。按钮和 ↑/↓ 都按步长计数，计数为 0 时“重置”禁用。
+- **待办清单**：每条待办一个复选框，行按 id 作 key，“删除”的回调直接从列表里移除，开关隐藏已完成的，⌘N 新增。没有文字输入（M4 才做），所以待办的标题是固定的。
+- **测试**：`./build.sh test`，129 个测试全部通过。Tester 覆盖了点击、Tab、空格、方向键和快捷键。
+- **分配**：控件帧（40 个按钮、40 个复选框、20 个滑块）在 native image 下，框架内部每个控件分配 0 字节，指针悬停在按钮上时也是 0；卡片整帧仍是 200 字节（`./build.sh alloc`）。
+- **还需要手动核对的**：真实鼠标和键盘下的悬停变色、点击、焦点环，以及切换系统外观。从 AppKit 事件到引擎的路径由 `MacWindowInputTest` 用真实的 `NSEvent` 测过，但没有人手操作过。
+
+**推迟到后面的**
+- `cursor(Cursor)`、`onSubmit`/`submitted()` 推到 M4，和文本输入一起做；
+- `c.now()`、`c.after(...)`、`Tester.advance` 推到 M3，和 display link 一起做；
+- 开关的滑动动画推到 M3；
+- 勾选标记先用文字“✓”，M6 有了线段图元再换成描边。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
 
 ```bash
 ./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
-./build.sh demo            # 用新 API 写的卡片示例，在 JVM 上运行
-./build.sh native-demo     # 同上，编译成 native image（build/card-demo）后运行
+./build.sh demo            # 卡片示例，在 JVM 上运行；./build.sh demo Counter、./build.sh demo Todo 运行 M2 的示例
+./build.sh native-demo     # 同上，编译成 native image（build/<name>-demo）后运行，也接受示例名
 ./build.sh alloc           # 实测 UI API 每帧的分配（native image 和 JVM）
 ./build.sh jvm             # 原型，在 JVM 上运行
 ./build.sh native          # 原型，编译成 native image：build/jui-spike
@@ -189,11 +245,18 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 | `jui/spike/AllocSpike.java` | 在 native image 上实测 UI API 每帧的分配 | — |
 | `baseline/spike.m` | 对照组：同样的窗口和方框用 Objective-C 写，按同样口径计时 | — |
 | `jui/ui/{Ui,Context,Element,View}.java` | 公开 API：控件静态函数、每个窗口一个的上下文、元素句柄 | `ui` 包 |
-| `jui/ui/{Color,Theme,Align,Justify,Rect,BoolRef}.java` | 公开的值类型和引用对象 | 同上 |
+| `jui/ui/{Color,Theme,Align,Justify,Rect}.java` | 公开的值类型 | 同上 |
+| `jui/ui/{BoolRef,IntRef,FloatRef,DoubleRef,Ref}.java` | 引用对象：控件读写应用状态 | 指针绑定 |
+| `jui/ui/{Key,Mod,Shortcut,Handle}.java` | 按键、修饰键、快捷键、持久的焦点句柄 | `ui/keys.go`、`ui.Handle` |
 | `jui/ui/Tester.java` | 不开窗口测试视图 | `ui.Tester` |
 | `jui/ui/engine/{Engine,Node,NodePool,Identity,Dev}.java` | 每帧流程、节点池、身份、开发模式检查 | `ui/runtime.go` 等 |
 | `jui/ui/engine/FlexLayout.java` | flexbox（单行，CSS §9 的算法） | `ui/layout.go` |
-| `jui/ui/engine/Paint.java` | 把节点树绘制到 `Scene` | `ui` 的绘制 |
+| `jui/ui/engine/Paint.java` | 把节点树绘制到 `Scene`：悬停和按下的背景、透明度、焦点环、滑块 | `ui/paint.go` |
+| `jui/ui/engine/{ElementState,StateTable}.java` | 按身份保存的元素状态：上一帧的位置、没报告的输入、局部状态 | `ui/context.go` 的 `state` |
+| `jui/ui/engine/{HitList,Input,Actions}.java` | 命中测试列表、指针和键盘的处理、焦点、快捷键路由、回调 | `ui/input.go`、`ui/actions.go` |
+| `jui/platform/mac/MacKeys.java` | AppKit 的按键码和修饰键映射 | `internal/darwin/surface.go` |
+| `jui/util/LongMap.java` | 以 `long` 为键、查找和删除都不分配的哈希表 | — |
 | `jui/app/{App,Window,WindowOptions}.java` | 应用和窗口 | `mygo.App`、`mygo.NewWindow` |
 | `jui/examples/CardDemo.java` | M1 验收示例 | — |
+| `jui/examples/{CounterDemo,TodoDemo}.java` | M2 验收示例：计数器和待办清单 | `examples/counter-native` |
 | `src/test/java/jui/testing/` | 零依赖的断言和测试运行器 | — |

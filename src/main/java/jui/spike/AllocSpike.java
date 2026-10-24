@@ -8,12 +8,17 @@ import jui.text.GlyphAtlas;
 import jui.text.TextEngine;
 import jui.ui.BoolRef;
 import jui.ui.Context;
+import jui.ui.DoubleRef;
 import jui.ui.Element;
+import jui.ui.Rect;
 import jui.ui.Theme;
 import jui.ui.View;
 import jui.ui.engine.Engine;
 
 import static jui.ui.Ui.box;
+import static jui.ui.Ui.button;
+import static jui.ui.Ui.checkbox;
+import static jui.ui.Ui.slider;
 import static jui.ui.Ui.row;
 import static jui.ui.Ui.text;
 
@@ -69,12 +74,30 @@ public final class AllocSpike {
             te.paint(scene);
         });
 
+        // Frames of controls, built, laid out and painted: per control, net of
+        // an empty painted frame; then with the pointer resting on a button.
+        double emptyPainted = perFrame(() -> {
+            te.buildAndLayout(c -> {}, 800, 600);
+            scene.begin(2, text, atlas);
+            te.paint(scene);
+        });
+        Runnable controlsFrame = () -> {
+            te.buildAndLayout(AllocSpike::controls, 800, 600);
+            scene.begin(2, text, atlas);
+            te.paint(scene);
+        };
+        double controls = (perFrame(controlsFrame) - emptyPainted) / CONTROLS;
+        Rect first = te.bounds(LABELS[0]);
+        te.pointerMove(first.x() + first.width() / 2, first.y() + first.height() / 2, 0);
+        double controlsHover = (perFrame(controlsFrame) - emptyPainted) / CONTROLS;
+        te.pointerLeave();
+
         boolean nativeImage = "runtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode"));
         System.out.printf("ALLOC mode=%s empty_frame=%.0f handles=%.1f lambdas=%.1f temprefs=%.1f"
                         + " key_long=%.1f key_object=%.1f shell_frame=%.0f text_frame=%.0f text_instances=%d"
-                        + " card_frame=%.0f%n",
+                        + " card_frame=%.0f controls_frame=%.1f controls_hover_frame=%.1f%n",
                 nativeImage ? "native" : "jvm", empty, handles, lambdas, temprefs, keyLong, keyObject, shell,
-                textFrame, textInstances, cardFrame);
+                textFrame, textInstances, cardFrame, controls, controlsHover);
         // Design §8, checked where it ships: the framework allocates nothing
         // per element, and a whole frame stays within 32 KB.
         if (nativeImage && textFrame > 0.5 * textInstances) {
@@ -82,9 +105,42 @@ public final class AllocSpike {
                     textFrame / textInstances);
             System.exit(1);
         }
+        if (nativeImage && (controls > 0.5 || controlsHover > 0.5)) {
+            System.out.printf("FAIL: the framework allocates %.1f bytes per control (%.1f hovered)%n",
+                    controls, controlsHover);
+            System.exit(1);
+        }
         if (nativeImage && cardFrame > 32768) {
             System.out.printf("FAIL: a card frame allocates %.0f bytes, over 32 KB%n", cardFrame);
             System.exit(1);
+        }
+    }
+
+    /** Controls a controls frame builds: 40 buttons, 40 check boxes, 20 sliders. */
+    private static final int CONTROLS = 100;
+    private static final String[] LABELS = new String[40];
+    private static final BoolRef[] CHECKS = new BoolRef[40];
+    private static final DoubleRef[] VALUES = new DoubleRef[20];
+
+    static {
+        for (int i = 0; i < LABELS.length; i++) {
+            LABELS[i] = "控件 " + i;
+            CHECKS[i] = new BoolRef(i % 2 == 0);
+        }
+        for (int i = 0; i < VALUES.length; i++) {
+            VALUES[i] = new DoubleRef(i * 5);
+        }
+    }
+
+    private static void controls(Context c) {
+        for (int i = 0; i < 40; i++) {
+            button(c.key(i), LABELS[i]);
+        }
+        for (int i = 0; i < 40; i++) {
+            checkbox(c.key(100 + i), CHECKS[i], LABELS[i]);
+        }
+        for (int i = 0; i < 20; i++) {
+            slider(c.key(200 + i), VALUES[i], 0, 100);
         }
     }
 
