@@ -12,16 +12,18 @@ final class Paint {
 
     static void paint(NodePool pool, int index, Scene scene, Theme theme) {
         Node n = pool.node(index);
+        // A corner rounds at most half the shorter side, as in CSS: radius(999) makes a pill.
+        float half = Math.min(n.w, n.h) / 2;
         if (alpha(n.shadowColor) != 0) {
             float s = n.shadowSpread;
             scene.shadow(n.x + n.shadowX - s, n.y + n.shadowY - s, n.w + 2 * s, n.h + 2 * s,
-                    n.radiusTL + s, n.shadowColor, n.shadowBlur);
+                    Math.max(0, Math.min(n.radiusTL, half) + s), n.shadowColor, n.shadowBlur);
         }
         if (n.kind == Node.DIVIDER) {
             scene.box(n.x, n.y, n.w, n.h, 0, theme.border().rgba());
         } else if (alpha(n.background) != 0 || n.border > 0 && alpha(n.borderColor) != 0) {
-            scene.box(n.x, n.y, n.w, n.h, n.radiusTL, n.radiusTR, n.radiusBR, n.radiusBL,
-                    n.background, n.border, n.borderColor);
+            scene.box(n.x, n.y, n.w, n.h, Math.min(n.radiusTL, half), Math.min(n.radiusTR, half),
+                    Math.min(n.radiusBR, half), Math.min(n.radiusBL, half), n.background, n.border, n.borderColor);
         }
         if (n.kind == Node.TEXT && n.layout != null) {
             // The text starts inside the padding and the border.

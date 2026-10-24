@@ -35,6 +35,18 @@ public final class PaintTest {
         Check.near(164, shadow[2]); Check.near(54, shadow[3]);
     }
 
+    public void testRadiiStopAtHalfTheShorterSide() { // final review #5: radius(999) makes a pill
+        e.buildAndLayout(c -> column(c).alignItems(jui.ui.Align.START).children(() ->
+            box(c).size(100, 28).radius(999).background(Color.rgb(0x2563EB))
+                  .shadow(0, 2, 6, 0, Color.rgba(0x000000, 0.2f))), 200, 100);
+        Scene s = paint(2);
+        float[] shadow = s.instance(0), box = s.instance(1);
+        for (int k = 4; k < 8; k++) {
+            Check.near(14, box[k]);
+        }
+        Check.near(14, shadow[4]);
+    }
+
     public void testBorderInsetsChildren() {
         e.buildAndLayout(c -> column(c).border(2, Color.rgb(0)).padding(10).children(() -> box(c).height(5).label("in")), 100, 100);
         Check.near(12, e.bounds("in").x());
