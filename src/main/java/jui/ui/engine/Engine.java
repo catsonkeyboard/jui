@@ -18,8 +18,13 @@ public final class Engine {
     private final Theme theme;
     private final Runnable requestFrame;
     private final NodePool pool = new NodePool();
+    private final StateTable states = new StateTable();
     private final Context context;
     private final FlexLayout layout = new FlexLayout(pool, this::measure);
+
+    /** Frames built so far, the one in progress included; and the pass of it being built. */
+    private long frame;
+    private int pass;
 
     // The build in progress.
     private boolean building;
@@ -54,6 +59,8 @@ public final class Engine {
         if (Libc.pthreadMainNp() == 0) {
             Dev.fail("views build only on the main thread");
         }
+        frame++;
+        pass = 0;
         pool.reset();
         if (Dev.ENABLED) {
             nodesById.clear();
@@ -76,6 +83,59 @@ public final class Engine {
         }
         inheritTextStyle();
         layout.layout(root, width, height);
+        commit();
+    }
+
+    /**
+     * Writes each node's box into its state, for the next frame's queries,
+     * then lets go of the states this frame did not build.
+     */
+    private void commit() {
+        for (int i = 0; i < pool.size(); i++) {
+            Node n = pool.node(i);
+            ElementState s = n.state;
+            if (s != null) {
+                s.x = n.x;
+                s.y = n.y;
+                s.w = n.w;
+                s.h = n.h;
+                s.cx = n.x + n.padLeft + n.border;
+                s.cy = n.y + n.padTop + n.border;
+                s.cw = Math.max(0, n.w - n.padLeft - n.padRight - 2 * n.border);
+                s.ch = Math.max(0, n.h - n.padTop - n.padBottom - 2 * n.border);
+            }
+        }
+        states.prune(frame, pass);
+    }
+
+    /** The frame being built, or the last one built: 1 for the first. */
+    public long frame() {
+        return frame;
+    }
+
+    /** The node's element state, made if it has none yet, and marked as seen in this pass. */
+    public ElementState state(int index) {
+        Node n = pool.node(index);
+        if (n.state == null) {
+            n.state = states.create(n.id, frame);
+        }
+        n.state.seenFrame = frame;
+        n.state.seenPass = pass;
+        return n.state;
+    }
+
+    /** The node's local state map, made on first use. */
+    public java.util.Map<String, Object> locals(int index) {
+        ElementState s = state(index);
+        if (s.locals == null) {
+            s.locals = new java.util.HashMap<>();
+        }
+        return s.locals;
+    }
+
+    /** Element states kept now: for tests. */
+    public int stateCount() {
+        return states.size();
     }
 
     /** Paints the last layout into scene, which the caller began at its scale. */
@@ -138,6 +198,12 @@ public final class Engine {
         n.parent = parent;
         n.id = keyPending ? Identity.keyed(p.id, pendingKey) : Identity.child(p.id, p.childCount);
         keyPending = false;
+        ElementState s = states.get(n.id);
+        if (s != null) {
+            n.state = s;
+            s.seenFrame = frame;
+            s.seenPass = pass;
+        }
         if (Dev.ENABLED) {
             Integer other = nodesById.put(n.id, index);
             if (other != null && pool.node(other).parent == parent) {

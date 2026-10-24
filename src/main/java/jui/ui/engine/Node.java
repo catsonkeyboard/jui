@@ -20,6 +20,8 @@ public final class Node {
     public int parent, firstChild, lastChild, nextSibling, childCount;
     public byte kind;
     public String label;
+    /** The element's state, if it has one: looked up as the node opens, made when a query needs it. */
+    public ElementState state;
     /**
      * The ui package's Element for this node, reused outside development
      * mode; it goes with the node when the pool lets the node's chunk go.
@@ -74,6 +76,7 @@ public final class Node {
         childCount = 0;
         kind = BOX;
         label = null;
+        state = null;
 
         row = reverse = false;
         width = height = minWidth = maxWidth = minHeight = maxHeight = Float.NaN;

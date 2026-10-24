@@ -321,6 +321,23 @@ public final class Element {
         return this;
     }
 
+    // Queries: what happened since the last frame.
+
+    /** The element's box in the last frame, in DIPs from the window's top left; zero in its first frame. */
+    public Rect bounds() {
+        Node n = node();
+        if (n == null) {
+            return new Rect(0, 0, 0, 0);
+        }
+        jui.ui.engine.ElementState s = c.engine().state(index);
+        return new Rect(s.x, s.y, s.w, s.h);
+    }
+
+    /** The element's local state map, or null when this element is stale. */
+    java.util.Map<String, Object> locals() {
+        return node() == null ? null : c.engine().locals(index);
+    }
+
     /** The node, or null when this element is stale. */
     Node node() {
         if (c.engine().valid(index, gen)) {

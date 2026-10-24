@@ -53,6 +53,53 @@ public final class Ui {
         return open(c, Node.DIVIDER, false, Align.STRETCH);
     }
 
+    // Local state: kept on an element's identity from frame to frame (as MyGO's ui.Local).
+
+    /**
+     * A value kept on the element from frame to frame: {@code initial} makes
+     * it the first time, and it goes when the element stops being built.
+     * {@code name} tells apart several values on one element.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> Ref<T> local(Element e, String name, java.util.function.Supplier<T> initial) {
+        java.util.Map<String, Object> m = e.locals();
+        Object v = m == null ? null : m.get(name);
+        if (v instanceof Ref<?> r) {
+            return (Ref<T>) r;
+        }
+        Ref<T> r = new Ref<>(initial.get());
+        if (m != null) {
+            m.put(name, r);
+        }
+        return r;
+    }
+
+    public static BoolRef localBool(Element e, String name, boolean initial) {
+        java.util.Map<String, Object> m = e.locals();
+        Object v = m == null ? null : m.get(name);
+        if (v instanceof BoolRef r) {
+            return r;
+        }
+        BoolRef r = new BoolRef(initial);
+        if (m != null) {
+            m.put(name, r);
+        }
+        return r;
+    }
+
+    public static FloatRef localFloat(Element e, String name, float initial) {
+        java.util.Map<String, Object> m = e.locals();
+        Object v = m == null ? null : m.get(name);
+        if (v instanceof FloatRef r) {
+            return r;
+        }
+        FloatRef r = new FloatRef(initial);
+        if (m != null) {
+            m.put(name, r);
+        }
+        return r;
+    }
+
     static Element open(Context c, byte kind, boolean row, Align alignItems) {
         Engine engine = c.engine();
         int index = engine.open(kind);
