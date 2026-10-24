@@ -29,13 +29,40 @@ public final class MacWindow {
         void paint(Scene scene, double width, double height);
     }
 
+    /**
+     * What the window's view receives, as MyGO's surface sends it: points
+     * from the view's top left, buttons 0 (primary) and 1 (secondary),
+     * modifiers as {@link jui.ui.Mod} bits. On the main thread.
+     */
+    public interface Input {
+        void pointerMove(double x, double y, int mods);
+
+        void pointerDown(double x, double y, int button, int clicks, int mods);
+
+        void pointerUp(double x, double y, int button, int mods);
+
+        void pointerLeave();
+
+        void keyDown(jui.ui.Key key, int mods, boolean repeat);
+
+        void modifiersChanged(int mods);
+
+        void windowFocusChanged(boolean focused);
+
+        void appearanceChanged(boolean dark);
+    }
+
     private static final long STYLE_TITLED = 1, STYLE_CLOSABLE = 2, STYLE_MINIATURIZABLE = 4, STYLE_RESIZABLE = 8;
     private static final long BACKING_BUFFERED = 2;
     private static final long REDRAW_ON_SET_NEEDS_DISPLAY = 2;
     private static final long VIEW_WIDTH_HEIGHT_SIZABLE = 2 | 16;
 
     private static final Map<Long, MacWindow> BY_VIEW = new HashMap<>();
-    private static long viewClass, viewSuperclass;
+    private static final Map<Long, MacWindow> BY_DELEGATE = new HashMap<>();
+    private static long viewClass, viewSuperclass, delegateClass;
+    // Tracking area options: EnteredAndExited, MouseMoved, ActiveInActiveApp, InVisibleRect.
+    private static final long TRACKING = 0x01 | 0x02 | 0x40 | 0x200;
+    private static final int MOVE = 0, DOWN = 1, UP = 2;
 
     /** The app's text engine, shared by its windows. */
     private final TextEngine text;
@@ -43,7 +70,11 @@ public final class MacWindow {
     private final long view;
     private final MetalRenderer renderer;
     private final Painter painter;
-    private final int background;
+    private final Input input;
+    private final long delegate;
+    private int background;
+    /** A control-click: the primary button acts as the secondary until it is released (as MyGO). */
+    private boolean ctrlClick;
     private final Scene scene = new Scene();
 
     private LongConsumer onFirstFrame;
@@ -58,8 +89,10 @@ public final class MacWindow {
     /** Wall-clock microseconds at which the first frame was committed. */
     public long firstCommitMicros;
 
-    private MacWindow(String title, double width, double height, int background, TextEngine text, Painter painter) {
+    private MacWindow(String title, double width, double height, int background, TextEngine text, Painter painter,
+                      Input input) {
         this.painter = painter;
+        this.input = input;
         this.background = background;
         this.text = text;
         defineViewClass();
@@ -75,10 +108,17 @@ public final class MacWindow {
         send(view, "setAutoresizingMask:", VIEW_WIDTH_HEIGHT_SIZABLE);
         renderer = new MetalRenderer(send(view, "layer"));
         BY_VIEW.put(view, this);
+        long area = ObjC.initTrackingArea(send(ObjC.cls("NSTrackingArea"), "alloc"), TRACKING, view);
+        send(view, "addTrackingArea:", area);
+        ObjC.release(area);
+        delegate = send(send(delegateClass, "alloc"), "init");
+        BY_DELEGATE.put(delegate, this);
+        send(window, "setDelegate:", delegate);
 
         send(window, "setContentView:", view);
         send(window, "center");
         send(window, "makeKeyAndOrderFront:", 0);
+        send(window, "makeFirstResponder:", view);
         send(view, "setNeedsDisplay:", 1);
     }
 
@@ -89,12 +129,49 @@ public final class MacWindow {
      */
     public static MacWindow open(String title, double width, double height, int background, TextEngine text,
                                  Painter painter) {
+        return open(title, width, height, background, text, painter, null);
+    }
+
+    /** As {@link #open(String, double, double, int, TextEngine, Painter)}, with input sent to {@code input}. */
+    public static MacWindow open(String title, double width, double height, int background, TextEngine text,
+                                 Painter painter, Input input) {
         long pool = ObjC.poolPush();
         try {
-            return new MacWindow(title, width, height, background, text, painter);
+            return new MacWindow(title, width, height, background, text, painter, input);
         } finally {
             ObjC.poolPop(pool);
         }
+    }
+
+    /** The color frames clear to, 0xRRGGBB; asks for a frame. */
+    public void setBackground(int rgb) {
+        background = rgb;
+        requestFrame();
+    }
+
+    /** Whether the view's appearance is dark (as MyGO's system.go decides). */
+    public boolean dark() {
+        long pool = ObjC.poolPush();
+        try {
+            long names = ObjC.array(ObjC.nsString("NSAppearanceNameAqua"), ObjC.nsString("NSAppearanceNameDarkAqua"));
+            long best = send(send(view, "effectiveAppearance"), "bestMatchFromAppearancesWithNames:", names);
+            return best != 0 && "NSAppearanceNameDarkAqua".equals(ObjC.string(best));
+        } finally {
+            ObjC.poolPop(pool);
+        }
+    }
+
+    /** Closes the window. */
+    public void close() {
+        send(window, "setDelegate:", 0);
+        send(window, "close");
+        BY_VIEW.remove(view);
+        BY_DELEGATE.remove(delegate);
+    }
+
+    /** The content view: for tests. */
+    long view() {
+        return view;
     }
 
     public MetalRenderer renderer() {
@@ -160,12 +237,63 @@ public final class MacWindow {
         return scene.count();
     }
 
+    /** A mouse event: kind MOVE, DOWN or UP, of button 0 or 1. */
+    private void mouse(long event, int kind, int button) {
+        if (input == null) {
+            return;
+        }
+        double[] p = ObjC.locationInView(view, event);
+        int mods = MacKeys.mods(send(event, "modifierFlags"));
+        switch (kind) {
+            case DOWN -> {
+                if (button == 0 && (mods & jui.ui.Mod.CTRL) != 0) {
+                    ctrlClick = true;
+                }
+                send(window, "makeFirstResponder:", view);
+                input.pointerDown(p[0], p[1], ctrlClick && button == 0 ? 1 : button, (int) send(event, "clickCount"), mods);
+            }
+            case UP -> {
+                int b = ctrlClick && button == 0 ? 1 : button;
+                if (button == 0) {
+                    ctrlClick = false;
+                }
+                input.pointerUp(p[0], p[1], b, mods);
+            }
+            default -> input.pointerMove(p[0], p[1], mods);
+        }
+    }
+
+    private void key(long event) {
+        if (input == null) {
+            return;
+        }
+        int code = (int) (send(event, "keyCode") & 0xFFFF);
+        long chars = send(event, "charactersIgnoringModifiers");
+        input.keyDown(MacKeys.key(code, chars == 0 ? "" : ObjC.string(chars)), MacKeys.mods(send(event, "modifierFlags")),
+                ObjC.sendBool(event, "isARepeat"));
+    }
+
+    /** Runs what to do with the window of a view, if it has one. */
+    private static void withView(long view, java.util.function.Consumer<MacWindow> action) {
+        MacWindow w = BY_VIEW.get(view);
+        if (w != null) {
+            action.accept(w);
+        }
+    }
+
     /** Waits on the run loop, never blocking it, for the first frame. */
     private void pollFrame() {
         if (firstFrameDoneMicros != 0 || ++polls > 5000) {
             onFirstFrame.accept(firstFrameDoneMicros);
         } else {
             ObjC.performAfter(view, "juiPollFrame:", 0, 0.001);
+        }
+    }
+
+    private static void focusChanged(long delegate, boolean focused) {
+        MacWindow w = BY_DELEGATE.get(delegate);
+        if (w != null && w.input != null) {
+            w.input.windowFocusChanged(focused);
         }
     }
 
@@ -193,7 +321,37 @@ public final class MacWindow {
                         w.pollFrame();
                     }
                 })
+                // Input, as MyGO's internal/darwin/surface.go takes it.
+                .boolMethod("acceptsFirstResponder", (self, cmd) -> true)
+                .boolMethod1("acceptsFirstMouse:", (self, cmd, event) -> true)
+                .method1("mouseDown:", (self, cmd, e) -> withView(self, w -> w.mouse(e, DOWN, 0)))
+                .method1("mouseUp:", (self, cmd, e) -> withView(self, w -> w.mouse(e, UP, 0)))
+                .method1("mouseDragged:", (self, cmd, e) -> withView(self, w -> w.mouse(e, MOVE, 0)))
+                .method1("rightMouseDown:", (self, cmd, e) -> withView(self, w -> w.mouse(e, DOWN, 1)))
+                .method1("rightMouseUp:", (self, cmd, e) -> withView(self, w -> w.mouse(e, UP, 1)))
+                .method1("rightMouseDragged:", (self, cmd, e) -> withView(self, w -> w.mouse(e, MOVE, 1)))
+                .method1("mouseMoved:", (self, cmd, e) -> withView(self, w -> w.mouse(e, MOVE, 0)))
+                .method1("mouseExited:", (self, cmd, e) -> withView(self, w -> {
+                    if (w.input != null) {
+                        w.input.pointerLeave();
+                    }
+                }))
+                .method1("keyDown:", (self, cmd, e) -> withView(self, w -> w.key(e)))
+                .method1("flagsChanged:", (self, cmd, e) -> withView(self, w -> {
+                    if (w.input != null) {
+                        w.input.modifiersChanged(MacKeys.mods(send(e, "modifierFlags")));
+                    }
+                }))
+                .method("viewDidChangeEffectiveAppearance", (self, cmd) -> withView(self, w -> {
+                    if (w.input != null) {
+                        w.input.appearanceChanged(w.dark());
+                    }
+                }))
                 .register();
         viewSuperclass = ObjC.superclass(viewClass);
+        delegateClass = ObjCClass.define("JUIWindowDelegate", "NSObject")
+                .method1("windowDidBecomeKey:", (self, cmd, note) -> focusChanged(self, true))
+                .method1("windowDidResignKey:", (self, cmd, note) -> focusChanged(self, false))
+                .register();
     }
 }

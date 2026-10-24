@@ -48,6 +48,9 @@ public final class Native {
     static final MethodHandle SET_DOUBLE = handle(Sigs.SET_DOUBLE);
     static final MethodHandle DOUBLE2_ID = handle(Sigs.DOUBLE2_ID);
     static final MethodHandle SET_SIZE = handle(Sigs.SET_SIZE);
+    static final MethodHandle POINT_OF = handle(Sigs.POINT_OF);
+    static final MethodHandle CONVERT_POINT = handle(Sigs.CONVERT_POINT);
+    static final MethodHandle INIT_TRACKING_AREA = handle(Sigs.INIT_TRACKING_AREA);
     static final MethodHandle SET_RECT = handle(Sigs.SET_RECT);
     static final MethodHandle INIT_RECT = handle(Sigs.INIT_RECT);
     static final MethodHandle INIT_WINDOW = handle(Sigs.INIT_WINDOW);

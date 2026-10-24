@@ -102,6 +102,14 @@ public final class Sigs {
             JAVA_LONG, JAVA_LONG, JAVA_DOUBLE, JAVA_DOUBLE));
     /** void (id, SEL, CGSize): setDrawableSize:, and setFrameSize: through objc_msgSendSuper. */
     public static final FunctionDescriptor SET_SIZE = down(FunctionDescriptor.ofVoid(JAVA_LONG, JAVA_LONG, CG_SIZE));
+    /** NSPoint [obj sel], as -[NSEvent locationInWindow]. */
+    public static final FunctionDescriptor POINT_OF = down(FunctionDescriptor.of(CG_POINT, JAVA_LONG, JAVA_LONG));
+    /** NSPoint [view convertPoint:p fromView:other]. */
+    public static final FunctionDescriptor CONVERT_POINT = down(FunctionDescriptor.of(CG_POINT,
+            JAVA_LONG, JAVA_LONG, CG_POINT, JAVA_LONG));
+    /** [area initWithRect:options:owner:userInfo:]. */
+    public static final FunctionDescriptor INIT_TRACKING_AREA = down(FunctionDescriptor.of(JAVA_LONG,
+            JAVA_LONG, JAVA_LONG, CG_RECT, JAVA_LONG, JAVA_LONG, JAVA_LONG));
     /** void (id, SEL, CGRect): setFrame:. */
     public static final FunctionDescriptor SET_RECT = down(FunctionDescriptor.ofVoid(JAVA_LONG, JAVA_LONG, CG_RECT));
     /** id (id, SEL, CGRect): initWithFrame:. */

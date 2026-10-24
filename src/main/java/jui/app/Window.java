@@ -2,6 +2,7 @@ package jui.app;
 
 import jui.platform.mac.MacApp;
 import jui.platform.mac.MacWindow;
+import jui.ui.Key;
 import jui.ui.Theme;
 import jui.ui.View;
 import jui.ui.engine.Engine;
@@ -11,7 +12,7 @@ import jui.ui.engine.Engine;
  * drawn only when asked for: when AppKit displays the window (as it opens
  * or resizes), or when the view or the app invalidates it.
  */
-public final class Window {
+public final class Window implements MacWindow.Input {
     private final Engine engine;
     private final MacWindow mac;
 
@@ -23,7 +24,8 @@ public final class Window {
                 App.text(), (scene, w, h) -> {
                     engine.buildAndLayout(view, (float) w, (float) h);
                     engine.paint(scene);
-                });
+                }, this);
+        appearanceChanged(mac.dark());
     }
 
     /** Opens a window; call it on the main thread once the app is ready. */
@@ -39,6 +41,70 @@ public final class Window {
         }
         if (mac != null) {
             mac.requestFrame();
+        }
+    }
+
+    /**
+     * Runs change on the main thread, then draws a frame; any thread may
+     * call it, as threads that scan or index do when they are done.
+     */
+    public void update(Runnable change) {
+        if (!MacApp.onMainThread()) {
+            MacApp.post(() -> update(change));
+            return;
+        }
+        change.run();
+        invalidate();
+    }
+
+    /** Closes the window. */
+    public void close() {
+        mac.close();
+    }
+
+    // Input from the window's view, for the engine.
+
+    @Override
+    public void pointerMove(double x, double y, int mods) {
+        engine.pointerMove((float) x, (float) y, mods);
+    }
+
+    @Override
+    public void pointerDown(double x, double y, int button, int clicks, int mods) {
+        engine.pointerDown((float) x, (float) y, button, clicks, mods);
+    }
+
+    @Override
+    public void pointerUp(double x, double y, int button, int mods) {
+        engine.pointerUp((float) x, (float) y, button, mods);
+    }
+
+    @Override
+    public void pointerLeave() {
+        engine.pointerLeave();
+    }
+
+    @Override
+    public void keyDown(Key key, int mods, boolean repeat) {
+        engine.keyDown(key, mods, repeat);
+    }
+
+    @Override
+    public void modifiersChanged(int mods) {
+        engine.modifiersChanged(mods);
+    }
+
+    @Override
+    public void windowFocusChanged(boolean focused) {
+        engine.windowFocusChanged(focused);
+    }
+
+    /** The system's appearance changed: the theme follows, and the window clears to its background. */
+    @Override
+    public void appearanceChanged(boolean dark) {
+        engine.setDark(dark);
+        if (mac != null) {
+            mac.setBackground(engine.theme().background().rgba() >>> 8);
         }
     }
 

@@ -60,6 +60,10 @@ public final class ObjC {
     private static final MemorySegment REGION_ARG = Arena.global().allocate(Sigs.MTL_REGION);
     private static final SegmentAllocator RECT_RET = SegmentAllocator.prefixAllocator(
             Arena.global().allocate(Sigs.CG_RECT));
+    private static final SegmentAllocator POINT_RET = SegmentAllocator.prefixAllocator(
+            Arena.global().allocate(Sigs.CG_POINT));
+    private static final MemorySegment POINT_ARG = Arena.global().allocate(Sigs.CG_POINT);
+    private static final MemorySegment IDS_ARG = Arena.global().allocate(JAVA_LONG, 8);
 
     private static final ConcurrentHashMap<String, Long> CLASSES = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Long> SELECTORS = new ConcurrentHashMap<>();
@@ -177,6 +181,38 @@ public final class ObjC {
         } catch (Throwable t) {
             throw Native.rethrow(t);
         }
+    }
+
+    /** Where an event happened in a view, {x, y} in points: {@code [view convertPoint:[event locationInWindow] fromView:nil]}. */
+    public static double[] locationInView(long view, long event) {
+        try {
+            MemorySegment p = (MemorySegment) Native.POINT_OF.invokeExact(MSG_SEND, POINT_RET, event, sel("locationInWindow"));
+            POINT_ARG.set(JAVA_DOUBLE, 0, p.get(JAVA_DOUBLE, 0));
+            POINT_ARG.set(JAVA_DOUBLE, 8, p.get(JAVA_DOUBLE, 8));
+            MemorySegment q = (MemorySegment) Native.CONVERT_POINT.invokeExact(MSG_SEND, POINT_RET, view,
+                    sel("convertPoint:fromView:"), POINT_ARG, 0L);
+            return new double[] {q.get(JAVA_DOUBLE, 0), q.get(JAVA_DOUBLE, 8)};
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
+    }
+
+    /** {@code [area initWithRect:NSZeroRect options:options owner:owner userInfo:nil]}. */
+    public static long initTrackingArea(long area, long options, long owner) {
+        try {
+            return (long) Native.INIT_TRACKING_AREA.invokeExact(MSG_SEND, area,
+                    sel("initWithRect:options:owner:userInfo:"), rect(0, 0, 0, 0), options, owner, 0L);
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
+    }
+
+    /** An autoreleased NSArray of the objects. */
+    public static long array(long... objects) {
+        for (int i = 0; i < objects.length; i++) {
+            IDS_ARG.setAtIndex(JAVA_LONG, i, objects[i]);
+        }
+        return send(cls("NSArray"), "arrayWithObjects:count:", IDS_ARG.address(), objects.length);
     }
 
     public static void sendSize(long obj, String sel, double width, double height) {
