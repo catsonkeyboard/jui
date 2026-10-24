@@ -84,6 +84,12 @@ public final class FlexLayoutTest {
         Check.near(250, at("a").x()); Check.near(190, at("b").x());
     }
 
+    public void testReverseKeepsMarginsOnTheirSide() { // deferred minor: as CSS's row-reverse
+        e.buildAndLayout(c -> row(c).size(300, 50).reverse().children(() ->
+            box(c).size(50, 10).margin(0, 0, 0, 20).label("a")), 300, 50);
+        Check.near(250, at("a").x()); // the left margin stays on its left, away from the right edge
+    }
+
     public void testAlignItemsEndAndNestedContentSize() {
         e.buildAndLayout(c -> column(c).size(300, 200).children(() ->
             row(c).gap(5).alignItems(Align.END).label("r").children(() -> {

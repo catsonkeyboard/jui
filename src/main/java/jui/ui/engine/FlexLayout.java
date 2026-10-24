@@ -64,7 +64,7 @@ public final class FlexLayout {
         float used = 0;
         for (int c = p.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
             Node n = pool.node(c);
-            float ms = row ? n.marLeft : n.marTop, me = row ? n.marRight : n.marBottom;
+            float ms = startMargin(n, row, p.reverse), me = endMargin(n, row, p.reverse);
             used += n.flexTarget + m(ms) + m(me);
             autos += (ms == Ui.AUTO ? 1 : 0) + (me == Ui.AUTO ? 1 : 0);
             count++;
@@ -99,7 +99,7 @@ public final class FlexLayout {
         float pos = offset;
         for (int c = p.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
             Node n = pool.node(c);
-            float ms = row ? n.marLeft : n.marTop, me = row ? n.marRight : n.marBottom;
+            float ms = startMargin(n, row, p.reverse), me = endMargin(n, row, p.reverse);
             pos += ms == Ui.AUTO ? auto : ms;
             float size = n.flexTarget;
             float cs = n.crossSize;
@@ -381,6 +381,19 @@ public final class FlexLayout {
     /** A margin's room: an automatic margin takes none until free space is shared. */
     private static float m(float margin) {
         return margin == Ui.AUTO ? 0 : margin;
+    }
+
+    /**
+     * The margin on the side the line starts from: the left or top, or with
+     * reverse() the right or bottom, so margins stay on their own sides as
+     * CSS's row-reverse keeps them.
+     */
+    private static float startMargin(Node n, boolean row, boolean reverse) {
+        return row ? (reverse ? n.marRight : n.marLeft) : (reverse ? n.marBottom : n.marTop);
+    }
+
+    private static float endMargin(Node n, boolean row, boolean reverse) {
+        return row ? (reverse ? n.marLeft : n.marRight) : (reverse ? n.marTop : n.marBottom);
     }
 
     private static float margins(Node n, boolean row) {
