@@ -47,6 +47,14 @@ public final class PaintTest {
         Check.near(14, shadow[4]);
     }
 
+    public void testTransparentTextColorIsKept() { // deferred minor: 0 was the inherit sentinel
+        e.buildAndLayout(c -> column(c).textColor(Color.rgb(0xFF0000)).children(() ->
+            text(c, "x").textColor(Color.TRANSPARENT)), 200, 100);
+        Scene s = paint(2);
+        Check.near(2, s.instance(0)[18]);  // the glyph
+        Check.near(0, s.instance(0)[11]);  // its alpha: transparent, not the column's red
+    }
+
     public void testBorderInsetsChildren() {
         e.buildAndLayout(c -> column(c).border(2, Color.rgb(0)).padding(10).children(() -> box(c).height(5).label("in")), 100, 100);
         Check.near(12, e.bounds("in").x());

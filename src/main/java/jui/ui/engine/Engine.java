@@ -89,13 +89,13 @@ public final class Engine {
         Node root = pool.node(0);
         root.resolvedSize = Float.isNaN(root.fontSize) ? theme.fontSize() : root.fontSize;
         root.resolvedWeight = root.fontWeight != 0 ? root.fontWeight : 400;
-        root.resolvedColor = root.textColor != 0 ? root.textColor : theme.text().rgba();
+        root.resolvedColor = root.hasTextColor ? root.textColor : theme.text().rgba();
         for (int i = 1; i < pool.size(); i++) {
             Node n = pool.node(i);
             Node p = pool.node(n.parent);
             n.resolvedSize = Float.isNaN(n.fontSize) ? p.resolvedSize : n.fontSize;
             n.resolvedWeight = n.fontWeight != 0 ? n.fontWeight : p.resolvedWeight;
-            n.resolvedColor = n.textColor != 0 ? n.textColor : p.resolvedColor;
+            n.resolvedColor = n.hasTextColor ? n.textColor : p.resolvedColor;
         }
     }
 

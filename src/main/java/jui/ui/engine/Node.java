@@ -35,9 +35,11 @@ public final class Node {
     /** Null follows the parent's alignItems. */
     public Align alignSelf;
 
-    // Text input: 0 and NaN inherit.
+    // Text input: NaN and 0 (size, weight) and hasTextColor false inherit.
     public String text;
     public int textColor;
+    /** Whether textColor was set: any color, transparent too, can be. */
+    public boolean hasTextColor;
     public float fontSize;
     public int fontWeight;
     public boolean singleLine;
@@ -83,6 +85,7 @@ public final class Node {
 
         text = null;
         textColor = 0;
+        hasTextColor = false;
         fontSize = Float.NaN;
         fontWeight = 0;
         singleLine = false;

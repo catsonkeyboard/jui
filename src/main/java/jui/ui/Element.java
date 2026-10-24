@@ -286,6 +286,7 @@ public final class Element {
         Node n = node();
         if (n != null) {
             n.textColor = color.rgba();
+            n.hasTextColor = true;
         }
         return this;
     }
