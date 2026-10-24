@@ -63,6 +63,14 @@ public final class TextElementTest {
                 "the box below starts after the text: " + e.bounds("t") + " " + e.bounds("below"));
     }
 
+    public void testTextSqueezedToNoWidthStillWraps() { // deferred minor: 0 meant "no limit"
+        float line = oneLine();
+        e.buildAndLayout(c -> row(c).width(100).alignItems(Align.START).children(() -> {
+            box(c).size(100, 20).shrink(0); text(c, LONG).grow(1).label("t"); }), 100, 4000);
+        Check.near(0, e.bounds("t").width());
+        Check.isTrue(e.bounds("t").height() > line * 3, "breaks at every chance rather than running on one line");
+    }
+
     public void testEmptyAndUnbrokenText() { // Review Focus 3
         float line = oneLine();
         e.buildAndLayout(c -> column(c).width(100).children(() -> {

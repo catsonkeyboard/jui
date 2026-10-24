@@ -16,9 +16,12 @@ import jui.ui.Ui;
  */
 public final class FlexLayout {
 
+    /** A width without limit, for text on one line per paragraph; any finite width, 0 too, wraps. */
+    public static final float UNLIMITED = Float.POSITIVE_INFINITY;
+
     /** Measures a node's own content, its text: writes {width, height} to out. */
     public interface Measure {
-        /** {@code maxWidth} 0 is no limit: one line per paragraph. */
+        /** {@code maxWidth} is {@link #UNLIMITED} for no limit: one line per paragraph. */
         void measure(int node, float maxWidth, float[] out);
     }
 
@@ -46,7 +49,7 @@ public final class FlexLayout {
         Node p = pool.node(index);
         if (p.kind == Node.TEXT) {
             // The text's layout at its final width, for paint.
-            measure.measure(index, p.singleLine ? 0 : Math.max(0, p.w - insetX(p)), out);
+            measure.measure(index, p.singleLine ? UNLIMITED : Math.max(0, p.w - insetX(p)), out);
         }
         if (p.firstChild == Node.NONE) {
             return;
@@ -293,7 +296,7 @@ public final class FlexLayout {
         float w;
         switch (n.kind) {
             case Node.TEXT -> {
-                measure.measure(index, 0, out);
+                measure.measure(index, UNLIMITED, out);
                 w = out[0];
             }
             case Node.DIVIDER -> w = 0;
@@ -324,7 +327,7 @@ public final class FlexLayout {
         float h;
         switch (n.kind) {
             case Node.TEXT -> {
-                measure.measure(index, n.singleLine ? 0 : innerW, out);
+                measure.measure(index, n.singleLine ? UNLIMITED : innerW, out);
                 h = out[1];
             }
             case Node.DIVIDER -> h = 0;
