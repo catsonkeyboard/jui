@@ -38,6 +38,16 @@ public final class Ui {
         return e;
     }
 
+    /** Text in the system font, wrapped at the width it gets. */
+    public static Element text(Context c, String s) {
+        Element e = open(c, Node.TEXT, false, Align.STRETCH);
+        Node n = e.node();
+        if (n != null) {
+            n.text = s;
+        }
+        return e;
+    }
+
     /** A thin line across its row or column. */
     public static Element divider(Context c) {
         return open(c, Node.DIVIDER, false, Align.STRETCH);

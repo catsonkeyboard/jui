@@ -232,6 +232,46 @@ public final class Element {
         return this;
     }
 
+    // Text style: set on any element, the text inside inherits it.
+
+    public Element textColor(Color color) {
+        Node n = node();
+        if (n != null) {
+            n.textColor = color.rgba();
+        }
+        return this;
+    }
+
+    public Element fontSize(float size) {
+        Node n = node();
+        if (n != null) {
+            n.fontSize = size;
+        }
+        return this;
+    }
+
+    /** A CSS weight, from 100 to 900. */
+    public Element fontWeight(int weight) {
+        Node n = node();
+        if (n != null) {
+            n.fontWeight = weight;
+        }
+        return this;
+    }
+
+    public Element bold() {
+        return fontWeight(700);
+    }
+
+    /** Keeps a text on one line. */
+    public Element singleLine() {
+        Node n = node();
+        if (n != null) {
+            n.singleLine = true;
+        }
+        return this;
+    }
+
     /** The node, or null when this element is stale. */
     Node node() {
         if (c.engine().valid(index, gen)) {

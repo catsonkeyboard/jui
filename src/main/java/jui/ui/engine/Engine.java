@@ -69,13 +69,43 @@ public final class Engine {
             building = false;
             parent = Node.NONE;
         }
+        inheritTextStyle();
         layout.layout(root, width, height);
     }
 
-    /** Measures a node's own content: nothing but text has any. */
+    /**
+     * Resolves each node's text style from its own and its ancestors': nodes
+     * come after their parents in the pool, so one pass in order does it,
+     * whether the view set a style before or after building the children.
+     */
+    private void inheritTextStyle() {
+        Node root = pool.node(0);
+        root.resolvedSize = Float.isNaN(root.fontSize) ? theme.fontSize() : root.fontSize;
+        root.resolvedWeight = root.fontWeight != 0 ? root.fontWeight : 400;
+        root.resolvedColor = root.textColor != 0 ? root.textColor : theme.text().rgba();
+        for (int i = 1; i < pool.size(); i++) {
+            Node n = pool.node(i);
+            Node p = pool.node(n.parent);
+            n.resolvedSize = Float.isNaN(n.fontSize) ? p.resolvedSize : n.fontSize;
+            n.resolvedWeight = n.fontWeight != 0 ? n.fontWeight : p.resolvedWeight;
+            n.resolvedColor = n.textColor != 0 ? n.textColor : p.resolvedColor;
+        }
+    }
+
+    /** Measures a node's own content, its text, and keeps the text's layout for paint. */
     private void measure(int index, float maxWidth, float[] out) {
-        out[0] = 0;
-        out[1] = 0;
+        Node n = pool.node(index);
+        if (n.kind != Node.TEXT || n.text == null) {
+            out[0] = 0;
+            out[1] = 0;
+            return;
+        }
+        if (text == null) {
+            throw new IllegalStateException("text needs an engine made with a TextEngine");
+        }
+        n.layout = text.layout(n.text, n.resolvedSize, n.resolvedWeight, maxWidth);
+        out[0] = n.layout.width;
+        out[1] = n.layout.height;
     }
 
     // Building, for the ui package.

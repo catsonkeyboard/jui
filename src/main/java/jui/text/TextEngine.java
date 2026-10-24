@@ -45,6 +45,7 @@ public final class TextEngine {
 
     /** {@code language} picks the glyphs of fonts that have several, as Han characters in Chinese and Japanese. */
     public TextEngine(String language) {
+        ObjC.framework("AppKit"); // the system font comes from NSFont, even without an app (as in tests)
         this.language = CoreText.string(language);
     }
 

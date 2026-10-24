@@ -50,7 +50,10 @@ public final class Node {
     // Layout output: DIPs from the window's top left.
     public float x, y, w, h;
     public TextLayout layout;
+    /** The text style after inheritance. */
     public int resolvedColor;
+    float resolvedSize;
+    int resolvedWeight;
 
     // Layout's scratch while it resolves this node's size in its parent.
     float flexBasis, flexTarget, crossSize, violation;
@@ -91,5 +94,7 @@ public final class Node {
         x = y = w = h = 0;
         layout = null;
         resolvedColor = 0;
+        resolvedSize = 0;
+        resolvedWeight = 0;
     }
 }
