@@ -35,7 +35,7 @@ public final class MetalRenderer {
     private static final long LAYER_WIDTH_SIZABLE = 1 << 1;
     private static final long LAYER_HEIGHT_SIZABLE = 1 << 4;
 
-    /** Instances per buffer, and buffers in flight. */
+    /** Instances a buffer first holds, and buffers in flight. */
     private static final int CAPACITY = 1024;
     private static final int BUFFERS = 3;
 
@@ -56,11 +56,13 @@ public final class MetalRenderer {
     private final long layer;
     private final long[] buffers = new long[BUFFERS];
     private final MemorySegment[] contents = new MemorySegment[BUFFERS];
+    private final int[] capacities = new int[BUFFERS];
     private final MemorySegment globals = Arena.global().allocate(16, 16);
     private final GlyphAtlas atlas = new GlyphAtlas(ATLAS_SIZE, ATLAS_SIZE);
     private final long atlasTexture;
     private final int[] dirty = new int[4];
     private int frame;
+    private int drawn;
     private long drawableWidth, drawableHeight;
     private double drawableScale;
     private boolean presentsWithTransaction;
@@ -95,9 +97,7 @@ public final class MetalRenderer {
             ObjC.release(library);
 
             for (int i = 0; i < BUFFERS; i++) {
-                buffers[i] = send(device, "newBufferWithLength:options:", (long) CAPACITY * Scene.BYTES, 0); // shared
-                contents[i] = MemorySegment.ofAddress(send(buffers[i], "contents"))
-                        .reinterpret((long) CAPACITY * Scene.BYTES);
+                allocate(i, CAPACITY);
             }
 
             // The glyph atlas: coverage, a byte a pixel.
@@ -109,6 +109,11 @@ public final class MetalRenderer {
         } finally {
             ObjC.poolPop(pool);
         }
+    }
+
+    /** How many instances the last frame drew: for tools. */
+    public int instancesDrawn() {
+        return drawn;
     }
 
     /** The atlas that scenes drawn by this renderer put their glyphs in. */
@@ -163,7 +168,13 @@ public final class MetalRenderer {
                     (clear & 0xFF) / 255.0, 1);
 
             int slot = frame++ % BUFFERS;
-            int n = scene.writeTo(contents[slot], CAPACITY);
+            if (scene.count() > capacities[slot]) {
+                // The command buffers still drawing from the old one retain it.
+                ObjC.release(buffers[slot]);
+                allocate(slot, Math.max(scene.count(), capacities[slot] * 2));
+            }
+            int n = scene.writeTo(contents[slot], capacities[slot]);
+            drawn = n;
             globals.set(JAVA_FLOAT, 0, pw);
             globals.set(JAVA_FLOAT, 4, ph);
             // Glyphs new to the atlas go up in one rectangle. They land where
@@ -202,6 +213,14 @@ public final class MetalRenderer {
         } finally {
             ObjC.poolPop(pool);
         }
+    }
+
+    /** Makes buffer slot a buffer of capacity instances, in memory the CPU and GPU share. */
+    private void allocate(int slot, int capacity) {
+        long bytes = (long) capacity * Scene.BYTES;
+        buffers[slot] = send(device, "newBufferWithLength:options:", bytes, 0); // shared storage
+        contents[slot] = MemorySegment.ofAddress(send(buffers[slot], "contents")).reinterpret(bytes);
+        capacities[slot] = capacity;
     }
 
     /** The shader library: precompiled when the build made one, else from source. */
