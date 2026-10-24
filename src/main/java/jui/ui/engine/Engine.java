@@ -26,6 +26,8 @@ public final class Engine {
     private int parent = Node.NONE;
     private boolean keyPending;
     private long pendingKey;
+    /** Dev mode: this frame's nodes by identity, to find siblings with the same key at once. */
+    private final java.util.HashMap<Long, Integer> nodesById = Dev.ENABLED ? new java.util.HashMap<>() : null;
 
     /** {@code text} may be null for views without text, as in layout tests. */
     public Engine(TextEngine text, Theme theme, Runnable requestFrame) {
@@ -53,6 +55,9 @@ public final class Engine {
             Dev.fail("views build only on the main thread");
         }
         pool.reset();
+        if (Dev.ENABLED) {
+            nodesById.clear();
+        }
         int root = pool.open();
         Node r = pool.node(root);
         r.id = Identity.ROOT;
@@ -134,10 +139,9 @@ public final class Engine {
         n.id = keyPending ? Identity.keyed(p.id, pendingKey) : Identity.child(p.id, p.childCount);
         keyPending = false;
         if (Dev.ENABLED) {
-            for (int c = p.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
-                if (pool.node(c).id == n.id) {
-                    Dev.fail("two siblings have the same key");
-                }
+            Integer other = nodesById.put(n.id, index);
+            if (other != null && pool.node(other).parent == parent) {
+                Dev.fail("two siblings have the same key");
             }
         }
         if (p.lastChild == Node.NONE) {

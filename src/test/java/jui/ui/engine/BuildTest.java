@@ -40,6 +40,20 @@ public final class BuildTest {
                 c -> column(c).children(() -> { box(c.key(7L)); box(c.key(7L)); }), 100, 100));
     }
 
+    public void testDuplicateKeyCheckKeepsLongListsFast() { // deferred minor: the dev check was O(n²)
+        int n = 50_000;
+        View v = c -> column(c).children(() -> {
+            for (int i = 0; i < n; i++) {
+                box(c.key(i));
+            }
+        });
+        e.buildAndLayout(v, 100, 100); // warm up
+        long start = System.nanoTime();
+        e.buildAndLayout(v, 100, 100);
+        long ms = (System.nanoTime() - start) / 1_000_000;
+        Check.isTrue(ms < 400, n + " keyed siblings took " + ms + " ms to build in dev mode");
+    }
+
     public void testUnusedKeyFails() {
         Check.fails(IllegalStateException.class, () -> e.buildAndLayout(c -> c.key("lost"), 100, 100));
     }
