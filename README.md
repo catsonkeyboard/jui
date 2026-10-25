@@ -197,7 +197,7 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 
 - **计数器**：照 MyGO 的 `examples/counter-native`，加了一个步长滑块。按钮和 ↑/↓ 都按步长计数，计数为 0 时“重置”禁用。
 - **待办清单**：每条待办一个复选框，行按 id 作 key，“删除”的回调直接从列表里移除，开关隐藏已完成的，⌘N 新增。没有文字输入（M4 才做），所以待办的标题是固定的。
-- **测试**：`./build.sh test`，129 个测试全部通过。Tester 覆盖了点击、Tab、空格、方向键和快捷键。
+- **测试**：`./build.sh test`，138 个测试全部通过。Tester 覆盖了点击、Tab、空格、方向键和快捷键。
 - **分配**：控件帧（40 个按钮、40 个复选框、20 个滑块）在 native image 下，框架内部每个控件分配 0 字节，指针悬停在按钮上时也是 0；卡片整帧仍是 200 字节（`./build.sh alloc`）。
 - **还需要手动核对的**：真实鼠标和键盘下的悬停变色、点击、焦点环，以及切换系统外观。从 AppKit 事件到引擎的路径由 `MacWindowInputTest` 用真实的 `NSEvent` 测过，但没有人手操作过。
 
