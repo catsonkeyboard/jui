@@ -120,6 +120,14 @@ public final class Engine {
             building = false;
             parent = Node.NONE;
         }
+        // An element disabled after its children were built disables them too:
+        // parents come before their children in the pool.
+        for (int i = 1; i < pool.size(); i++) {
+            Node n = pool.node(i);
+            if (!n.disabled && pool.node(n.parent).disabled) {
+                n.disabled = true;
+            }
+        }
         // Callbacks run once the whole view is built, so they may change what it
         // iterated: changes first, then focus requests, then clicks (as MyGO).
         try {
@@ -243,6 +251,7 @@ public final class Engine {
                 s.cy = n.y + n.padTop + n.border;
                 s.cw = Math.max(0, n.w - n.padLeft - n.padRight - 2 * n.border);
                 s.ch = Math.max(0, n.h - n.padTop - n.padBottom - 2 * n.border);
+                s.disabledLast = n.disabled;
             }
         }
         states.prune(frame, pass);
@@ -314,20 +323,15 @@ public final class Engine {
     public boolean hovered(int index) {
         Node n = pool.node(index);
         n.flags |= Node.HOVER;
-        if (n.disabled) {
-            return false;
-        }
-        if (input.pressedId != 0 && input.pressedId != n.id) {
-            return input.hovered(n.id, state(index));
-        }
-        return input.hovered(n.id, null);
+        ElementState s = state(index); // its box, committed every frame, decides while another element is held
+        return !off(n) && input.hovered(n.id, s);
     }
 
     public boolean pressed(int index) {
         Node n = pool.node(index);
         n.flags |= Node.CLICKABLE | Node.HOVER;
         ElementState s = state(index);
-        boolean p = !n.disabled && input.pressed(s);
+        boolean p = !off(n) && input.pressed(s);
         if (p && s.pressPending) {
             consumed = true;
         }
@@ -337,7 +341,8 @@ public final class Engine {
     public int clicks(int index) {
         Node n = pool.node(index);
         n.flags |= Node.CLICKABLE;
-        int k = n.disabled ? 0 : state(index).clicks;
+        ElementState s = state(index);
+        int k = off(n) ? 0 : s.clicks;
         if (k > 0) {
             consumed = true;
         }
@@ -347,7 +352,8 @@ public final class Engine {
     public boolean doubleClicked(int index) {
         Node n = pool.node(index);
         n.flags |= Node.CLICKABLE;
-        boolean d = !n.disabled && state(index).doubleClicks > 0;
+        ElementState s = state(index);
+        boolean d = !off(n) && s.doubleClicks > 0;
         consumed |= d;
         return d;
     }
@@ -355,9 +361,24 @@ public final class Engine {
     public boolean rightClicked(int index) {
         Node n = pool.node(index);
         n.flags |= Node.CLICKABLE;
-        boolean r = !n.disabled && state(index).rightClicks > 0;
+        ElementState s = state(index);
+        boolean r = !off(n) && s.rightClicks > 0;
         consumed |= r;
         return r;
+    }
+
+    /**
+     * Whether the node is disabled: by itself or an element around it, now
+     * or in the last frame (as MyGO's disabled(): an element around it may
+     * disable it after building it). Controls ask before taking input.
+     */
+    public boolean disabled(int index) {
+        state(index);
+        return off(pool.node(index));
+    }
+
+    private static boolean off(Node n) {
+        return n.disabled || n.state != null && n.state.disabledLast;
     }
 
     public float dragX(int index) {
@@ -437,8 +458,11 @@ public final class Engine {
 
     /** Whether the node's shortcut s was pressed: focus must be within it. Registers it for routing. */
     public boolean shortcut(int index, jui.ui.Shortcut s) {
+        if (disabled(index)) {
+            return false; // a disabled element neither registers nor takes keys: they fall through (as MyGO)
+        }
         Node n = pool.node(index);
-        boolean hit = input.shortcut(n.id, s, pass == 0) && !n.disabled;
+        boolean hit = input.shortcut(n.id, s, pass == 0);
         consumed |= hit;
         return hit;
     }

@@ -137,4 +137,33 @@ public final class PointerTest {
         Check.equal(1, counts[0]);   // clicked() once in pass 1, nothing left for pass 2
         Check.equal(2, counts[1]);
     }
+
+    public void testARowStaysHoveredWhileItsButtonIsHeld() { // final review I2
+        boolean[] rowHot = {false};
+        Tester tt = Tester.of(c -> column(c).padding(10).children(() -> {
+            Element r = row(c).padding(10).label("row");
+            r.children(() -> button(c, "B"));
+            rowHot[0] = r.hovered();
+        }), 300, 200);
+        tt.hover("B");
+        Check.isTrue(rowHot[0], "hovered before the press");
+        Rect b = tt.find("B");
+        tt.press(b.x() + b.width() / 2, b.y() + b.height() / 2);
+        Check.isTrue(rowHot[0], "still hovered while its button is held");
+    }
+
+    public void testADoubleClickAfterAQuickPressElsewhereCounts() { // final review I3
+        int[] dbl = {0};
+        Engine e = new Engine(null, Theme.light(), () -> {});
+        View v = c -> row(c).children(() -> {
+            box(c).size(50, 40).doubleClicked();
+            if (box(c).size(50, 40).doubleClicked()) dbl[0]++;
+        });
+        e.buildAndLayout(v, 300, 200);
+        e.pointerDown(25, 20, 0, 1, 0); e.pointerUp(25, 20, 0, 0); e.buildAndLayout(v, 300, 200);   // A
+        e.pointerDown(75, 20, 0, 2, 0); e.pointerUp(75, 20, 0, 0); e.buildAndLayout(v, 300, 200);   // B, at once: the platform counts 2
+        e.pointerDown(75, 20, 0, 1, 0); e.pointerUp(75, 20, 0, 0); e.buildAndLayout(v, 300, 200);   // later, B again
+        e.pointerDown(75, 20, 0, 2, 0); e.pointerUp(75, 20, 0, 0); e.buildAndLayout(v, 300, 200);   // and its double click
+        Check.equal(1, dbl[0]);
+    }
 }

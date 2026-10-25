@@ -60,4 +60,15 @@ public final class CallbackTest {
         off[0] = false; tt.frame();
         Check.equal(0, n[0]);
     }
+
+    public void testDisablingAContainerAfterItsChildrenDisablesThem() { // final review I1
+        int[] n = {0};
+        Tester tt = Tester.of(c -> column(c).padding(10).children(() -> {
+            if (button(c, "OK").label("ok").clicked()) n[0]++;
+        }).disabled(true), 300, 200);
+        tt.click("OK");
+        Check.equal(0, n[0]);
+        tt.key(Shortcut.of(Key.TAB));
+        Check.isTrue(!tt.focused("ok"), "a disabled button takes no focus");
+    }
 }

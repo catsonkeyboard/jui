@@ -112,7 +112,8 @@ final class Input {
         if (target >= 0) {
             long id = hits.ids[target];
             ElementState s = stateAt(target);
-            if (id != lastPressId) {
+            // Counts restart per element, and when the platform's count starts over (as MyGO's countPress).
+            if (id != lastPressId || clickCount <= clickBase) {
                 lastPressId = id;
                 clickBase = clickCount - 1;
             }
@@ -166,13 +167,15 @@ final class Input {
     /** A key went down. Tab and the activation keys act at once; the rest wait for shortcuts. */
     void keyDown(jui.ui.Key key, int mods, boolean repeat) {
         this.mods = mods;
-        if (key == jui.ui.Key.TAB && (mods == 0 || mods == jui.ui.Mod.SHIFT)) {
+        // Keys that act at once yield to a shortcut that claims them (as MyGO's claimedBy).
+        if (key == jui.ui.Key.TAB && (mods == 0 || mods == jui.ui.Mod.SHIFT) && !claimedBy(mods, key, true)) {
             moveFocus(mods == 0);
             return;
         }
         int i = focusedId == 0 ? -1 : hits.indexOf(focusedId);
         boolean enabled = i >= 0 && (hits.flags[i] & HitList.DISABLED) == 0;
-        if (enabled && (hits.flags[i] & Node.KEYS) != 0 && mods == 0 && sliderKey(key) && !claimedInFocus(mods, key)) {
+        // A focused control that takes keys is the innermost: only its own shortcut comes first.
+        if (enabled && (hits.flags[i] & Node.KEYS) != 0 && mods == 0 && sliderKey(key) && !registered(focusedId, mods, key)) {
             ElementState s = stateAt(i);
             if (s.keyCount == s.keys.length) {
                 s.keys = Arrays.copyOf(s.keys, s.keyCount * 2);
@@ -183,9 +186,9 @@ final class Input {
         }
         if ((key == jui.ui.Key.ENTER || key == jui.ui.Key.SPACE) && mods == 0 && enabled
                 && (hits.flags[i] & Node.CLICKABLE) != 0) {
-            // A toggle yields Enter to a window shortcut for it; Space is always its own (as MyGO).
-            boolean yields = key == jui.ui.Key.ENTER && (hits.flags[i] & Node.TOGGLE) != 0 && registered(0, 0, key);
-            if (!yields) {
+            // A button keeps Enter and Space from window shortcuts; a toggle yields Enter to one.
+            boolean window = key == jui.ui.Key.ENTER && (hits.flags[i] & Node.TOGGLE) != 0;
+            if (!claimedBy(mods, key, window)) {
                 stateAt(i).clicks++;
                 focusVisible = true;
                 engine.requestFrame();
@@ -209,14 +212,14 @@ final class Input {
         };
     }
 
-    /** Whether an element of the focus chain registered the key, so it is a shortcut, not a control's key. */
-    private boolean claimedInFocus(int mods, jui.ui.Key key) {
+    /** Whether a shortcut of the focus chain (or, if window, of the window) claims the key. */
+    private boolean claimedBy(int mods, jui.ui.Key key, boolean window) {
         for (int k = 0; k < focusChainCount; k++) {
             if (registered(focusChain[k], mods, key)) {
                 return true;
             }
         }
-        return false;
+        return window && registered(0, mods, key);
     }
 
     /** Whether a node, as committed, is hovered: for paint. */

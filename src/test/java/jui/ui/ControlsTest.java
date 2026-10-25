@@ -179,4 +179,27 @@ public final class ControlsTest {
         }
         Check.isTrue(track && fill && knob, "track " + track + ", fill " + fill + ", knob " + knob);
     }
+
+    public void testADisabledSliderIgnoresThePointer() { // final review I1
+        DoubleRef v = new DoubleRef(0);
+        Tester tt = Tester.of(c -> column(c).padding(10).children(() -> slider(c, v, 0, 100).label("s").disabled(true)), 300, 200);
+        Rect r = tt.find("s");
+        tt.press(r.x() + r.width() - 5, r.y() + r.height() / 2);
+        tt.release(r.x() + r.width() - 5, r.y() + r.height() / 2);
+        Check.near(0, v.get());
+    }
+
+    public void testASliderDisabledWhileHeldStopsFollowing() { // final review I1, Review Focus 5 for sliders
+        DoubleRef v = new DoubleRef(0);
+        boolean[] off = {false};
+        Tester tt = Tester.of(c -> column(c).padding(10).children(() ->
+                slider(c, v, 0, 100).width(220).label("s").disabled(off[0])), 300, 200);
+        Rect r = tt.find("s");
+        float y = r.y() + r.height() / 2;
+        tt.press(r.x() + 10 + 50, y);                 // 25
+        off[0] = true; tt.frame(); tt.frame();
+        tt.move(r.x() + 10 + 150, y);                 // would be 75
+        Check.near(25, v.get());
+        tt.release(r.x() + 10 + 150, y);
+    }
 }

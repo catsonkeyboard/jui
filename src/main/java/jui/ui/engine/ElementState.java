@@ -26,6 +26,8 @@ public final class ElementState {
     public int clicks, rightClicks, doubleClicks;
     public boolean pressed, pressPending, changed;
     public float dragX, dragY;
+    /** Whether the element was disabled in the last frame: an element around it may disable it after building it. */
+    public boolean disabledLast;
     /** Keys sent to this element while it had focus, for controls that take keys (sliders). */
     public Key[] keys = new Key[4];
     public int keyCount;
@@ -44,6 +46,7 @@ public final class ElementState {
         clicks = rightClicks = doubleClicks = 0;
         pressed = pressPending = changed = false;
         dragX = dragY = 0;
+        disabledLast = false;
         keyCount = 0;
         if (locals != null) {
             locals.clear();

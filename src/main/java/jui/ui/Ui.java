@@ -207,12 +207,14 @@ public final class Ui {
         jui.ui.engine.Engine en = c.engine();
         jui.ui.engine.ElementState s = en.state(e.index);
         double v = value.get(), range = hi - lo;
-        boolean input = s.pressed || s.keyCount > 0;
-        if (s.pressed && s.cw > 0) {
+        boolean off = en.disabled(e.index);
+        boolean held = s.pressed && !off;
+        boolean input = held || s.keyCount > 0 && !off;
+        if (held && s.cw > 0) {
             v = lo + Math.max(0, Math.min(1, (en.pointerX() - s.cx) / s.cw)) * range;
         }
         double keyStep = step > 0 ? step : range / 100, page = Math.max(step, range / 10);
-        for (int k = 0; k < s.keyCount; k++) {
+        for (int k = 0; input && k < s.keyCount; k++) {
             switch (s.keys[k]) {
                 case LEFT, DOWN -> v -= keyStep;
                 case RIGHT, UP -> v += keyStep;
@@ -234,7 +236,7 @@ public final class Ui {
             }
         }
         n.fraction = range > 0 ? (float) ((value.get() - lo) / range) : 0;
-        n.held = s.pressed;
+        n.held = held;
         return e;
     }
 

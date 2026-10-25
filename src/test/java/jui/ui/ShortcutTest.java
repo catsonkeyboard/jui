@@ -77,4 +77,56 @@ public final class ShortcutTest {
         tt.engine().modifiersChanged(Mod.SHIFT); tt.frame();
         Check.equal(Mod.SHIFT, mods[0]);
     }
+
+    public void testAWindowShortcutForTabTakesTab() { // final review I4
+        int[] n = {0};
+        Tester tt = Tester.of(c -> { if (c.shortcut(Shortcut.of(Key.TAB))) n[0]++; box(c).size(80, 30).label("a").focusable(); }, 300, 200);
+        tt.key(Shortcut.of(Key.TAB));
+        Check.equal(1, n[0]);
+        Check.isTrue(!tt.focused("a"), "claimed: Tab does not move focus");
+    }
+
+    public void testAnEnterShortcutAroundAFocusedButtonWinsOverTheButton() { // final review I4
+        int[] row = {0}, btn = {0};
+        Tester tt = Tester.of(c -> {
+            Element r = row(c).padding(10);
+            r.children(() -> { if (button(c, "B").clicked()) btn[0]++; });
+            if (r.shortcut(Shortcut.of(Key.ENTER))) row[0]++;
+        }, 300, 200);
+        tt.click("B");
+        btn[0] = 0;
+        tt.key(Shortcut.of(Key.ENTER));
+        Check.equal(1, row[0]);
+        Check.equal(0, btn[0]);
+    }
+
+    public void testAFocusedSliderTakesArrowsBeforeItsRow() { // final review I4
+        DoubleRef v = new DoubleRef(50);
+        int[] row = {0};
+        Tester tt = Tester.of(c -> {
+            Element r = row(c).padding(10);
+            r.children(() -> slider(c, v, 0, 100, 1).width(160).label("s"));
+            if (r.shortcut(Shortcut.of(Key.RIGHT))) row[0]++;
+        }, 300, 200);
+        tt.key(Shortcut.of(Key.TAB));
+        tt.key(Shortcut.of(Key.RIGHT));
+        Check.near(51, v.get());
+        Check.equal(0, row[0]);
+    }
+
+    boolean off;
+
+    public void testADisabledElementsShortcutFallsThroughToTheWindow() { // final review I5
+        int[] win = {0}, el = {0};
+        Shortcut esc = Shortcut.of(Key.ESCAPE);
+        Tester tt = Tester.of(c -> {
+            if (c.shortcut(esc)) win[0]++;
+            if (box(c).size(80, 30).label("a").focusable().disabled(off).shortcut(esc)) el[0]++;
+        }, 300, 200);
+        tt.click("a");
+        off = true; tt.frame(); tt.frame();
+        tt.key(esc);
+        Check.equal(1, win[0]);
+        Check.equal(0, el[0]);
+    }
 }
