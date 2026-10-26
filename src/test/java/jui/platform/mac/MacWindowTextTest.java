@@ -239,4 +239,61 @@ public final class MacWindowTextTest {
             w.close();
         }
     }
+
+    public void testTheEditMenuHasTheStandardItems() {
+        long pool = ObjC.poolPush();
+        try {
+            long app = ObjC.send(ObjC.cls("NSApplication"), "sharedApplication");
+            MacApp.installMenu(app);
+            long bar = ObjC.send(app, "mainMenu");
+            long edit = 0;
+            for (long k = 0, n = ObjC.send(bar, "numberOfItems"); k < n; k++) {
+                long sub = ObjC.send(ObjC.send(bar, "itemAtIndex:", k), "submenu");
+                if (sub != 0 && "Edit".equals(ObjC.string(ObjC.send(sub, "title")))) {
+                    edit = sub;
+                }
+            }
+            Check.isTrue(edit != 0, "an Edit menu");
+            String[] actions = {"undo:", "redo:", null, "cut:", "copy:", "paste:", "selectAll:"};
+            String[] keys = {"z", "Z", null, "x", "c", "v", "a"};
+            Check.equal((long) actions.length, ObjC.send(edit, "numberOfItems"));
+            for (int k = 0; k < actions.length; k++) {
+                long item = ObjC.send(edit, "itemAtIndex:", k);
+                if (actions[k] == null) {
+                    Check.isTrue(ObjC.sendBool(item, "isSeparatorItem"), "a separator at " + k);
+                    continue;
+                }
+                Check.equal(ObjC.sel(actions[k]), ObjC.send(item, "action"));
+                Check.equal(keys[k], ObjC.string(ObjC.send(item, "keyEquivalent")));
+                Check.equal(1L << 20, ObjC.send(item, "keyEquivalentModifierMask") & (1L << 20));
+            }
+            Check.isTrue(!ObjC.sendBool(edit, "autoenablesItems"), "items always enabled (as MyGO)");
+        } finally {
+            ObjC.poolPop(pool);
+        }
+    }
+
+    public void testMenuActionsBecomeEditCommands() {
+        Recorder r = new Recorder();
+        MacWindow w = open(r);
+        try {
+            ObjC.send(w.view(), "copy:", 0);
+            ObjC.send(w.view(), "undo:", 0);
+            ObjC.send(w.view(), "redo:", 0);
+            ObjC.send(w.view(), "cut:", 0);
+            ObjC.send(w.view(), "paste:", 0);
+            ObjC.send(w.view(), "selectAll:", 0);
+            Check.equal(List.of("edit COPY", "edit UNDO", "edit REDO", "edit CUT", "edit PASTE", "edit SELECT_ALL"), r.events);
+        } finally {
+            w.close();
+        }
+    }
+
+    public void testCursorsMapToAppKit() {
+        Check.equal(ObjC.send(ObjC.cls("NSCursor"), "IBeamCursor"), MacCursors.of(jui.ui.Cursor.TEXT));
+        Check.equal(ObjC.send(ObjC.cls("NSCursor"), "arrowCursor"), MacCursors.of(jui.ui.Cursor.DEFAULT));
+        for (jui.ui.Cursor c : jui.ui.Cursor.values()) {
+            Check.isTrue(MacCursors.of(c) != 0, "a cursor for " + c);
+        }
+    }
 }

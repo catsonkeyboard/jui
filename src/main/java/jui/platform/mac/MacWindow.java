@@ -111,8 +111,8 @@ public final class MacWindow {
     private static final Map<Long, MacWindow> BY_VIEW = new HashMap<>();
     private static final Map<Long, MacWindow> BY_DELEGATE = new HashMap<>();
     private static long viewClass, viewSuperclass, delegateClass;
-    // Tracking area options: EnteredAndExited, MouseMoved, ActiveInActiveApp, InVisibleRect.
-    private static final long TRACKING = 0x01 | 0x02 | 0x40 | 0x200;
+    // Tracking area options: EnteredAndExited, MouseMoved, CursorUpdate, ActiveInActiveApp, InVisibleRect.
+    private static final long TRACKING = 0x01 | 0x02 | 0x04 | 0x40 | 0x200;
     private static final int MOVE = 0, DOWN = 1, UP = 2;
     /** NSRunLoopCommonModes, a Foundation NSString constant: its value is read from the symbol. */
     private static final long COMMON_MODES = ObjC.symbol(ObjC.framework("Foundation"), "NSRunLoopCommonModes")
@@ -155,6 +155,9 @@ public final class MacWindow {
     java.util.function.LongConsumer interpretHook;
     private final int[] rangeOut = new int[2];
     private final float[] rectOut = new float[5];
+    /** The pointer's shape (an NSCursor), and whether the pointer is over the view. */
+    private long cursor = MacCursors.of(jui.ui.Cursor.DEFAULT);
+    private boolean pointerInside;
 
     private LongConsumer onFirstFrame;
     private int polls;
@@ -268,6 +271,14 @@ public final class MacWindow {
     /** The window: for tests. */
     long window() {
         return window;
+    }
+
+    /** The pointer's shape over the view: set now if the pointer is there, and again as it comes back. */
+    public void setCursor(jui.ui.Cursor c) {
+        cursor = MacCursors.of(c);
+        if (pointerInside) {
+            send(cursor, "set");
+        }
     }
 
     /** The input method forgets its marked text: the app committed or dropped it. */
@@ -423,6 +434,7 @@ public final class MacWindow {
         }
         double[] p = ObjC.locationInView(view, event);
         int mods = MacKeys.mods(send(event, "modifierFlags"));
+        pointerInside = true;
         switch (kind) {
             case DOWN -> {
                 if (button == 0 && (mods & jui.ui.Mod.CTRL) != 0) {
@@ -488,6 +500,12 @@ public final class MacWindow {
             } finally {
                 suppressed = false;
             }
+        }
+    }
+
+    private void edit(jui.ui.EditCommand c) {
+        if (input != null) {
+            input.editCommand(c);
         }
     }
 
@@ -623,10 +641,24 @@ public final class MacWindow {
                 .method1("rightMouseDragged:", (self, cmd, e) -> withView(self, w -> w.mouse(e, MOVE, 1)))
                 .method1("mouseMoved:", (self, cmd, e) -> withView(self, w -> w.mouse(e, MOVE, 0)))
                 .method1("mouseExited:", (self, cmd, e) -> withView(self, w -> {
+                    w.pointerInside = false;
                     if (w.input != null) {
                         w.input.pointerLeave();
                     }
                 }))
+                // The pointer's shape, set again as AppKit resets it (as MyGO's surface).
+                .method1("mouseEntered:", (self, cmd, e) -> withView(self, w -> {
+                    w.pointerInside = true;
+                    send(w.cursor, "set");
+                }))
+                .method1("cursorUpdate:", (self, cmd, e) -> withView(self, w -> send(w.cursor, "set")))
+                // The Edit menu's commands, through the responder chain.
+                .method1("undo:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.UNDO)))
+                .method1("redo:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.REDO)))
+                .method1("cut:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.CUT)))
+                .method1("copy:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.COPY)))
+                .method1("paste:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.PASTE)))
+                .method1("selectAll:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.SELECT_ALL)))
                 .method1("keyDown:", (self, cmd, e) -> withView(self, w -> w.key(e)))
                 // NSTextInputClient, as MyGO's surface implements it.
                 .protocol("NSTextInputClient")

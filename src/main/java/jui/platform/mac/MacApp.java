@@ -86,7 +86,13 @@ public final class MacApp {
         }
     }
 
-    private static void installMenu(long app) {
+    /**
+     * The main menu: the app's, with Quit, and Edit, whose commands go to
+     * the first responder, the window's view, which gives them to the text
+     * input with focus (design §6.7). Edit's items are always enabled, as
+     * MyGO's; English titles until the app menu of M5.
+     */
+    static void installMenu(long app) {
         long bar = ObjC.create("NSMenu");
         long appItem = ObjC.create("NSMenuItem");
         send(bar, "addItem:", appItem);
@@ -95,6 +101,29 @@ public final class MacApp {
                 ObjC.nsString("Quit"), ObjC.sel("terminate:"), ObjC.nsString("q"));
         send(appMenu, "addItem:", quit);
         send(appItem, "setSubmenu:", appMenu);
+
+        long editItem = ObjC.create("NSMenuItem");
+        send(bar, "addItem:", editItem);
+        long edit = send(send(cls("NSMenu"), "alloc"), "initWithTitle:", ObjC.nsString("Edit"));
+        send(edit, "setAutoenablesItems:", 0);
+        addItem(edit, "Undo", "undo:", "z");
+        addItem(edit, "Redo", "redo:", "Z"); // a capital takes Shift
+        send(edit, "addItem:", send(cls("NSMenuItem"), "separatorItem"));
+        addItem(edit, "Cut", "cut:", "x");
+        addItem(edit, "Copy", "copy:", "c");
+        addItem(edit, "Paste", "paste:", "v");
+        addItem(edit, "Select All", "selectAll:", "a");
+        send(editItem, "setSubmenu:", edit);
+        ObjC.release(edit);
+        ObjC.release(editItem);
         send(app, "setMainMenu:", bar);
+    }
+
+    /** An item for action, sent to the first responder, with ⌘ and key. */
+    private static void addItem(long menu, String title, String action, String key) {
+        long item = send(send(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
+                ObjC.nsString(title), ObjC.sel(action), ObjC.nsString(key));
+        send(menu, "addItem:", item);
+        ObjC.release(item);
     }
 }
