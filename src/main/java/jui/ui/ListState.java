@@ -12,6 +12,16 @@ public final class ListState {
 
     public ListState() {}
 
+    /** Shows row 0 at the top in the next frame. */
+    public void scrollToTop() {
+        model.requestRow(0);
+    }
+
+    /** Shows row at the top of the view in the next frame (as MyGO's ScrollTo(row, Start)). */
+    public void scrollTo(int row) {
+        model.requestRow(Math.max(0, row));
+    }
+
     /** The first row the last frame showed, or -1 before the list shows. */
     public int first() {
         return model.first();

@@ -98,4 +98,69 @@ public final class ListTest {
         Check.near(0, tt.find("row0").y());
         Check.equal(0, state.first()); Check.equal(2, state.last());
     }
+
+    public void testScrollToTopAndToARow() {
+        Tester tt = Tester.of(view, 300, 400);
+        state.scrollTo(500); tt.frame();
+        Check.equal(500, state.first());
+        Check.near(0, tt.find("row500").y());
+        state.scrollToTop(); tt.frame();
+        Check.equal(0, state.first());
+        Check.near(0, tt.find("row0").y());
+    }
+
+    public void testDraggingTheThumbToTheEndAndBackReachesBothEnds() { // Review Focus 4
+        count = 1000;
+        Tester tt = Tester.of(view, 300, 400);
+        tt.hover("list");
+        float[] t = ScrollTest.thumb(tt);
+        float x = t[0] + 3, y = t[1] + 12;
+        tt.press(x, y);
+        tt.move(x, y + 400);                         // past the end
+        Check.equal(999, state.last());
+        Rect last = tt.find("row999");
+        Check.near(200, last.y() + last.height());
+        checkCovered(tt, state);
+        tt.move(x, y - 400);                         // past the top
+        Check.equal(0, state.first());
+        Check.near(0, tt.find("row0").y());
+        checkCovered(tt, state);
+        tt.release(x, y - 400);
+    }
+
+    public void testFewerRowsClampTheList() { // Review Focus 1
+        count = 1000;
+        Tester tt = Tester.of(view, 300, 400);
+        state.scrollTo(900); tt.frame();
+        count = 100;
+        tt.frame();
+        Check.equal(99, state.last());
+        Rect last = tt.find("row99");
+        Check.near(200, last.y() + last.height());
+    }
+
+    public void testATallerWindowIsFilledInTheSameFrame() { // Review Focus 2
+        Tester tt = Tester.of(c -> list(c, state, 10_000, i -> box(c).height(varied(i)).label("row" + i)).fill().label("list"), 300, 200);
+        tt.scroll("list", 0, 5000);
+        tt.resize(300, 600);
+        tt.frame();
+        Rect l = tt.find("row" + state.last());
+        Check.isTrue(l.y() + l.height() >= 600 - 0.01, "the 600-high view is covered in one frame");
+    }
+
+    public void testTabWalksDownTheRowsAndRevealsThem() {
+        Tester tt = Tester.of(c -> list(c, state, 1000, i -> box(c).height(30).label("row" + i).focusable()).height(200).label("list"), 300, 400);
+        for (int i = 0; i < 12; i++) tt.key(Shortcut.of(Key.TAB));
+        Check.isTrue(tt.focused("row11"), "row 11 has focus");
+        Rect r = tt.find("row11");
+        Check.near(200, r.y() + r.height());      // revealed: its bottom at the view's bottom
+    }
+
+    public void testTheWheelGlidesAList() {
+        count = 1000;
+        Tester tt = Tester.of(c -> list(c, state, count, i -> box(c).height(30).label("row" + i)).height(200).label("list"), 300, 400);
+        tt.wheel("list", 0, 40);
+        tt.advance(java.time.Duration.ofMillis(300));
+        Check.near(-10, tt.find("row1").y());     // 30 - 40
+    }
 }

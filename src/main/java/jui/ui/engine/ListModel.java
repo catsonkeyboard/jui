@@ -21,14 +21,16 @@ public final class ListModel {
     int anchor;
     float anchorY;
 
+    /** Whether the view stays at the list's end: its last row meets the bottom, frame after frame. */
+    boolean atEnd;
+
     /** The offset the list last wrote; an offset and a row asked for (NaN, -1 for none). */
     float wroteY;
     float requestY = Float.NaN;
     int requestRow = -1;
 
-    /** The rows built this frame, where the first goes, and the view's height as last laid out. */
+    /** The rows built this frame, and the view's height as last laid out. */
     int builtFirst, builtLast = -1;
-    float firstY;
     float viewH;
 
     /** The rows the last frame showed, or -1 before the list first shows. */
@@ -158,7 +160,6 @@ public final class ListModel {
         if (count == 0) {
             builtFirst = 0;
             builtLast = -1;
-            firstY = 0;
             return;
         }
         builtFirst = Math.max(0, anchor - 2);
@@ -169,10 +170,6 @@ public final class ListModel {
             i++;
         }
         builtLast = Math.min(count - 1, i + 2);
-        firstY = anchorY;
-        for (int j = builtFirst; j < anchor; j++) {
-            firstY -= height(j) + gap;
-        }
     }
 
     private static float[] filled(float[] a) {

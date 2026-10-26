@@ -322,19 +322,29 @@ public final class FlexLayout {
 
     /**
      * A list's rows, one under another across its content box, each as high
-     * as its content, from where the list's plan put the first; they do not
-     * flex. The list scrolls by that plan, not by an offset here.
+     * as its content: its anchor row where the list's plan put it, the rows
+     * above it stacked up by their own heights, so estimates never move it.
+     * They do not flex; the list scrolls by its plan, not by an offset here.
      */
     private void placeList(Node p, float innerW, float pl, float pt) {
-        float y = p.y + pt + p.listFirstY, gap = mainGap(p);
+        float gap = mainGap(p), above = 0;
+        int k = 0;
         for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
             Node n = pool.node(c);
             float w = columnChildWidth(p, c, innerW);
             float h = resolved(n.height, n.heightPercent, Float.NaN);
-            h = Float.isNaN(h) ? contentHeight(c, w) : clamp(h, n.minHeight, n.maxHeight);
+            n.crossSize = w;
+            n.flexTarget = Float.isNaN(h) ? contentHeight(c, w) : clamp(h, n.minHeight, n.maxHeight);
+            if (k++ < p.listAnchor) {
+                above += m(n.marTop) + n.flexTarget + m(n.marBottom) + gap;
+            }
+        }
+        float y = p.y + pt + p.listAnchorY - above;
+        for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
+            Node n = pool.node(c);
             y += m(n.marTop);
-            set(n, p.x + pl + m(n.marLeft), y, w, h);
-            y += h + m(n.marBottom) + gap;
+            set(n, p.x + pl + m(n.marLeft), y, n.crossSize, n.flexTarget);
+            y += n.flexTarget + m(n.marBottom) + gap;
             place(c);
         }
         placeAbsolute(p);

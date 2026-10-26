@@ -119,10 +119,13 @@ public final class Engine {
             }
             inheritTextStyle();
             layout.layout(0, width, height);
-            if (reveal()) {
-                layout.layout(0, width, height); // the offsets reveal set, in this frame
-            }
             boolean again = afterLayout();
+            int revealed = reveal();
+            if ((revealed & REVEAL_LAYOUT) != 0) {
+                layout.layout(0, width, height); // the offsets reveal set, in this frame
+                again |= afterLayout();
+            }
+            again |= (revealed & REVEAL_ROUND) != 0;
             if (!again) {
                 break;
             }
@@ -462,10 +465,12 @@ public final class Engine {
             if (m.requestRow >= 0) {
                 m.anchor = Math.min(m.requestRow, count - 1);
                 m.anchorY = 0;
+                m.atEnd = false;
             } else {
                 boolean asked = !Float.isNaN(m.requestY);
                 double y = asked ? Math.max(0, Math.min(max, m.requestY)) : s.scrollY;
-                if (max > 0.5 && y >= max - 0.5) {
+                m.atEnd = max > 0.5 && y >= max - 0.5;
+                if (m.atEnd) {
                     m.anchorEnd(v); // at the end: the last row meets the bottom (as MyGO)
                 } else if (asked) {
                     m.anchorAt(y);
@@ -481,7 +486,8 @@ public final class Engine {
             m.normalize();
         }
         m.plan(v);
-        n.listFirstY = m.firstY;
+        n.listAnchor = m.anchor - m.builtFirst;
+        n.listAnchorY = m.anchorY;
     }
 
     /** The next element is list row i: its identity is its index, unless it is keyed. */
@@ -545,7 +551,11 @@ public final class Engine {
                 m.anchorY = last.y - vt;
             }
             float bottom = last.y + last.h;
-            if (m.builtLast == m.count - 1 && bottom < vb - 0.01f && m.content() > v + 0.5) {
+            if (m.atEnd && m.builtLast == m.count - 1) {
+                // At the end the last row meets the bottom exactly: with the heights now measured,
+                // another round plans it from them.
+                again = Math.abs(vb - bottom) > 0.01f;
+            } else if (m.builtLast == m.count - 1 && bottom < vb - 0.01f && m.content() > v + 0.5) {
                 float shift = vb - bottom;
                 if (m.builtFirst == 0) {
                     shift = Math.min(shift, vt - first.y); // row 0 never starts below the top
@@ -577,7 +587,7 @@ public final class Engine {
             }
         }
         double max = Math.max(0, m.content() - v);
-        float y = m.count == 0 ? 0 : (float) Math.max(0, Math.min(max, m.top(m.anchor) - m.anchorY));
+        float y = m.count == 0 ? 0 : m.atEnd ? (float) max : (float) Math.max(0, Math.min(max, m.top(m.anchor) - m.anchorY));
         m.wroteY = y;
         n.scrollY = y;
         n.contentH = (float) m.content() + n.padTop + n.padBottom + 2 * n.border;
@@ -616,13 +626,16 @@ public final class Engine {
      * Scrolls the element Tab focused into view: each scroll container
      * around it, innermost first, moves as little as shows it within its
      * border, its top first when it is taller (as MyGO's reveal). Returns
-     * whether an offset changed, for another layout in this frame.
+     * REVEAL_LAYOUT when a scroll container moved (lay out again) and
+     * REVEAL_ROUND when a list did (another round).
      */
-    private boolean reveal() {
+    private static final int REVEAL_LAYOUT = 1, REVEAL_ROUND = 2;
+
+    private int reveal() {
         long id = input.revealId;
         input.revealId = 0;
         if (id == 0) {
-            return false;
+            return 0;
         }
         int at = Node.NONE;
         for (int i = 0; i < pool.size(); i++) {
@@ -632,11 +645,11 @@ public final class Engine {
             }
         }
         if (at == Node.NONE) {
-            return false;
+            return 0;
         }
         Node n = pool.node(at);
         float top = n.y, bottom = n.y + n.h;
-        boolean moved = false;
+        int moved = 0;
         for (int a = n.parent; a != Node.NONE; a = pool.node(a).parent) {
             Node c = pool.node(a);
             if ((c.flags & Node.SCROLL) == 0) {
@@ -652,13 +665,19 @@ public final class Engine {
             float y = Math.max(0, Math.min(max, c.scrollY + delta));
             float applied = y - c.scrollY;
             if (applied != 0) {
-                c.scrollRequest = y;
+                if (c.listModel != null) {
+                    c.listModel.anchorY -= applied; // a list moves by its anchor, in another round
+                    c.listModel.atEnd = false;
+                    moved |= REVEAL_ROUND;
+                } else {
+                    c.scrollRequest = y;
+                    moved |= REVEAL_LAYOUT;
+                }
                 if (c.state != null) {
                     c.state.wheeling = false;
                 }
                 top -= applied;
                 bottom -= applied;
-                moved = true;
             }
         }
         return moved;

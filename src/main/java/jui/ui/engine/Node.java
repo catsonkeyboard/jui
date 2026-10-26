@@ -60,9 +60,10 @@ public final class Node {
     public boolean clip;
     /** A scroll container's offset (in from its state, out clamped), the offset asked for (NaN none), and its content's height. */
     public float scrollY, scrollRequest, contentH;
-    /** A list's model, and where its first built row goes, from its content box's top. */
+    /** A list's model, its anchor row among the rows built, and where that row's top goes from its content box's top. */
     public ListModel listModel;
-    public float listFirstY;
+    public int listAnchor;
+    public float listAnchorY;
     /** Whether its scroll bar shows (hovered or dragged), and whether its thumb is being dragged. */
     boolean bars, barDrag;
     public float top, right, bottom, left;
@@ -136,7 +137,8 @@ public final class Node {
         scrollRequest = Float.NaN;
         bars = barDrag = false;
         listModel = null;
-        listFirstY = 0;
+        listAnchor = 0;
+        listAnchorY = 0;
         top = right = bottom = left = Float.NaN;
         padTop = padRight = padBottom = padLeft = 0;
         marTop = marRight = marBottom = marLeft = 0;
