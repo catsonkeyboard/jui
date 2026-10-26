@@ -87,4 +87,61 @@ public final class ScrollTest {
         Check.near(300, tt.find("g").height());
         Check.near(200, st.maxY());
     }
+
+    public void testTheWheelGlidesOver150Milliseconds() {
+        Tester tt = Tester.of(view, 400, 300);
+        tt.wheel("s", 0, 40);
+        Check.near(0, st.y());                                    // settle runs frames at one time: no glide yet
+        tt.advance(java.time.Duration.ofMillis(50));              // frames at 16.7, 33.3, 50.0 ms
+        Check.near(28.15, st.y(), 0.1);                           // 40 * (1 - (1 - 1/3)^3)
+        tt.advance(java.time.Duration.ofMillis(150));
+        Check.near(40, st.y());
+        Check.isTrue(!tt.framePending(), "the glide ended");
+    }
+
+    public void testWheelNotchesAddUp() {
+        Tester tt = Tester.of(view, 400, 300);
+        tt.wheel("s", 0, 40);
+        tt.advance(java.time.Duration.ofMillis(30));
+        tt.wheel("s", 0, 40);
+        tt.advance(java.time.Duration.ofMillis(300));
+        Check.near(80, st.y());
+    }
+
+    public void testKeysScrollTheFocusedContainer() {
+        Tester tt = Tester.of(c -> scroll(c, st).size(200, 100).focusable().label("s").children(() -> box(c).height(400)), 400, 300);
+        tt.click("s");
+        tt.key(Shortcut.of(Key.DOWN));      Check.near(40, st.y());
+        tt.key(Shortcut.of(Key.PAGE_DOWN)); Check.near(100, st.y());   // + max(100 - 40, 50)
+        tt.key(Shortcut.of(Key.END));       Check.near(300, st.y());
+        tt.key(Shortcut.of(Key.HOME));      Check.near(0, st.y());
+        tt.key(Shortcut.of(Key.SPACE));     Check.near(60, st.y());
+        tt.key(Shortcut.of(Mod.SHIFT, Key.SPACE)); Check.near(0, st.y());
+    }
+
+    public void testKeysScrollTheContainerUnderThePointerWithoutFocus() {
+        Tester tt = Tester.of(view, 400, 300);
+        tt.hover("s");
+        tt.key(Shortcut.of(Key.DOWN));
+        Check.near(40, st.y());
+    }
+
+    public void testAShortcutClaimsItsKeyFromScrolling() {
+        int[] n = {0};
+        Tester tt = Tester.of(c -> { if (c.shortcut(Shortcut.of(Key.DOWN))) n[0]++; view.build(c); }, 400, 300);
+        tt.hover("s");
+        tt.key(Shortcut.of(Key.DOWN));
+        Check.equal(1, n[0]);
+        Check.near(0, st.y());
+    }
+
+    public void testTabScrollsTheFocusIntoView() {
+        Tester tt = Tester.of(c -> scroll(c, st).size(200, 100).children(() -> {
+            for (int i = 0; i < 10; i++) box(c.key(i)).height(40).label("f" + i).focusable();
+        }), 400, 300);
+        for (int i = 0; i < 4; i++) tt.key(Shortcut.of(Key.TAB));      // f3: 120..160, below the 100-high view
+        Check.isTrue(tt.focused("f3"), "f3 focused");
+        Check.near(60, st.y());                                   // as little as shows it: 160 - 100
+        Check.near(60, tt.find("f3").y());                        // its bottom at the view's bottom, in the same frame
+    }
 }

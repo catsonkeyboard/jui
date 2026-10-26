@@ -147,6 +147,19 @@ public final class Tester {
         scroll(p[0], p[1], dx, dy);
     }
 
+    /** Turns a wheel by (dx, dy) at (x, y): a scroll that glides, in DIPs. */
+    public void wheel(float x, float y, float dx, float dy) {
+        started();
+        engine.scroll(x, y, dx, dy, false, 0);
+        settle();
+    }
+
+    /** Turns a wheel at the center of the element showing or labeled s. */
+    public void wheel(String s, float dx, float dy) {
+        float[] p = center(s);
+        wheel(p[0], p[1], dx, dy);
+    }
+
     /** Makes the window w by h DIPs, for the frames that follow. */
     public void resize(float w, float h) {
         width = w;

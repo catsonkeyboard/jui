@@ -29,6 +29,10 @@ public final class ElementState {
     /** A scroll container's offset, its content's height and its content box's height as committed; an offset asked for (NaN none). */
     public float scrollY, contentH, viewH;
     public float requestY = Float.NaN;
+    /** A wheel's glide: from, to, since when (nanoseconds), and whether it is under way. */
+    float wheelFrom, wheelTo;
+    long wheelStart;
+    boolean wheeling;
     /** Whether the element was disabled in the last frame: an element around it may disable it after building it. */
     public boolean disabledLast;
     /** Keys sent to this element while it had focus, for controls that take keys (sliders). */
@@ -54,6 +58,9 @@ public final class ElementState {
         disabledLast = false;
         scrollY = contentH = viewH = 0;
         requestY = Float.NaN;
+        wheelFrom = wheelTo = 0;
+        wheelStart = 0;
+        wheeling = false;
         keyCount = 0;
         if (locals != null) {
             locals.clear();

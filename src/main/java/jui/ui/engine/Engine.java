@@ -89,6 +89,7 @@ public final class Engine {
         frame++;
         now = clock.getAsLong();
         wake = Long.MAX_VALUE; // a frame that asks for no wake-up stops the timer (as MyGO)
+        input.advanceGlides(now);
         input.routeKey();
         for (pass = 0; pass < MAX_PASSES; pass++) {
             consumed = false;
@@ -109,6 +110,9 @@ public final class Engine {
         }
         inheritTextStyle();
         layout.layout(0, width, height);
+        if (reveal()) {
+            layout.layout(0, width, height); // the offsets reveal set, in this frame
+        }
         commit();
     }
 
@@ -426,7 +430,65 @@ public final class Engine {
             s = states.create(id, frame + 1);
         }
         s.requestY = y;
+        s.wheeling = false; // the app's scroll stops a wheel's glide
         requestFrame.run();
+    }
+
+    /** The clock now, in nanoseconds: for input between frames. */
+    long clockNow() {
+        return clock.getAsLong();
+    }
+
+    /**
+     * Scrolls the element Tab focused into view: each scroll container
+     * around it, innermost first, moves as little as shows it within its
+     * border, its top first when it is taller (as MyGO's reveal). Returns
+     * whether an offset changed, for another layout in this frame.
+     */
+    private boolean reveal() {
+        long id = input.revealId;
+        input.revealId = 0;
+        if (id == 0) {
+            return false;
+        }
+        int at = Node.NONE;
+        for (int i = 0; i < pool.size(); i++) {
+            if (pool.node(i).id == id) {
+                at = i;
+                break;
+            }
+        }
+        if (at == Node.NONE) {
+            return false;
+        }
+        Node n = pool.node(at);
+        float top = n.y, bottom = n.y + n.h;
+        boolean moved = false;
+        for (int a = n.parent; a != Node.NONE; a = pool.node(a).parent) {
+            Node c = pool.node(a);
+            if ((c.flags & Node.SCROLL) == 0) {
+                continue;
+            }
+            float vt = c.y + c.border, vb = c.y + c.h - c.border, delta = 0;
+            if (top < vt) {
+                delta = top - vt;
+            } else if (bottom > vb) {
+                delta = Math.min(bottom - vb, top - vt);
+            }
+            float max = Math.max(0, c.contentH - c.h);
+            float y = Math.max(0, Math.min(max, c.scrollY + delta));
+            float applied = y - c.scrollY;
+            if (applied != 0) {
+                c.scrollRequest = y;
+                if (c.state != null) {
+                    c.state.wheeling = false;
+                }
+                top -= applied;
+                bottom -= applied;
+                moved = true;
+            }
+        }
+        return moved;
     }
 
     /** Makes the node a vertical scroll container, taking its offset (and any asked for) from its state. */
@@ -445,7 +507,7 @@ public final class Engine {
      * all of it; what is left over is dropped (as MyGO's input.go).
      */
     public void scroll(float x, float y, float dx, float dy, boolean precise, int mods) {
-        input.scroll(x, y, dy, mods);
+        input.scroll(x, y, dy, precise, mods);
     }
 
     // Pointer input: on the main thread, between frames.
