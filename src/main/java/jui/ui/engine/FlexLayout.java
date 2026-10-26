@@ -66,14 +66,14 @@ public final class FlexLayout {
 
         int count = 0, autos = 0;
         float used = 0;
-        for (int c = p.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+        for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
             Node n = pool.node(c);
             float ms = startMargin(n, row, p.reverse), me = endMargin(n, row, p.reverse);
             used += n.flexTarget + m(ms) + m(me);
             autos += (ms == Ui.AUTO ? 1 : 0) + (me == Ui.AUTO ? 1 : 0);
             count++;
         }
-        used += mainGap(p) * (count - 1);
+        used += mainGap(p) * Math.max(0, count - 1);
         float free = main - used;
         float auto = 0;
         if (free > 0 && autos > 0) {
@@ -106,7 +106,7 @@ public final class FlexLayout {
         }
 
         float pos = offset;
-        for (int c = p.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+        for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
             Node n = pool.node(c);
             float ms = startMargin(n, row, p.reverse), me = endMargin(n, row, p.reverse);
             pos += ms == Ui.AUTO ? auto : ms;
@@ -140,6 +140,7 @@ public final class FlexLayout {
             pos += size + (me == Ui.AUTO ? auto : me) + mainGap(p) + between;
             place(c);
         }
+        placeAbsolute(p);
     }
 
     /**
@@ -151,7 +152,7 @@ public final class FlexLayout {
         boolean row = p.row;
         float main = row ? innerW : innerH, cross = row ? innerH : innerW;
         int count = 0;
-        for (int c = p.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+        for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
             Node n = pool.node(c);
             count++;
             float w = resolved(n.width, n.widthPercent, innerW);
@@ -201,14 +202,14 @@ public final class FlexLayout {
     private void flex(int first, int end, boolean row, float space) {
         // Hypothetical main sizes, and which way the line flexes.
         float hypothetical = 0;
-        for (int c = first; c != end; c = pool.node(c).nextSibling) {
+        for (int c = first; c != end; c = nextFlow(c)) {
             Node n = pool.node(c);
             n.flexTarget = clamp(n.flexBasis, minMain(n, row), maxMain(n, row));
             hypothetical += n.flexTarget + margins(n, row);
         }
         boolean growing = hypothetical < space;
         // Inflexible items freeze at their hypothetical size.
-        for (int c = first; c != end; c = pool.node(c).nextSibling) {
+        for (int c = first; c != end; c = nextFlow(c)) {
             Node n = pool.node(c);
             n.frozen = growing
                     ? n.grow == 0 || n.flexBasis > n.flexTarget
@@ -218,7 +219,7 @@ public final class FlexLayout {
         while (true) {
             float factors = 0, scaled = 0;
             boolean unfrozen = false;
-            for (int c = first; c != end; c = pool.node(c).nextSibling) {
+            for (int c = first; c != end; c = nextFlow(c)) {
                 Node n = pool.node(c);
                 if (!n.frozen) {
                     unfrozen = true;
@@ -235,7 +236,7 @@ public final class FlexLayout {
             }
             // Share the free space, then clamp to the min and max sizes.
             float total = 0;
-            for (int c = first; c != end; c = pool.node(c).nextSibling) {
+            for (int c = first; c != end; c = nextFlow(c)) {
                 Node n = pool.node(c);
                 if (n.frozen) {
                     continue;
@@ -252,7 +253,7 @@ public final class FlexLayout {
                 total += n.violation;
             }
             // No violation freezes them all; else the violators of the total's kind freeze.
-            for (int c = first; c != end; c = pool.node(c).nextSibling) {
+            for (int c = first; c != end; c = nextFlow(c)) {
                 Node n = pool.node(c);
                 if (!n.frozen && (total == 0 || total > 0 && n.violation > 0 || total < 0 && n.violation < 0)) {
                     n.frozen = true;
@@ -264,7 +265,7 @@ public final class FlexLayout {
     /** The space left once frozen siblings take their size and the others their basis. */
     private float remaining(int first, int end, boolean row, float space) {
         float free = space;
-        for (int c = first; c != end; c = pool.node(c).nextSibling) {
+        for (int c = first; c != end; c = nextFlow(c)) {
             Node n = pool.node(c);
             free -= margins(n, row) + (n.frozen ? n.flexTarget : n.flexBasis);
         }
@@ -296,6 +297,57 @@ public final class FlexLayout {
         return child.alignSelf != null ? child.alignSelf : parent.alignItems;
     }
 
+    // Absolute children: out of the flow (as MyGO's layoutAbsolute).
+
+    /** The first child of p in the flow, or NONE. */
+    private int firstFlow(Node p) {
+        return flowFrom(p.firstChild);
+    }
+
+    /** The next sibling of c in the flow, or NONE: absolute children are skipped. */
+    private int nextFlow(int c) {
+        return flowFrom(pool.node(c).nextSibling);
+    }
+
+    private int flowFrom(int c) {
+        while (c != Node.NONE && pool.node(c).absolute) {
+            c = pool.node(c).nextSibling;
+        }
+        return c;
+    }
+
+    /**
+     * Places p's absolute children in its padding box: a set size wins,
+     * else both insets of an axis stretch it, else it shrinks to fit; an
+     * inset places it from its side, the left and top by default.
+     */
+    private void placeAbsolute(Node p) {
+        float bx = p.x + p.border, by = p.y + p.border;
+        float pw = Math.max(0, p.w - 2 * p.border), ph = Math.max(0, p.h - 2 * p.border);
+        for (int c = p.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+            Node n = pool.node(c);
+            if (!n.absolute) {
+                continue;
+            }
+            float ml = m(n.marLeft), mr = m(n.marRight), mt = m(n.marTop), mb = m(n.marBottom);
+            float w = resolved(n.width, n.widthPercent, pw);
+            if (Float.isNaN(w)) {
+                w = !Float.isNaN(n.left) && !Float.isNaN(n.right) ? pw - n.left - n.right - ml - mr
+                        : Math.min(contentWidth(c), Math.max(0, pw - ml - mr));
+            }
+            w = clamp(w, n.minWidth, n.maxWidth);
+            float h = resolved(n.height, n.heightPercent, ph);
+            if (Float.isNaN(h)) {
+                h = !Float.isNaN(n.top) && !Float.isNaN(n.bottom) ? ph - n.top - n.bottom - mt - mb : contentHeight(c, w);
+            }
+            h = clamp(h, n.minHeight, n.maxHeight);
+            float x = !Float.isNaN(n.left) ? n.left + ml : !Float.isNaN(n.right) ? pw - n.right - w - mr : ml;
+            float y = !Float.isNaN(n.top) ? n.top + mt : !Float.isNaN(n.bottom) ? ph - n.bottom - h - mb : mt;
+            set(n, bx + x, by + y, w, h);
+            place(c);
+        }
+    }
+
     // Wrapping: children on lines (CSS Flexbox §9.3, as MyGO's ui/layout.go).
 
     private float[] lineCross = new float[8];
@@ -322,11 +374,11 @@ public final class FlexLayout {
         float gapM = mainGap(p), gapC = crossGap(p);
         wrapBases(p, innerW, innerH);
         int lines = 0;
-        for (int first = p.firstChild; first != Node.NONE; ) {
+        for (int first = firstFlow(p); first != Node.NONE; ) {
             int end = breakLine(p, first, main);
             flex(first, end, row, main - gapM * (count(first, end) - 1));
             float lc = 0;
-            for (int c = first; c != end; c = pool.node(c).nextSibling) {
+            for (int c = first; c != end; c = nextFlow(c)) {
                 Node k = pool.node(c);
                 k.crossSize = naturalCross(p, k, c, innerW, innerH);
                 lc = Math.max(lc, k.crossSize + (row ? m(k.marTop) + m(k.marBottom) : m(k.marLeft) + m(k.marRight)));
@@ -359,9 +411,10 @@ public final class FlexLayout {
             placeLine(p, lineFirst[i], lineEnd[i], main, crossPos, size, pl, pt, innerW, innerH);
             crossPos += size + gapC;
         }
-        for (int c = p.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+        for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
             place(c);
         }
+        placeAbsolute(p);
     }
 
     /** Places a line's children: justified along it (never overflowing), aligned across its size. */
@@ -370,7 +423,7 @@ public final class FlexLayout {
         boolean row = p.row;
         int count = 0, autos = 0;
         float used = 0;
-        for (int c = first; c != end; c = pool.node(c).nextSibling) {
+        for (int c = first; c != end; c = nextFlow(c)) {
             Node n = pool.node(c);
             float ms = startMargin(n, row, p.reverse), me = endMargin(n, row, p.reverse);
             used += n.flexTarget + m(ms) + m(me);
@@ -399,7 +452,7 @@ public final class FlexLayout {
             default -> { }
         }
         float pos = offset;
-        for (int c = first; c != end; c = pool.node(c).nextSibling) {
+        for (int c = first; c != end; c = nextFlow(c)) {
             Node n = pool.node(c);
             float ms = startMargin(n, row, p.reverse), me = endMargin(n, row, p.reverse);
             pos += ms == Ui.AUTO ? auto : ms;
@@ -438,7 +491,7 @@ public final class FlexLayout {
     /** Each child's flex basis in a wrapping container whose content box is innerW by innerH. */
     private void wrapBases(Node p, float innerW, float innerH) {
         boolean row = p.row;
-        for (int c = p.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+        for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
             Node n = pool.node(c);
             float w = resolved(n.width, n.widthPercent, innerW);
             float h = resolved(n.height, n.heightPercent, innerH);
@@ -470,7 +523,7 @@ public final class FlexLayout {
         boolean row = p.row;
         float gap = mainGap(p), used = 0;
         int count = 0;
-        for (int c = first; c != Node.NONE; c = pool.node(c).nextSibling) {
+        for (int c = first; c != Node.NONE; c = nextFlow(c)) {
             Node n = pool.node(c);
             float outer = clamp(n.flexBasis, minMain(n, row), maxMain(n, row)) + margins(n, row);
             if (count > 0 && used + gap + outer > main) {
@@ -484,7 +537,7 @@ public final class FlexLayout {
 
     private int count(int first, int end) {
         int k = 0;
-        for (int c = first; c != end; c = pool.node(c).nextSibling) {
+        for (int c = first; c != end; c = nextFlow(c)) {
             k++;
         }
         return k;
@@ -514,11 +567,11 @@ public final class FlexLayout {
         wrapBases(n, innerW, Float.NaN);
         float h = 0;
         int lines = 0;
-        for (int first = n.firstChild; first != Node.NONE; ) {
+        for (int first = firstFlow(n); first != Node.NONE; ) {
             int end = breakLine(n, first, innerW);
             flex(first, end, true, innerW - n.gapX * (count(first, end) - 1));
             float lc = 0;
-            for (int c = first; c != end; c = pool.node(c).nextSibling) {
+            for (int c = first; c != end; c = nextFlow(c)) {
                 Node k = pool.node(c);
                 lc = Math.max(lc, naturalCross(n, k, c, innerW, Float.NaN) + m(k.marTop) + m(k.marBottom));
             }
@@ -547,7 +600,7 @@ public final class FlexLayout {
             default -> {
                 w = 0;
                 int count = 0;
-                for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+                for (int c = firstFlow(n); c != Node.NONE; c = nextFlow(c)) {
                     Node k = pool.node(c);
                     float cw = contentWidth(c) + m(k.marLeft) + m(k.marRight);
                     w = n.row ? w + cw : Math.max(w, cw);
@@ -582,14 +635,14 @@ public final class FlexLayout {
                         h = wrappedRowHeight(n, innerW);
                     } else if (n.row) {
                         resolve(n, innerW, Float.NaN);
-                        for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+                        for (int c = firstFlow(n); c != Node.NONE; c = nextFlow(c)) {
                             Node k = pool.node(c);
                             float kh = Float.isNaN(k.crossSize) ? contentHeight(c, k.flexTarget) : k.crossSize;
                             h = Math.max(h, kh + m(k.marTop) + m(k.marBottom));
                         }
                     } else {
                         int count = 0;
-                        for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+                        for (int c = firstFlow(n); c != Node.NONE; c = nextFlow(c)) {
                             Node k = pool.node(c);
                             float kw = columnChildWidth(n, c, innerW);
                             float kh = resolved(k.height, k.heightPercent, Float.NaN);

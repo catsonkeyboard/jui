@@ -2,6 +2,7 @@ package jui.ui.engine;
 
 import jui.testing.Check;
 import jui.ui.Align;
+import jui.ui.Color;
 import jui.ui.Element;
 import jui.ui.Justify;
 import jui.ui.Rect;
@@ -167,5 +168,25 @@ public final class FlexLayoutTest {
             box(c).width(60).label("a"); box(c).basis(60).grow(1).label("b");   // grow alone means basis 0, which never wraps
         }), 300, 300);
         Check.near(100, e.bounds("b").width());                   // alone on line 2, it grows to the whole line
+    }
+
+    public void testAbsoluteIsPlacedInThePaddingBox() {
+        e.buildAndLayout(c -> box(c).size(200, 100).padding(10).border(2, Color.rgb(0)).children(() -> {
+            box(c).absolute().top(5).left(7).size(20, 20).label("tl");
+            box(c).absolute().right(5).bottom(5).size(20, 20).label("br");
+            box(c).absolute().left(10).right(10).height(8).label("wide");
+            box(c).absolute().size(4, 4).label("none");
+        }), 300, 300);
+        Check.equal(new Rect(9, 7, 20, 20), e.bounds("tl"));     // 2 (border) + 7, 2 + 5
+        Check.equal(new Rect(173, 73, 20, 20), e.bounds("br"));  // 2 + 196 - 5 - 20, 2 + 96 - 5 - 20
+        Check.equal(new Rect(12, 2, 176, 8), e.bounds("wide"));  // 196 - 10 - 10
+        Check.equal(new Rect(2, 2, 4, 4), e.bounds("none"));
+    }
+
+    public void testAbsoluteChildrenDoNotSizeTheirParent() {
+        e.buildAndLayout(c -> column(c).alignItems(Align.START).children(() ->
+            column(c).padding(5).label("p").children(() -> box(c).absolute().size(300, 300))), 400, 400);
+        Check.near(10, e.bounds("p").height());
+        Check.near(10, e.bounds("p").width());
     }
 }

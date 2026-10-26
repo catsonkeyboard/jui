@@ -54,6 +54,9 @@ public final class Node {
     public float grow, shrink, basis;
     /** Gaps between children across and down: along a row gapX, between its lines gapY; a column the other way. */
     public float gapX, gapY;
+    /** Placed in the parent's padding box by its insets (NaN unset), out of the flow; and not shown. */
+    public boolean absolute, invisible;
+    public float top, right, bottom, left;
     /** Wraps children onto lines, placed by alignContent (START unless set, as MyGO). */
     public boolean wrap;
     public Align alignContent;
@@ -119,6 +122,8 @@ public final class Node {
         gapX = gapY = 0;
         wrap = false;
         alignContent = Align.START;
+        absolute = invisible = false;
+        top = right = bottom = left = Float.NaN;
         padTop = padRight = padBottom = padLeft = 0;
         marTop = marRight = marBottom = marLeft = 0;
         border = 0;

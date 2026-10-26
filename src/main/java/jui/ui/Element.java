@@ -238,6 +238,61 @@ public final class Element {
         return this;
     }
 
+    /**
+     * Takes the element out of the flow: it sizes nothing around it, sits in
+     * its parent's padding box by top/right/bottom/left (the top left when
+     * none is set), and paints and takes the pointer over the flow.
+     */
+    public Element absolute() {
+        Node n = node();
+        if (n != null) {
+            n.absolute = true;
+        }
+        return this;
+    }
+
+    /** The distance from the top of the parent's padding box, for an absolute element. */
+    public Element top(float v) {
+        Node n = node();
+        if (n != null) {
+            n.top = v;
+        }
+        return this;
+    }
+
+    public Element right(float v) {
+        Node n = node();
+        if (n != null) {
+            n.right = v;
+        }
+        return this;
+    }
+
+    public Element bottom(float v) {
+        Node n = node();
+        if (n != null) {
+            n.bottom = v;
+        }
+        return this;
+    }
+
+    public Element left(float v) {
+        Node n = node();
+        if (n != null) {
+            n.left = v;
+        }
+        return this;
+    }
+
+    /** Keeps the element's room but shows nothing of it: not painted, not hit, not focused. */
+    public Element invisible() {
+        Node n = node();
+        if (n != null) {
+            n.invisible = true;
+        }
+        return this;
+    }
+
     /** Wraps the children onto more lines when they do not fit, as CSS's flex-wrap: wrap. */
     public Element wrap() {
         Node n = node();

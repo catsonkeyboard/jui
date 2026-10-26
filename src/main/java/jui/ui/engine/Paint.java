@@ -18,6 +18,9 @@ final class Paint {
     static void paint(NodePool pool, int index, Scene scene, Theme theme, float parentOpacity,
                       boolean parentDisabled, long ringId) {
         Node n = pool.node(index);
+        if (n.invisible) {
+            return;
+        }
         float o = parentOpacity * n.opacity * (n.disabled && !parentDisabled ? 0.5f : 1);
         int bg = n.down && n.bgPressed != 0 ? n.bgPressed : n.hot && n.bgHover != 0 ? n.bgHover : n.background;
         int shadowColor = fade(n.shadowColor, o), background = fade(bg, o);
@@ -42,8 +45,16 @@ final class Paint {
         if (n.kind == Node.SLIDER) {
             slider(n, scene, theme, o, ringId);
         }
+        // The flow first, then absolute children over it, in the order built (as MyGO).
         for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
-            paint(pool, c, scene, theme, o, n.disabled, ringId);
+            if (!pool.node(c).absolute) {
+                paint(pool, c, scene, theme, o, n.disabled, ringId);
+            }
+        }
+        for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+            if (pool.node(c).absolute) {
+                paint(pool, c, scene, theme, o, n.disabled, ringId);
+            }
         }
         // The focus ring goes over the children: 3 DIPs out, 2 wide (as MyGO's paint.go).
         if (n.ring || ringId != 0 && n.id == ringId && !n.noFocusRing) {

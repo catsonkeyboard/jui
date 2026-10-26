@@ -298,9 +298,9 @@ public final class Engine {
      */
     private void commit() {
         hits.clear();
+        commitHits(0, -1);
         for (int i = 0; i < pool.size(); i++) {
             Node n = pool.node(i);
-            hits.add(n.id, n.x, n.y, n.w, n.h, n.parent, n.disabled ? n.flags | HitList.DISABLED : n.flags);
             ElementState s = n.state;
             if (s != null) {
                 s.x = n.x;
@@ -326,6 +326,47 @@ public final class Engine {
                 n.down = !n.disabled && input.downNode(n);
             }
         }
+    }
+
+    /**
+     * Adds the node and what it holds to the hit list in paint order (the
+     * flow, then absolute children), so that what paints later is on top.
+     * An invisible node takes no hits, nor its children, and loses focus.
+     */
+    private void commitHits(int index, int parentHit) {
+        Node n = pool.node(index);
+        if (n.invisible) {
+            if (input.focusedId != 0 && holds(index, input.focusedId)) {
+                input.focusedId = 0;
+            }
+            return;
+        }
+        int h = hits.size;
+        hits.add(n.id, n.x, n.y, n.w, n.h, parentHit, n.disabled ? n.flags | HitList.DISABLED : n.flags);
+        for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+            if (!pool.node(c).absolute) {
+                commitHits(c, h);
+            }
+        }
+        for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+            if (pool.node(c).absolute) {
+                commitHits(c, h);
+            }
+        }
+    }
+
+    /** Whether the node or one inside it has identity id. */
+    private boolean holds(int index, long id) {
+        Node n = pool.node(index);
+        if (n.id == id) {
+            return true;
+        }
+        for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+            if (holds(c, id)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The frame being built, or the last one built: 1 for the first. */
