@@ -12,6 +12,7 @@ import jui.ui.DoubleRef;
 import jui.ui.Element;
 import jui.ui.ListState;
 import jui.ui.Rect;
+import jui.ui.TextRef;
 import jui.ui.Theme;
 import jui.ui.View;
 import jui.ui.engine.Engine;
@@ -23,6 +24,7 @@ import static jui.ui.Ui.list;
 import static jui.ui.Ui.slider;
 import static jui.ui.Ui.row;
 import static jui.ui.Ui.text;
+import static jui.ui.Ui.textInput;
 
 /**
  * Measures what frames of the UI API allocate on this thread (design §8),
@@ -109,12 +111,27 @@ public final class AllocSpike {
         int inView = rowsState.last() - rowsState.first() + 1;
         double listFrame = (listRaw - emptyPainted) / Math.max(1, inView);
 
+        // Frames of text inputs that do not change, one with focus and its caret blinking (the
+        // engine's clock is the real one): per input, net of an empty painted frame.
+        Runnable inputsFrame = () -> {
+            te.buildAndLayout(AllocSpike::inputs, 800, 600);
+            scene.begin(2, text, atlas);
+            te.paint(scene);
+        };
+        inputsFrame.run();
+        Rect field = te.bounds(FIELDS[0].get());
+        te.pointerDown(field.x() + 20, field.y() + field.height() / 2, 0, 1, 0);
+        te.pointerUp(field.x() + 20, field.y() + field.height() / 2, 0, 0);
+        double inputs = (perFrame(inputsFrame) - emptyPainted) / INPUTS;
+        boolean focusedInput = te.textActive();
+
         boolean nativeImage = "runtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode"));
         System.out.printf("ALLOC mode=%s empty_frame=%.0f handles=%.1f lambdas=%.1f temprefs=%.1f"
                         + " key_long=%.1f key_object=%.1f shell_frame=%.0f text_frame=%.0f text_instances=%d"
-                        + " card_frame=%.0f controls_frame=%.1f controls_hover_frame=%.1f list_frame=%.1f list_rows=%d%n",
+                        + " card_frame=%.0f controls_frame=%.1f controls_hover_frame=%.1f list_frame=%.1f list_rows=%d"
+                        + " inputs_frame=%.1f input_focused=%b%n",
                 nativeImage ? "native" : "jvm", empty, handles, lambdas, temprefs, keyLong, keyObject, shell,
-                textFrame, textInstances, cardFrame, controls, controlsHover, listFrame, inView);
+                textFrame, textInstances, cardFrame, controls, controlsHover, listFrame, inView, inputs, focusedInput);
         // Design §8, checked where it ships: the framework allocates nothing
         // per element, and a whole frame stays within 32 KB.
         if (nativeImage && textFrame > 0.5 * textInstances) {
@@ -129,6 +146,11 @@ public final class AllocSpike {
         }
         if (nativeImage && listFrame > 0.5) {
             System.out.printf("FAIL: the framework allocates %.1f bytes per list row in view%n", listFrame);
+            System.exit(1);
+        }
+        if (nativeImage && (inputs > 0.5 || !focusedInput)) {
+            System.out.printf("FAIL: the framework allocates %.1f bytes per text input (one focused: %b)%n", inputs,
+                    focusedInput);
             System.exit(1);
         }
         if (nativeImage && cardFrame > 32768) {
@@ -162,6 +184,22 @@ public final class AllocSpike {
         }
         for (int i = 0; i < 20; i++) {
             slider(c.key(200 + i), VALUES[i], 0, 100);
+        }
+    }
+
+    /** Text inputs an inputs frame builds, each with some text. */
+    private static final int INPUTS = 20;
+    private static final TextRef[] FIELDS = new TextRef[INPUTS];
+
+    static {
+        for (int i = 0; i < INPUTS; i++) {
+            FIELDS[i] = new TextRef("输入框 " + i + " · text");
+        }
+    }
+
+    private static void inputs(Context c) {
+        for (int i = 0; i < INPUTS; i++) {
+            textInput(c.key(300 + i), FIELDS[i]);
         }
     }
 

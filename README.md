@@ -272,16 +272,75 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - 流内元素的相对定位；
 - `cursor`、`onSubmit` 仍在 M4。
 
+## M4：文本输入（2026-10-26）
+
+按 [M4 计划](docs/plans/2026-10-26-m4-text-input.md)实现了单行文本输入，行为对照 MyGO（commit `8049993`）的 `ui/textinput.go`、`ui/editor*.go` 和 `internal/darwin/surface.go`。
+
+**输入框**
+- `textInput(c, TextRef)` 和无外观的 `textInputBase`；`placeholder`、`changed()`、`submitted()` 和 `onSubmit`。
+- 外观同 MyGO：内边距 6/10；获得焦点时边框是强调色，悬停时边框加深，不画焦点环。
+- 光标是强调色、宽一个物理像素，每 530 ms 闪一次；30 秒没有操作就不再闪，保持显示。
+- 文字超出输入框时横向滚动，光标总留在视野里；失去焦点后显示文字的开头。
+
+**编辑**
+- 按键同 macOS 的文本框：
+  - 方向键；Option+方向键按词；⌘+方向键、Home/End 到两端；Shift 扩展选区；
+  - Backspace/Delete，Option 按词删，⌘+Backspace 删到开头；
+  - Ctrl 的 Emacs 键；回车提交。
+- 光标和删除都按字素簇：emoji、国旗、带附加符号的字母，一次走一个。按词移动时，每个汉字、假名单独成词（同 MyGO，不用词典）。
+- 输入框要的键先于快捷键；不要的键（⌘P、Esc、单独的 ↑/↓ 等）照常交给快捷键和滚动。打字时，没有修饰键的快捷键不会被触发。
+- 鼠标：单击放光标，Shift+单击扩展，双击选词，三击全选，拖动选择。
+- 撤销和重做：⌘Z、⇧⌘Z；一秒内连续打的字合成一步，一次组字是一步。
+- 剪贴板：⌘C、⌘X、⌘V；粘贴多行文字时，换行变成空格。
+
+**输入法**
+- 窗口的视图实现了 `NSTextInputClient`。拼音组字时只显示、不提交，下面有一条下划线；候选框按光标所在的矩形定位。
+- 组字不进 `TextRef`，提交后才写入并报告 `changed()`。
+- 焦点离开、窗口切到后台、在输入框里点击时，组字先提交，再通知输入法丢弃它的组字。MyGO 在同一个输入框里提交时不通知输入法。
+
+**编辑菜单和指针形状**
+- 主菜单加了 Edit 菜单：Undo、Redo、Cut、Copy、Paste、Select All，命令交给获得焦点的输入框。
+- 没有获得焦点的输入框时，菜单命令变成对应的按键交给快捷键，所以应用自己的 ⌘Z 仍然收得到。
+- `cursor(Cursor)`：输入框上是 I 形指针，按住拖到框外也不变。
+
+**TextEngine**：按坐标找字符位置（`indexAt`）、按位置求光标位置（`caretX`）、字素簇和词的边界（`TextBounds`），设计 6.12 列出的能力。
+
+验收示例在 native image 下的画面如下（`./build.sh native-demo Files --query=会议`）：
+
+![搜索“会议”](docs/m4-search.png)
+
+- **文件列表示例**：顶部加了搜索框，按标题过滤，输入时实时更新；拼音组字期间不过滤，选词提交后才过滤。
+- **待办清单**：可以输入新待办的标题，按回车或点“添加”。
+- **测试**：`./build.sh test`，275 个测试全部通过。
+- **分配**（`./build.sh alloc`，native image）：20 个输入框、其中一个获得焦点且光标在闪烁的帧，框架内部每个输入框分配 0 字节。
+- **签名检查**（`./build.sh ffi-check`）：接受和返回 `NSRange`、`NSRect`、`NSPoint` 的 Objective-C 方法，在 JVM 和 native image 下都能调用。漏登记一个签名，要到输入法第一次调用时才会崩溃，所以单独检查。
+- **滚动帧耗时**（`./build.sh listbench`）：p95 0.23 ms，最大 0.33 ms，仍在门槛内。
+
+**还需要手动核对的**（native image，`./build.sh native-demo Files`）
+- 英文输入；拼音输入时候选框出现在光标下面，选词后列表过滤；
+- 方向键、Option+方向键、Home/End、Shift 选择；拖动选择、双击选词；
+- 和别的应用之间 ⌘C、⌘V；⌘Z；
+- 输入框上是 I 形指针；
+- 组字时点别处，组字被提交，候选框消失；
+- M3 遗留的一项：按 Tab 时滚进视野。
+
+**推迟到后面的**
+- 只读、密码框、`OnPaste`/`OnTextKey`、设置选区的 API、关闭输入法、多行文本框；
+- 菜单里的“粘贴并匹配样式”“删除”，以及菜单标题的本地化（M5 的应用菜单）；
+- 右键菜单（M5 的 `contextMenu`）；
+- 设计 6.12 给编辑器预留的“元素接管文本输入”和富文本片段，留给编辑器的设计。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
 
 ```bash
 ./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
-./build.sh demo            # 卡片示例，在 JVM 上运行；Counter、Todo（M2）、Files（M3）是其他示例的名字
+./build.sh demo            # 卡片示例，在 JVM 上运行；Counter、Todo（M2）、Files（M3，M4 加了搜索框）是其他示例的名字
 ./build.sh native-demo     # 同上，编译成 native image（build/<name>-demo）后运行，也接受示例名
 ./build.sh alloc           # 实测 UI API 每帧的分配（native image 和 JVM）
 ./build.sh listbench       # 1 万行列表的滚动帧耗时（native image，M3 的门槛）
+./build.sh ffi-check       # 调用每种结构体形状的 Objective-C 方法（JVM 和 native image）
 ./build.sh jvm             # 原型，在 JVM 上运行
 ./build.sh native          # 原型，编译成 native image：build/jui-spike
 ./build.sh bench 10        # 原型的启动时间、内存和体积（每种模式跑 10 次取中位数）
@@ -329,5 +388,11 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 | `jui/app/{App,Window,WindowOptions}.java` | 应用和窗口 | `mygo.App`、`mygo.NewWindow` |
 | `jui/examples/CardDemo.java` | M1 验收示例 | — |
 | `jui/examples/{CounterDemo,TodoDemo}.java` | M2 验收示例：计数器和待办清单 | `examples/counter-native` |
-| `jui/examples/FilesDemo.java` | M3 验收示例：1 万篇笔记的文件列表 | — |
+| `jui/examples/FilesDemo.java` | M3 验收示例：1 万篇笔记的文件列表；M4 加了搜索框 | — |
+| `jui/text/TextBounds.java` | 字素簇和词的边界 | `internal/text/word.go`、`ui/textbuffer.go` |
+| `jui/ui/engine/TextEdit.java` | 单行编辑：文字、选区、组字、按键、命令、撤销 | `ui/editor*.go` |
+| `jui/ui/engine/Host.java` | 引擎交给平台的事：剪贴板、指针形状、输入法 | `host` |
+| `jui/ui/{TextRef,Cursor,EditCommand}.java` | 文本引用对象、指针形状、编辑菜单的命令 | 同上 |
+| `jui/platform/mac/{MacPasteboard,MacCursors}.java` | 剪贴板的纯文本；指针形状对应的 `NSCursor` | `internal/darwin/system.go`、`surface.go` |
+| `jui/spike/FfiCheck.java` | 在 native image 里调用每种结构体形状的 Objective-C 方法 | — |
 | `src/test/java/jui/testing/` | 零依赖的断言和测试运行器 | — |

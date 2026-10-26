@@ -157,8 +157,14 @@ public final class FilesDemo {
         });
     }
 
+    /** {@code --query=text} starts with text in the search box (for screenshots); {@code --print-window} prints the window's number. */
     public static void main(String[] args) {
         FilesDemo s = new FilesDemo();
+        for (String a : args) {
+            if (a.startsWith("--query=")) {
+                s.query.set(a.substring("--query=".length()));
+            }
+        }
         App.run(() -> {
             Window w = Window.open(WindowOptions.of("笔记").size(360, 640).content(s::view));
             if (Arrays.asList(args).contains("--print-window")) {
