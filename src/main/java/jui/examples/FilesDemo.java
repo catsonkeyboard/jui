@@ -3,6 +3,7 @@ package jui.examples;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 
 import jui.app.App;
@@ -11,6 +12,7 @@ import jui.app.WindowOptions;
 import jui.ui.Context;
 import jui.ui.Element;
 import jui.ui.ListState;
+import jui.ui.TextRef;
 import jui.ui.Theme;
 
 import static jui.ui.Ui.button;
@@ -20,12 +22,14 @@ import static jui.ui.Ui.list;
 import static jui.ui.Ui.row;
 import static jui.ui.Ui.spacer;
 import static jui.ui.Ui.text;
+import static jui.ui.Ui.textInput;
 
 /**
  * A list of 10000 notes, as an Obsidian-like file list: only the rows in
  * view are built, some rows are taller (a summary line), a click selects a
- * note. Titles come from a small vocabulary, so their glyphs fit the atlas
- * until it can grow (M6).
+ * note, and a search box filters the titles as you type (in Chinese too,
+ * through the input method). Titles come from a small vocabulary, so their
+ * glyphs fit the atlas until it can grow (M6).
  *
  * <pre>./build.sh demo Files</pre>
  */
@@ -34,11 +38,14 @@ public final class FilesDemo {
         final long id;
         final String title;
         final String summary;
+        /** The title in lower case, for the search. */
+        final String lower;
 
         Note(long id, String title, String summary) {
             this.id = id;
             this.title = title;
             this.summary = summary;
+            this.lower = title.toLowerCase(Locale.ROOT);
         }
     }
 
@@ -53,8 +60,12 @@ public final class FilesDemo {
 
     final List<Note> notes = new ArrayList<>();
     final ListState files = new ListState();
+    final TextRef query = new TextRef("");
     Note selected;
-    private final String countText;
+    /** The notes the query matches, made again only when the query changes, and their count. */
+    private String filteredFor;
+    private List<Note> shown;
+    private String countText;
 
     FilesDemo() {
         Random r = new Random(42);
@@ -67,18 +78,44 @@ public final class FilesDemo {
                     : null;
             notes.add(new Note(i + 1, title, summary));
         }
-        countText = notes.size() + " 篇笔记";
+    }
+
+    /** The notes whose titles hold the query, case aside. */
+    private List<Note> shown() {
+        String q = query.get();
+        if (!q.equals(filteredFor)) {
+            filteredFor = q;
+            if (q.isEmpty()) {
+                shown = notes;
+            } else {
+                String k = q.toLowerCase(Locale.ROOT);
+                shown = new ArrayList<>();
+                for (Note n : notes) {
+                    if (n.lower.contains(k)) {
+                        shown.add(n);
+                    }
+                }
+            }
+            countText = shown.size() + " 篇笔记";
+        }
+        return shown;
     }
 
     /** A new demo's view and its list's state, for tools that build it without a window. */
     public static Object[] forTools() {
         FilesDemo s = new FilesDemo();
-        return new Object[] {(jui.ui.View) s::view, s.files};
+        return new Object[] {(jui.ui.View) s::view, s.files, s.query};
     }
 
     void view(Context c) {
         Theme t = c.theme();
         column(c).fill().children(() -> {
+            row(c).padding(12, 16, 0, 16).children(() -> {
+                if (textInput(c, query).placeholder("搜索笔记").grow(1).changed()) {
+                    files.scrollToTop();
+                }
+            });
+            List<Note> found = shown();
             row(c).padding(12, 16).gap(8).children(() -> {
                 text(c, countText).bold();
                 spacer(c);
@@ -87,7 +124,11 @@ public final class FilesDemo {
                 }
             });
             divider(c);
-            list(c, files, notes.size(), i -> noteRow(c, notes.get(i), t)).grow(1);
+            if (found.isEmpty()) {
+                column(c).grow(1).center().children(() -> text(c, "没有匹配的笔记").textColor(t.textMuted()));
+            } else {
+                list(c, files, found.size(), i -> noteRow(c, found.get(i), t)).grow(1);
+            }
             divider(c);
             row(c).padding(8, 16).children(() -> {
                 if (button(c, "回到顶部").clicked()) {

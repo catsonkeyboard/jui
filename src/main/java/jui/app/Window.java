@@ -12,14 +12,16 @@ import jui.ui.engine.Engine;
  * drawn only when asked for: when AppKit displays the window (as it opens
  * or resizes), or when the view or the app invalidates it.
  */
-public final class Window implements MacWindow.Input {
+public final class Window implements MacWindow.Input, jui.ui.engine.Host {
     private final Engine engine;
     private final MacWindow mac;
+    private final jui.platform.mac.MacPasteboard pasteboard = jui.platform.mac.MacPasteboard.general();
 
     private Window(WindowOptions options) {
         View view = options.content() != null ? options.content() : c -> {};
         Theme theme = Theme.light();
         engine = new Engine(App.text(), theme, this::invalidate);
+        engine.setHost(this);
         mac = MacWindow.open(options.title(), options.width(), options.height(), theme.background().rgba() >>> 8,
                 App.text(), (scene, w, h) -> {
                     engine.buildAndLayout(view, (float) w, (float) h);
@@ -116,6 +118,101 @@ public final class Window implements MacWindow.Input {
     @Override
     public void scroll(double x, double y, double dx, double dy, boolean precise, int mods) {
         engine.scroll((float) x, (float) y, (float) dx, (float) dy, precise, mods);
+    }
+
+    // Text input, from the view's NSTextInputClient.
+
+    @Override
+    public boolean textActive() {
+        return engine.textActive();
+    }
+
+    @Override
+    public boolean textComposing() {
+        return engine.textComposing();
+    }
+
+    @Override
+    public void textInsert(String s, int replStart, int replLength) {
+        engine.textInsert(s, replStart, replLength);
+    }
+
+    @Override
+    public void textMark(String s, int selStart, int selLength, int replStart, int replLength) {
+        engine.textMark(s, selStart, selLength, replStart, replLength);
+    }
+
+    @Override
+    public void textUnmark() {
+        engine.textUnmark();
+    }
+
+    @Override
+    public boolean textMarkedRange(int[] out) {
+        return engine.textMarkedRange(out);
+    }
+
+    @Override
+    public boolean textSelectedRange(int[] out) {
+        return engine.textSelectedRange(out);
+    }
+
+    @Override
+    public int textLength() {
+        return engine.textLength();
+    }
+
+    @Override
+    public String textIn(int start, int end) {
+        return engine.textIn(start, end);
+    }
+
+    @Override
+    public boolean textRect(int start, int end, float[] out) {
+        return engine.textRect(start, end, out);
+    }
+
+    @Override
+    public int textIndexAt(double x, double y) {
+        return engine.textIndexAt((float) x, (float) y);
+    }
+
+    @Override
+    public void editCommand(jui.ui.EditCommand c) {
+        engine.editCommand(c);
+    }
+
+    // The engine's host: the clipboard, the pointer's shape, the input method.
+
+    @Override
+    public String readClipboard() {
+        return pasteboard.read();
+    }
+
+    @Override
+    public void writeClipboard(String s) {
+        pasteboard.write(s);
+    }
+
+    @Override
+    public void setCursor(jui.ui.Cursor c) {
+        if (mac != null) {
+            mac.setCursor(c);
+        }
+    }
+
+    @Override
+    public void discardMarkedText() {
+        if (mac != null) {
+            mac.discardMarkedText();
+        }
+    }
+
+    @Override
+    public void textInputChanged() {
+        if (mac != null) {
+            mac.invalidateCharacterCoordinates();
+        }
     }
 
     /** The system's appearance changed: the theme follows, and the window clears to its background. */

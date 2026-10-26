@@ -33,4 +33,17 @@ public final class TodoDemoTest {
         tt.key(Shortcut.of(Key.SPACE));
         Check.isTrue(s.todos.get(0).done.get(), "space checked the first todo");
     }
+
+    public void testTypingATitleAndEnterAddsATodo() {
+        TodoDemo s = new TodoDemo();
+        Tester tt = Tester.of(s::view, 420, 480);
+        tt.click("新待办");
+        tt.type("买菜");
+        tt.key(Shortcut.of(Key.ENTER));
+        Check.equal(4, s.todos.size());
+        Check.isTrue(tt.hasText("买菜"), "the typed todo");
+        Check.equal(java.util.Arrays.toString(new int[] {0, 0}), java.util.Arrays.toString(tt.textSelection())); // cleared
+        tt.key(Shortcut.of(Key.ENTER));
+        Check.equal(4, s.todos.size());                    // an empty title adds nothing
+    }
 }

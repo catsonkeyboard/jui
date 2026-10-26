@@ -11,6 +11,7 @@ import jui.ui.BoolRef;
 import jui.ui.Context;
 import jui.ui.Key;
 import jui.ui.Shortcut;
+import jui.ui.TextRef;
 import jui.ui.Theme;
 
 import static jui.ui.Ui.button;
@@ -20,13 +21,14 @@ import static jui.ui.Ui.primaryButton;
 import static jui.ui.Ui.row;
 import static jui.ui.Ui.spacer;
 import static jui.ui.Ui.text;
+import static jui.ui.Ui.textInput;
 import static jui.ui.Ui.toggle;
 
 /**
  * A todo list: check boxes bound to each todo, rows keyed by its id, a
  * delete button whose callback changes the list the view iterates, a switch
- * that hides finished todos, and ⌘N to add one. Titles are fixed until text
- * input comes (M4).
+ * that hides finished todos; a todo is typed in and added with Enter or the
+ * Add button, and ⌘N adds one with a fixed title.
  *
  * <pre>./build.sh demo Todo</pre>
  */
@@ -46,6 +48,8 @@ public final class TodoDemo {
 
     final List<Todo> todos = new ArrayList<>();
     final BoolRef showDone = new BoolRef(true);
+    /** The title being typed. */
+    final TextRef title = new TextRef("");
     private long nextId = 1;
 
     TodoDemo() {
@@ -60,6 +64,15 @@ public final class TodoDemo {
 
     private void addNew() {
         add("新待办 " + nextId);
+    }
+
+    /** Adds the typed title, if there is one, and clears the input. */
+    private void addTyped() {
+        String t = title.get().strip();
+        if (!t.isEmpty()) {
+            add(t);
+        }
+        title.set("");
     }
 
     void view(Context c) {
@@ -90,10 +103,16 @@ public final class TodoDemo {
                     button(c, "删除").label("删除 " + todo.title).onClick(() -> todos.remove(todo));
                 });
             }
-            row(c).gap(8).children(() -> {
-                if (primaryButton(c, "添加").clicked()) {
-                    addNew();
+            // Keyed: the rows above come and go, and the input keeps its identity, so its focus too.
+            row(c.key("new")).gap(8).children(() -> {
+                if (textInput(c, title).placeholder("新待办").grow(1).submitted()) {
+                    addTyped();
                 }
+                if (primaryButton(c, "添加").clicked()) {
+                    addTyped();
+                }
+            });
+            row(c).gap(8).children(() -> {
                 if (button(c, "清除已完成").disabled(!anyDone).clicked()) {
                     todos.removeIf(todo -> todo.done.get());
                 }
