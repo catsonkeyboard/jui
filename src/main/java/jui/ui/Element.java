@@ -211,11 +211,47 @@ public final class Element {
         return this;
     }
 
-    /** Spaces the children apart. */
+    /** Spaces the children apart, along and between lines. */
     public Element gap(float g) {
         Node n = node();
         if (n != null) {
-            n.gap = g;
+            n.gapX = n.gapY = g;
+        }
+        return this;
+    }
+
+    /** The gap across: between a row's children, or between a wrapping column's columns. */
+    public Element gapX(float g) {
+        Node n = node();
+        if (n != null) {
+            n.gapX = g;
+        }
+        return this;
+    }
+
+    /** The gap down: between a column's children, or between a wrapping row's lines. */
+    public Element gapY(float g) {
+        Node n = node();
+        if (n != null) {
+            n.gapY = g;
+        }
+        return this;
+    }
+
+    /** Wraps the children onto more lines when they do not fit, as CSS's flex-wrap: wrap. */
+    public Element wrap() {
+        Node n = node();
+        if (n != null) {
+            n.wrap = true;
+        }
+        return this;
+    }
+
+    /** Where a wrapping container's lines go across: START (the default, as MyGO), CENTER, END or STRETCH. */
+    public Element alignContent(Align a) {
+        Node n = node();
+        if (n != null) {
+            n.alignContent = a;
         }
         return this;
     }

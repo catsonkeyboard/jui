@@ -2,6 +2,7 @@ package jui.ui.engine;
 
 import jui.testing.Check;
 import jui.ui.Align;
+import jui.ui.Element;
 import jui.ui.Justify;
 import jui.ui.Rect;
 import jui.ui.Theme;
@@ -115,5 +116,56 @@ public final class FlexLayoutTest {
             Rect r = at(s);
             Check.isTrue(r.width() >= 0 && r.height() >= 0 && !Float.isNaN(r.x()) && !Float.isNaN(r.y()), s + " " + r);
         }
+    }
+
+    public void testARowWrapsWhenTheNextItemDoesNotFit() {
+        e.buildAndLayout(c -> row(c).width(100).wrap().gap(10).alignItems(Align.START).children(() -> {
+            for (int i = 0; i < 3; i++) box(c).size(40, 20).label("a" + i);
+        }), 300, 300);
+        Check.equal(new Rect(0, 0, 40, 20), e.bounds("a0"));
+        Check.equal(new Rect(50, 0, 40, 20), e.bounds("a1"));
+        Check.equal(new Rect(0, 30, 40, 20), e.bounds("a2"));     // 90 + 10 + 40 > 100
+    }
+
+    public void testALineIsAsTallAsItsTallestItem() {
+        e.buildAndLayout(c -> row(c).width(100).wrap().gapX(10).gapY(4).alignItems(Align.START).children(() -> {
+            box(c).size(40, 20).label("a"); box(c).size(40, 30).label("b"); box(c).size(40, 10).label("c");
+        }), 300, 300);
+        Check.near(34, e.bounds("c").y());                        // line 1 is 30 high, then gapY 4
+    }
+
+    public void testAlignContentDefaultsToStartAndCanCenterOrStretch() {
+        for (Align a : new Align[] {null, Align.CENTER, Align.STRETCH}) {
+            e.buildAndLayout(c -> {
+                Element r = row(c).size(100, 200).wrap().gap(10).alignItems(Align.START);
+                if (a != null) r.alignContent(a);
+                r.children(() -> { for (int i = 0; i < 3; i++) box(c).size(40, 20).label("a" + i); });
+            }, 300, 300);
+            float y0 = e.bounds("a0").y(), y2 = e.bounds("a2").y();
+            if (a == null) { Check.near(0, y0); Check.near(30, y2); }
+            if (a == Align.CENTER) { Check.near(75, y0); Check.near(105, y2); }      // free 200 - 50 = 150
+            if (a == Align.STRETCH) { Check.near(0, y0); Check.near(105, y2); }      // each line + 75
+        }
+    }
+
+    public void testAColumnWrapsIntoColumns() {
+        e.buildAndLayout(c -> column(c).height(100).wrap().gap(10).alignItems(Align.START).children(() -> {
+            for (int i = 0; i < 3; i++) box(c).size(30, 40).label("a" + i);
+        }), 300, 300);
+        Check.equal(new Rect(0, 50, 30, 40), e.bounds("a1"));
+        Check.equal(new Rect(40, 0, 30, 40), e.bounds("a2"));     // a new column after gapX
+    }
+
+    public void testAWrappingContainerWithOneLineKeepsItsNaturalHeight() {
+        e.buildAndLayout(c -> row(c).size(300, 200).wrap().alignItems(Align.STRETCH).children(() ->
+                box(c).width(40).label("s")), 300, 300);
+        Check.near(0, e.bounds("s").height());   // stretched to its line, whose natural height is 0, not to the 200-high container
+    }
+
+    public void testEachLineFlexesOnItsOwn() {
+        e.buildAndLayout(c -> row(c).width(100).wrap().children(() -> {
+            box(c).width(60).label("a"); box(c).basis(60).grow(1).label("b");   // grow alone means basis 0, which never wraps
+        }), 300, 300);
+        Check.near(100, e.bounds("b").width());                   // alone on line 2, it grows to the whole line
     }
 }

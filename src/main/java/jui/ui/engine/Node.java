@@ -51,7 +51,12 @@ public final class Node {
     public boolean row, reverse;
     public float width, height, minWidth, maxWidth, minHeight, maxHeight;
     public float widthPercent, heightPercent;
-    public float grow, shrink, basis, gap;
+    public float grow, shrink, basis;
+    /** Gaps between children across and down: along a row gapX, between its lines gapY; a column the other way. */
+    public float gapX, gapY;
+    /** Wraps children onto lines, placed by alignContent (START unless set, as MyGO). */
+    public boolean wrap;
+    public Align alignContent;
     public float padTop, padRight, padBottom, padLeft;
     public float marTop, marRight, marBottom, marLeft;
     /** The border's width, which also insets the content. */
@@ -111,7 +116,9 @@ public final class Node {
         grow = 0;
         shrink = 1;
         basis = Float.NaN;
-        gap = 0;
+        gapX = gapY = 0;
+        wrap = false;
+        alignContent = Align.START;
         padTop = padRight = padBottom = padLeft = 0;
         marTop = marRight = marBottom = marLeft = 0;
         border = 0;
