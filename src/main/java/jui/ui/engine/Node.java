@@ -14,7 +14,7 @@ public final class Node {
     public static final int NONE = -1;
 
     // Flags: what input the element takes, set by the queries and controls that build it.
-    public static final int CLICKABLE = 1, FOCUSABLE = 2, HOVER = 4, DRAG = 8, TOGGLE = 16, KEYS = 32;
+    public static final int CLICKABLE = 1, FOCUSABLE = 2, HOVER = 4, DRAG = 8, TOGGLE = 16, KEYS = 32, SCROLL = 64;
 
     // Structure.
     public long id;
@@ -58,6 +58,8 @@ public final class Node {
     public boolean absolute, invisible;
     /** Clips what it holds to its padding box. */
     public boolean clip;
+    /** A scroll container's offset (in from its state, out clamped), the offset asked for (NaN none), and its content's height. */
+    public float scrollY, scrollRequest, contentH;
     public float top, right, bottom, left;
     /** Wraps children onto lines, placed by alignContent (START unless set, as MyGO). */
     public boolean wrap;
@@ -125,6 +127,8 @@ public final class Node {
         wrap = false;
         alignContent = Align.START;
         absolute = invisible = clip = false;
+        scrollY = contentH = 0;
+        scrollRequest = Float.NaN;
         top = right = bottom = left = Float.NaN;
         padTop = padRight = padBottom = padLeft = 0;
         marTop = marRight = marBottom = marLeft = 0;

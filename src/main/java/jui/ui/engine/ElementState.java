@@ -26,6 +26,9 @@ public final class ElementState {
     public int clicks, rightClicks, doubleClicks;
     public boolean pressed, pressPending, changed;
     public float dragX, dragY;
+    /** A scroll container's offset, its content's height and its content box's height as committed; an offset asked for (NaN none). */
+    public float scrollY, contentH, viewH;
+    public float requestY = Float.NaN;
     /** Whether the element was disabled in the last frame: an element around it may disable it after building it. */
     public boolean disabledLast;
     /** Keys sent to this element while it had focus, for controls that take keys (sliders). */
@@ -49,6 +52,8 @@ public final class ElementState {
         pressed = pressPending = changed = false;
         dragX = dragY = 0;
         disabledLast = false;
+        scrollY = contentH = viewH = 0;
+        requestY = Float.NaN;
         keyCount = 0;
         if (locals != null) {
             locals.clear();

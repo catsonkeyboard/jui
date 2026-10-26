@@ -313,6 +313,12 @@ public final class Engine {
                 s.cw = Math.max(0, n.w - n.padLeft - n.padRight - 2 * n.border);
                 s.ch = Math.max(0, n.h - n.padTop - n.padBottom - 2 * n.border);
                 s.disabledLast = n.disabled;
+                if ((n.flags & Node.SCROLL) != 0) {
+                    s.scrollY = n.scrollY;
+                    s.contentH = n.contentH;
+                    s.viewH = s.ch;
+                    s.requestY = Float.NaN;
+                }
             }
         }
         states.prune(frame, pass);
@@ -404,6 +410,42 @@ public final class Engine {
 
     StateTable states() {
         return states;
+    }
+
+    // Scrolling.
+
+    /** The element state of identity id, or null: for ScrollState. */
+    public ElementState stateOf(long id) {
+        return states.get(id);
+    }
+
+    /** Asks the scroll container of identity id to scroll to y in the next frame. */
+    public void requestScroll(long id, float y) {
+        ElementState s = states.get(id);
+        if (s == null) {
+            s = states.create(id, frame + 1);
+        }
+        s.requestY = y;
+        requestFrame.run();
+    }
+
+    /** Makes the node a vertical scroll container, taking its offset (and any asked for) from its state. */
+    public void makeScroll(int index) {
+        Node n = pool.node(index);
+        n.flags |= Node.SCROLL | Node.HOVER;
+        n.clip = true;
+        ElementState s = state(index);
+        n.scrollY = s.scrollY;
+        n.scrollRequest = s.requestY;
+    }
+
+    /**
+     * A scroll at (x, y): dy above 0 moves the content up. The innermost
+     * scroll container under the point that can still move that way takes
+     * all of it; what is left over is dropped (as MyGO's input.go).
+     */
+    public void scroll(float x, float y, float dx, float dy, boolean precise, int mods) {
+        input.scroll(x, y, dy, mods);
     }
 
     // Pointer input: on the main thread, between frames.

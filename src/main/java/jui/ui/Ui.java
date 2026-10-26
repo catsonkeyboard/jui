@@ -53,6 +53,27 @@ public final class Ui {
         return open(c, Node.DIVIDER, false, Align.STRETCH);
     }
 
+    /** A column that scrolls its content up and down, clipped to its padding box (as MyGO's Scroll). */
+    public static Element scroll(Context c) {
+        Element e = open(c, Node.BOX, false, Align.STRETCH);
+        if (e.node() != null) {
+            c.engine().makeScroll(e.index);
+        }
+        return e;
+    }
+
+    /** A scroll container whose offset state reads and moves. */
+    public static Element scroll(Context c, ScrollState state) {
+        Element e = open(c, Node.BOX, false, Align.STRETCH);
+        Node n = e.node();
+        if (n != null) {
+            c.engine().state(e.index); // the container's state first, so a request bound now lands on it
+            state.bind(c.engine(), n.id);
+            c.engine().makeScroll(e.index);
+        }
+        return e;
+    }
+
     // Controls (MyGO's widgets.go and base.go). They build their parts with
     // Engine.enter/exit, not children(Runnable): a capturing lambda per
     // control would allocate in every frame of a native image.

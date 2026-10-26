@@ -14,7 +14,7 @@ import jui.ui.engine.Engine;
  */
 public final class Tester {
     private final View view;
-    private final float width, height;
+    private float width, height;
     private final TextEngine text = new TextEngine("zh-Hans");
     private final GlyphAtlas atlas = new GlyphAtlas(1024, 1024);
     private final Scene scene = new Scene();
@@ -132,6 +132,26 @@ public final class Tester {
         started();
         find(s);
         return engine.focusIn(s);
+    }
+
+    /** Scrolls by (dx, dy) at (x, y), precisely, as a trackpad does: dy above 0 moves the content up. */
+    public void scroll(float x, float y, float dx, float dy) {
+        started();
+        engine.scroll(x, y, dx, dy, true, 0);
+        settle();
+    }
+
+    /** Scrolls at the center of the element showing or labeled s. */
+    public void scroll(String s, float dx, float dy) {
+        float[] p = center(s);
+        scroll(p[0], p[1], dx, dy);
+    }
+
+    /** Makes the window w by h DIPs, for the frames that follow. */
+    public void resize(float w, float h) {
+        width = w;
+        height = h;
+        pending = true;
     }
 
     /** Presses the primary button at (x, y), in DIPs. */

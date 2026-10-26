@@ -61,8 +61,9 @@ public final class FlexLayout {
             return;
         }
         boolean row = p.row;
+        boolean scroll = (p.flags & Node.SCROLL) != 0;
         float main = row ? innerW : innerH, cross = row ? innerH : innerW;
-        resolve(p, innerW, innerH);
+        resolve(p, innerW, scroll ? Float.NaN : innerH); // a scroll container's content has no height limit
 
         int count = 0, autos = 0;
         float used = 0;
@@ -75,6 +76,16 @@ public final class FlexLayout {
         }
         used += mainGap(p) * Math.max(0, count - 1);
         float free = main - used;
+        float shift = 0;
+        if (scroll) {
+            // Its content is as high as its children; the offset stays within it (as MyGO's place).
+            p.contentH = used + insetY(p);
+            float max = Math.max(0, p.contentH - p.h);
+            float y = Float.isNaN(p.scrollRequest) ? p.scrollY : p.scrollRequest;
+            p.scrollY = Math.max(0, Math.min(max, y));
+            shift = p.scrollY;
+            free = Math.max(0, free);
+        }
         float auto = 0;
         if (free > 0 && autos > 0) {
             auto = free / autos;
@@ -131,7 +142,7 @@ public final class FlexLayout {
                     default -> cms;
                 };
             }
-            float mainPos = p.reverse ? main - pos - size : pos;
+            float mainPos = (p.reverse ? main - pos - size : pos) - shift;
             if (row) {
                 set(n, p.x + pl + mainPos, p.y + pt + crossPos, size, cs);
             } else {
@@ -150,6 +161,7 @@ public final class FlexLayout {
      */
     private void resolve(Node p, float innerW, float innerH) {
         boolean row = p.row;
+        boolean scroll = (p.flags & Node.SCROLL) != 0;
         float main = row ? innerW : innerH, cross = row ? innerH : innerW;
         int count = 0;
         for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
@@ -181,8 +193,8 @@ public final class FlexLayout {
             float basis;
             if (!Float.isNaN(n.basis)) {
                 basis = n.basis;
-            } else if (n.grow > 0) {
-                basis = 0;
+            } else if (n.grow > 0 && !scroll) {
+                basis = 0; // in a scroll container there is no room to grow into: the content height stands
             } else if (!Float.isNaN(mainSize)) {
                 basis = mainSize;
             } else if (row) {
@@ -192,7 +204,14 @@ public final class FlexLayout {
             }
             n.flexBasis = Math.max(0, basis);
         }
-        flex(p.firstChild, Node.NONE, row, main - mainGap(p) * Math.max(0, count - 1));
+        if (scroll) {
+            for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
+                Node n = pool.node(c);
+                n.flexTarget = clamp(n.flexBasis, minMain(n, row), maxMain(n, row));
+            }
+            return;
+        }
+        flex(firstFlow(p), Node.NONE, row, main - mainGap(p) * Math.max(0, count - 1));
     }
 
     /**

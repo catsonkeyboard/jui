@@ -392,6 +392,32 @@ final class Input {
         return false;
     }
 
+    /** A scroll event at (x, y): see Engine.scroll. */
+    void scroll(float x, float y, float dy, int mods) {
+        this.mods = mods;
+        if (dy == 0) {
+            return;
+        }
+        int n = hits.chain(x, y, scratch);
+        int[] idx = scratch[0];
+        for (int k = 0; k < n; k++) {
+            int i = idx[k];
+            if ((hits.flags[i] & Node.SCROLL) == 0) {
+                continue;
+            }
+            ElementState s = engine.states().get(hits.ids[i]);
+            if (s == null) {
+                continue;
+            }
+            float max = Math.max(0, s.contentH - s.h);
+            if (dy > 0 ? s.scrollY < max : s.scrollY > 0) {
+                s.scrollY = Math.max(0, Math.min(max, s.scrollY + dy));
+                engine.requestFrame();
+                return;
+            }
+        }
+    }
+
     // Queries, for the frame being built.
 
     /** Whether the element is hovered; s is its state, for its box while another element is pressed. */
