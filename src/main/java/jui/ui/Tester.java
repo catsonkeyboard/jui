@@ -21,12 +21,17 @@ public final class Tester {
     private final Engine engine;
     private boolean pending;
     private boolean started;
+    /** The tester's clock, in nanoseconds: it moves only in advance(). */
+    private long now;
+    private long lastFrameAt;
+    /** A 60 Hz refresh, in whole nanoseconds. */
+    private static final long REFRESH = 1_000_000_000L / 60;
 
     private Tester(View view, float width, float height) {
         this.view = view;
         this.width = width;
         this.height = height;
-        this.engine = new Engine(text, Theme.light(), () -> pending = true);
+        this.engine = new Engine(text, Theme.light(), () -> pending = true, () -> now);
     }
 
     /** A tester of the view in a window of width by height DIPs. */
@@ -38,6 +43,7 @@ public final class Tester {
     public void frame() {
         started = true;
         pending = false;
+        lastFrameAt = now;
         engine.buildAndLayout(view, width, height);
         scene.begin(2, text, atlas);
         engine.paint(scene);
@@ -165,6 +171,34 @@ public final class Tester {
         if (!started) {
             frame();
         }
+    }
+
+    /** The tester's clock, in nanoseconds. */
+    public long now() {
+        return now;
+    }
+
+    /**
+     * Moves the clock d on, running the frames that come due on the way, as
+     * MyGO's Advance: one a 60 Hz refresh after the last while frames are
+     * asked for, and one when a wake-up the view asked for (after) is due.
+     */
+    public void advance(java.time.Duration d) {
+        started();
+        long end = now + d.toNanos();
+        while (true) {
+            long due = pending ? lastFrameAt + REFRESH : Long.MAX_VALUE;
+            long wake = engine.nextWake();
+            if (wake != Long.MAX_VALUE) {
+                due = Math.min(due, Math.max(wake, lastFrameAt + 1_000_000));
+            }
+            if (due > end) {
+                break;
+            }
+            now = Math.max(now, due);
+            frame();
+        }
+        now = end;
     }
 
     /** Runs frames while the view asks for them, at most 20. */

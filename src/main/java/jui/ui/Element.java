@@ -447,6 +447,15 @@ public final class Element {
         return node() == null ? 0 : c.engine().dragY(index);
     }
 
+    /**
+     * A value under key that eases out to target over d, from the frame the
+     * target changes; it starts at its target, and asks for frames while it
+     * moves (as MyGO's Animate).
+     */
+    public float animate(String key, float target, java.time.Duration d) {
+        return node() == null ? target : c.engine().animate(index, key, target, Math.max(1_000_000, d.toNanos()));
+    }
+
     /** Whether the element's control changed its bound value in this pass. */
     public boolean changed() {
         return node() != null && c.engine().changed(index);

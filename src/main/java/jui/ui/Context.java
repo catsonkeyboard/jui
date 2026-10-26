@@ -79,6 +79,16 @@ public final class Context {
         return engine.modifiers();
     }
 
+    /** The time this frame started, in nanoseconds (as MyGO's c.Now()): compare it with times you keep. */
+    public long now() {
+        return engine.now();
+    }
+
+    /** Asks for a frame d from now; a frame that does not ask again lets the request go (as MyGO's After). */
+    public void after(java.time.Duration d) {
+        engine.after(engine.now() + d.toNanos());
+    }
+
     /** Asks for another frame. */
     public void invalidate() {
         engine.invalidate();

@@ -34,6 +34,8 @@ public final class ElementState {
 
     /** Local state by name, made on first use. */
     HashMap<String, Object> locals;
+    /** Animated values by key, made on first use. */
+    HashMap<String, Motion> motions;
 
     /** Back to a new state's defaults; the local state map is kept, empty, for reuse. */
     void reset() {
@@ -50,6 +52,9 @@ public final class ElementState {
         keyCount = 0;
         if (locals != null) {
             locals.clear();
+        }
+        if (motions != null) {
+            motions.clear();
         }
     }
 }

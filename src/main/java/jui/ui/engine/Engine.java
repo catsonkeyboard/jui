@@ -17,6 +17,7 @@ public final class Engine {
     private final TextEngine text;
     private Theme theme;
     private final Runnable requestFrame;
+    private final java.util.function.LongSupplier clock;
     private final NodePool pool = new NodePool();
     private final StateTable states = new StateTable();
     private final HitList hits = new HitList();
@@ -28,6 +29,10 @@ public final class Engine {
 
     /** The most passes a frame builds (design §4, MyGO's rule). */
     private static final int MAX_PASSES = 3;
+
+    /** The time the frame being built started, in nanoseconds; and the earliest wake-up it asked for. */
+    private long now;
+    private long wake = Long.MAX_VALUE;
 
     /** Frames built so far, the one in progress included; and the pass of it being built. */
     private long frame;
@@ -46,11 +51,17 @@ public final class Engine {
     /** Dev mode: this frame's nodes by identity, to find siblings with the same key at once. */
     private final java.util.HashMap<Long, Integer> nodesById = Dev.ENABLED ? new java.util.HashMap<>() : null;
 
-    /** {@code text} may be null for views without text, as in layout tests. */
+    /** {@code text} may be null for views without text, as in layout tests; time is System.nanoTime(). */
     public Engine(TextEngine text, Theme theme, Runnable requestFrame) {
+        this(text, theme, requestFrame, System::nanoTime);
+    }
+
+    /** As the other, with time in nanoseconds from clock: a Tester's own, say. */
+    public Engine(TextEngine text, Theme theme, Runnable requestFrame, java.util.function.LongSupplier clock) {
         this.text = text;
         this.theme = theme;
         this.requestFrame = requestFrame;
+        this.clock = clock;
         this.context = new Context(this);
     }
 
@@ -76,6 +87,8 @@ public final class Engine {
             Dev.fail("views build only on the main thread");
         }
         frame++;
+        now = clock.getAsLong();
+        wake = Long.MAX_VALUE; // a frame that asks for no wake-up stops the timer (as MyGO)
         input.routeKey();
         for (pass = 0; pass < MAX_PASSES; pass++) {
             consumed = false;
@@ -220,6 +233,53 @@ public final class Engine {
                 s.keyCount = 0;
             }
         }
+    }
+
+    /** The time the frame started, in nanoseconds: the same in all its passes. */
+    public long now() {
+        return now;
+    }
+
+    /** Asks for a frame at {@code at} (nanoseconds, on the frame clock), unless an earlier one is asked for. */
+    public void after(long at) {
+        wake = Math.min(wake, at);
+    }
+
+    /** The wake-up the last frame asked for, or Long.MAX_VALUE: the window arms a timer for it. */
+    public long nextWake() {
+        return wake;
+    }
+
+    /**
+     * The node's animated value under key, eased out to target over
+     * duration nanoseconds from the frame the target changed (as MyGO's
+     * Animate): at its target the first time, the old value in the frame
+     * the target changes; while it moves it asks for frames.
+     */
+    public float animate(int index, String key, float target, long duration) {
+        ElementState s = state(index);
+        if (s.motions == null) {
+            s.motions = new java.util.HashMap<>();
+        }
+        Motion m = s.motions.get(key);
+        if (m == null) {
+            m = new Motion();
+            m.from = m.to = m.value = target;
+            s.motions.put(key, m);
+            return target;
+        }
+        m.advance(now);
+        if (target != m.to) {
+            m.from = m.value;
+            m.to = target;
+            m.start = now;
+            m.duration = Math.max(1, duration);
+            m.moving = true;
+        }
+        if (m.moving) {
+            requestFrame.run();
+        }
+        return m.value;
     }
 
     /** Passes the last frame built. */

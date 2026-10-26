@@ -115,6 +115,8 @@ public final class ControlsTest {
         float offKnob = knobX(tt);
         tt.click("深色");
         Check.isTrue(on.get(), "on");
+        Check.near(offKnob, knobX(tt));                              // the slide starts in this frame
+        tt.advance(java.time.Duration.ofMillis(200));                // 140 ms slide
         Check.near(offKnob + 16, knobX(tt));                         // 36 - 2*2 - 16 = 16 across
     }
 

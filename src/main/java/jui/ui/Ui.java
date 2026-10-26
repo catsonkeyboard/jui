@@ -59,6 +59,7 @@ public final class Ui {
 
     private static final Color WHITE = Color.rgb(0xFFFFFF);
     private static final Color KNOB_SHADOW = Color.rgba(0x000000, 0.25f);
+    private static final java.time.Duration SWITCH_SLIDE = java.time.Duration.ofMillis(140);
 
     /** A button without looks: a centered row that takes focus and clicks; style it as you like. */
     public static Element buttonBase(Context c) {
@@ -169,17 +170,18 @@ public final class Ui {
             return row;
         }
         row.gap(8).focusRing(false);
-        boolean ring = row.focusVisible(), on = ref.get();
+        boolean ring = row.focusVisible();
+        // The knob slides, and the track's color follows it (as MyGO's Switch, 140 ms).
+        float pos = row.animate("knob", ref.get() ? 1 : 0, SWITCH_SLIDE);
         int saved = c.engine().enter(row.index);
         try {
             Element track = row(c).size(36, 20).radius(10).padding(2).shrink(0);
             Node k = track.node();
             k.ring = ring;
-            k.background = on ? t.accent().rgba() : mix(t.border(), t.text(), 0.15f);
-            k.justify = on ? Justify.END : Justify.START;
+            k.background = mix(mix(t.border(), t.text(), 0.15f), t.accent().rgba(), pos);
             int inner = c.engine().enter(track.index);
             try {
-                box(c).size(16, 16).radius(8).background(WHITE).shadow(0, 1, 3, 0, KNOB_SHADOW);
+                box(c).size(16, 16).radius(8).background(WHITE).shadow(0, 1, 3, 0, KNOB_SHADOW).margin(0, 0, 0, 16 * pos);
             } finally {
                 c.engine().exit(inner);
             }
@@ -252,9 +254,13 @@ public final class Ui {
 
     /** a mixed a share t of the way to b, as 0xRRGGBBAA, without making a Color. */
     private static int mix(Color a, Color b, float t) {
+        return mix(a.rgba(), b.rgba(), t);
+    }
+
+    private static int mix(int a, int b, float t) {
         int mixed = 0;
         for (int shift = 24; shift >= 0; shift -= 8) {
-            int x = (a.rgba() >>> shift) & 0xFF, y = (b.rgba() >>> shift) & 0xFF;
+            int x = (a >>> shift) & 0xFF, y = (b >>> shift) & 0xFF;
             mixed |= Math.round(x + (y - x) * t) << shift;
         }
         return mixed;
