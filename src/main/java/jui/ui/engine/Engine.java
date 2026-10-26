@@ -121,11 +121,12 @@ public final class Engine {
             layout.layout(0, width, height);
             boolean again = afterLayout();
             int revealed = reveal();
-            if ((revealed & REVEAL_LAYOUT) != 0) {
+            if ((revealed & REVEAL_ROUND) != 0) {
+                again = true; // a list moved: another round builds and lays out what reveal asked for
+            } else if ((revealed & REVEAL_LAYOUT) != 0) {
                 layout.layout(0, width, height); // the offsets reveal set, in this frame
                 again |= afterLayout();
             }
-            again |= (revealed & REVEAL_ROUND) != 0;
             if (!again) {
                 break;
             }
@@ -460,8 +461,13 @@ public final class Engine {
         m.resize(count);
         float v = m.viewH > 0 ? m.viewH : windowH;
         ElementState s = state(index);
+        if (s.born == frame) {
+            s.scrollY = m.wroteY; // a list back after a frame away keeps its place: its state lives in the app
+        }
         double max = Math.max(0, m.content() - v);
-        if (count > 0) {
+        if (m.revealed) {
+            m.revealed = false; // a reveal set the anchor: keep it
+        } else if (count > 0) {
             if (m.requestRow >= 0) {
                 m.anchor = Math.min(m.requestRow, count - 1);
                 m.anchorY = 0;
@@ -483,6 +489,8 @@ public final class Engine {
                     }
                 }
             }
+        }
+        if (count > 0) {
             m.normalize();
         }
         m.plan(v);
@@ -531,14 +539,15 @@ public final class Engine {
             if (r.absolute) {
                 continue;
             }
-            m.setHeight(idx, r.h);
+            // A row takes its margins too: its height and its top are its margin box's.
+            m.setHeight(idx, outerBottom(r) - outerTop(r));
             if (first == null) {
                 first = r;
             }
             last = r;
-            if (!anchored && r.y + r.h > vt + 0.001f) {
+            if (!anchored && outerBottom(r) > vt + 0.001f) {
                 m.anchor = idx;
-                m.anchorY = r.y - vt;
+                m.anchorY = outerTop(r) - vt;
                 anchored = true;
             }
             idx++;
@@ -549,9 +558,9 @@ public final class Engine {
         } else {
             if (!anchored) {
                 m.anchor = m.builtLast;
-                m.anchorY = last.y - vt;
+                m.anchorY = outerTop(last) - vt;
             }
-            float bottom = last.y + last.h;
+            float bottom = outerBottom(last), top = outerTop(first);
             if (m.atEnd && m.builtLast == m.count - 1) {
                 // At the end the last row meets the bottom exactly: with the heights now measured,
                 // another round plans it from them.
@@ -559,20 +568,20 @@ public final class Engine {
             } else if (m.builtLast == m.count - 1 && bottom < vb - 0.01f && m.content() > v + 0.5) {
                 float shift = vb - bottom;
                 if (m.builtFirst == 0) {
-                    shift = Math.min(shift, vt - first.y); // row 0 never starts below the top
+                    shift = Math.min(shift, vt - top); // row 0 never starts below the top
                 }
                 if (shift > 0.01f) {
                     m.anchorY += shift;
                     again = true;
                 }
-            } else if (m.builtFirst == 0 && first.y > vt + 0.01f) {
-                m.anchorY -= first.y - vt;
+            } else if (m.builtFirst == 0 && top > vt + 0.01f) {
+                m.anchorY -= top - vt;
                 again = true;
             }
             if (!again) {
-                boolean top = m.builtFirst == 0 || first.y <= vt + 0.01f;
+                boolean topCovered = m.builtFirst == 0 || top <= vt + 0.01f;
                 boolean covered = m.builtLast == m.count - 1 || bottom >= vb - 0.01f;
-                again = !(top && covered);
+                again = !(topCovered && covered);
             }
             m.first = m.anchor;
             m.last = m.anchor;
@@ -588,7 +597,27 @@ public final class Engine {
             }
         }
         double max = Math.max(0, m.content() - v);
-        float y = m.count == 0 ? 0 : m.atEnd ? (float) max : (float) Math.max(0, Math.min(max, m.top(m.anchor) - m.anchorY));
+        if (m.count > 0 && max <= 0.5) {
+            // All the rows fit: they start at the top, and there is nothing to scroll.
+            m.atEnd = false;
+            if (m.anchor != 0 || Math.abs(m.anchorY) > 0.01f) {
+                m.anchor = 0;
+                m.anchorY = 0;
+                again = true;
+            }
+        }
+        double want = m.count == 0 ? 0 : m.top(m.anchor) - m.anchorY;
+        float y = m.count == 0 ? 0 : m.atEnd ? (float) max : (float) Math.max(0, Math.min(max, want));
+        if (m.count > 0 && !m.atEnd && Math.abs(y - want) > 0.5) {
+            // The anchor asks for an offset out of range: anchor again where the offset may be, another round.
+            if (max > 0.5 && y >= max - 0.5) {
+                m.atEnd = true;
+                m.anchorEnd(v);
+            } else {
+                m.anchorAt(y);
+            }
+            again = true;
+        }
         m.wroteY = y;
         n.scrollY = y;
         n.contentH = (float) m.content() + n.padTop + n.padBottom + 2 * n.border;
@@ -602,6 +631,14 @@ public final class Engine {
         }
         m.rangeRead = false;
         return again;
+    }
+
+    private static float outerTop(Node r) {
+        return r.y - (r.marTop == jui.ui.Ui.AUTO ? 0 : r.marTop);
+    }
+
+    private static float outerBottom(Node r) {
+        return r.y + r.h + (r.marBottom == jui.ui.Ui.AUTO ? 0 : r.marBottom);
     }
 
     // Scrolling.
@@ -673,9 +710,13 @@ public final class Engine {
                 if (c.listModel != null) {
                     c.listModel.anchorY -= applied; // a list moves by its anchor, in another round
                     c.listModel.atEnd = false;
+                    c.listModel.revealed = true;
                     moved |= REVEAL_ROUND;
                 } else {
                     c.scrollRequest = y;
+                    if (c.state != null) {
+                        c.state.requestY = y; // kept if another round builds the container again
+                    }
                     moved |= REVEAL_LAYOUT;
                 }
                 if (c.state != null) {

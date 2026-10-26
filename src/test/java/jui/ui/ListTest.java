@@ -177,4 +177,113 @@ public final class ListTest {
         tt.scroll("list", 0, 300);
         Check.equal("rows 10-16", header[0]);
     }
+
+    // Final review C1: a wheel glide deep in a list of varied rows moves one way, by what was turned.
+    static float tall(int i) { return i % 7 == 0 ? 120 : 24; }
+
+    /** The list's true offset: the real heights of the rows above the first in view, less how far it sticks out. */
+    static float trueOffset(Tester tt, ListState s) {
+        int f = s.first();
+        float top = 24f * f + 96f * ((f + 6) / 7);              // rows 0, 7, 14, … are 120, the rest 24
+        return top - tt.find("row" + f).y();
+    }
+
+    public void testAWheelGlideDeepInAVariedListMovesOneWayByItsDistance() {
+        Tester tt = Tester.of(c -> list(c, state, count, i -> box(c).height(tall(i)).label("row" + i)).height(300).label("list"), 300, 400);
+        state.scrollTo(5000); tt.frame(); tt.frame();
+        float start = trueOffset(tt, state), prev = start;
+        tt.wheel("list", 0, 400);
+        for (int k = 0; k < 25; k++) {
+            tt.advance(java.time.Duration.ofMillis(16));
+            float now = trueOffset(tt, state);
+            Check.isTrue(now >= prev - 0.01f, "moved backwards: " + prev + " -> " + now);
+            Check.isTrue(now <= start + 400.5f, "went past the turn: " + (now - start));
+            prev = now;
+        }
+        Check.near(400, prev - start, 0.5);
+    }
+
+    // Final review C2 (Review Focus 1): scrolled far, then few rows that fit: they start at the top.
+    public void testFewRowsThatFitStartAtTheTopAfterScrolling() {
+        Tester tt = Tester.of(c -> list(c, state, count, i -> box(c).height(30).label("row" + i)).height(200).label("list"), 300, 400);
+        tt.scroll("list", 0, 5000);
+        count = 3;
+        tt.frame(); tt.frame();
+        Check.near(0, tt.find("row0").y());
+        Check.equal(0, state.first()); Check.equal(2, state.last());
+    }
+
+    public void testFewRowsThatFitStartAtTheTopFromTheEnd() {
+        Tester tt = Tester.of(c -> list(c, state, count, i -> box(c).height(30).label("row" + i)).height(200).label("list"), 300, 400);
+        tt.scroll("list", 0, 1e7f);
+        count = 3;
+        tt.frame(); tt.frame();
+        Check.near(0, tt.find("row0").y());
+    }
+
+    // Final review C2 (Review Focus 2): the window grows until all the rows fit.
+    public void testAWindowThatGrowsToHoldAllRowsShowsThemFromTheTop() {
+        for (float scrolled : new float[] {1000, 150}) {
+            ListState s = new ListState();
+            Tester tt = Tester.of(c -> list(c, s, 20, i -> box(c).height(30).label("row" + i)).fill().label("list"), 300, 200);
+            tt.scroll("list", 0, scrolled);
+            tt.resize(300, 700);
+            tt.frame();
+            Check.near(0, tt.find("row0").y());
+            Rect l = tt.find("row19");
+            Check.near(600, l.y() + l.height());
+        }
+    }
+
+    // Final review I1: rows with vertical margins; at the end the frames stop and the last row meets the bottom.
+    public void testRowsWithMarginsSettleAtTheEnd() {
+        Tester tt = Tester.of(c -> list(c, state, 100, i -> box(c).height(30).margin(4, 0).label("row" + i)).height(200).label("list"), 300, 400);
+        tt.scroll("list", 0, 1e6f);
+        tt.settle();
+        Check.isTrue(!tt.framePending(), "no frames once at the end");
+        Rect l = tt.find("row99");
+        Check.near(196, l.y() + l.height());                     // its bottom margin, 4, at the view's bottom
+        Check.equal(99, state.last());
+    }
+
+    // Final review I2a: Shift+Tab to the row just above the view, at the list's end, reveals it.
+    public void testShiftTabRevealsTheRowAboveAtTheEnd() {
+        Tester tt = Tester.of(c -> list(c, state, 100, i -> box(c).height(30).label("row" + i).focusable()).height(200).label("list"), 300, 400);
+        tt.scroll("list", 0, 1e6f);
+        tt.click("row94");
+        tt.key(Shortcut.of(Mod.SHIFT, Key.TAB));
+        Check.isTrue(tt.focused("row93"), "row93 has focus");
+        Check.near(0, tt.find("row93").y());
+    }
+
+    // Final review I2b: a list inside a scroll container; Tab reveals rows in both views.
+    public void testTabRevealsRowsOfAListInsideAScrollContainer() {
+        ScrollState outer = new ScrollState();
+        Tester tt = Tester.of(c -> scroll(c, outer).size(300, 300).label("outer").children(() -> {
+            box(c).height(250);
+            list(c, state, 100, i -> box(c).height(30).label("row" + i).focusable()).height(200).label("list");
+            box(c).height(400);
+        }), 400, 400);
+        for (int i = 0; i < 8; i++) tt.key(Shortcut.of(Key.TAB));
+        Check.isTrue(tt.focused("row7"), "row7 has focus");
+        Rect r = tt.find("row7"), l = tt.find("list");
+        Check.isTrue(r.y() >= l.y() - 0.01f && r.y() + r.height() <= l.y() + l.height() + 0.01f, "row7 inside the list's view");
+        Check.isTrue(r.y() >= -0.01f && r.y() + r.height() <= 300.01f, "row7 inside the outer view");
+    }
+
+    // Final review I4: a list hidden for a frame keeps its place: its ListState lives in the app.
+    boolean shown = true;
+
+    public void testAListHiddenForAFrameKeepsItsPlace() {
+        Tester tt = Tester.of(c -> {
+            if (shown) list(c, state, 1000, i -> box(c).height(30).label("row" + i)).height(200).label("list");
+            else text(c.key(77), "other");
+        }, 300, 400);
+        tt.scroll("list", 0, 300);
+        Check.equal(10, state.first());
+        shown = false; tt.frame();
+        shown = true; tt.frame(); tt.frame();
+        Check.equal(10, state.first());
+        Check.near(0, tt.find("row10").y());
+    }
 }

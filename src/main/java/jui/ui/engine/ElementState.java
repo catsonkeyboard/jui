@@ -29,8 +29,8 @@ public final class ElementState {
     /** A scroll container's offset, its content's height and its content box's height as committed; an offset asked for (NaN none). */
     public float scrollY, contentH, viewH;
     public float requestY = Float.NaN;
-    /** A wheel's glide: from, to, since when (nanoseconds), and whether it is under way. */
-    float wheelFrom, wheelTo;
+    /** A wheel's glide, relative to wherever the content is: its distance, what of it is applied, since when (ns), and whether it is under way. */
+    float wheelDistance, wheelDone;
     long wheelStart;
     boolean wheeling;
     /** Whether the last frame showed its scroll bar, so a press there takes it. */
@@ -60,7 +60,7 @@ public final class ElementState {
         disabledLast = false;
         scrollY = contentH = viewH = 0;
         requestY = Float.NaN;
-        wheelFrom = wheelTo = 0;
+        wheelDistance = wheelDone = 0;
         wheelStart = 0;
         wheeling = false;
         barsShown = false;

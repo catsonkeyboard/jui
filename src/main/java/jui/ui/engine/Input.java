@@ -493,7 +493,8 @@ final class Input {
                 continue;
             }
             float max = Math.max(0, s.contentH - s.h);
-            float at = precise || !s.wheeling ? s.scrollY : s.wheelTo;
+            float left = s.wheeling ? s.wheelDistance - s.wheelDone : 0; // still on its way
+            float at = precise ? s.scrollY : s.scrollY + left;
             if (dy > 0 ? at >= max : at <= 0) {
                 continue;
             }
@@ -501,8 +502,10 @@ final class Input {
                 s.scrollY = Math.max(0, Math.min(max, s.scrollY + dy));
                 s.wheeling = false;
             } else {
-                s.wheelFrom = s.scrollY;
-                s.wheelTo = Math.max(0, Math.min(max, at + dy));
+                // A new curve over what is left and the notch, applied as steps to wherever
+                // the content is, so a list's re-estimated offsets never make it jump.
+                s.wheelDistance = left + dy;
+                s.wheelDone = 0;
                 s.wheelStart = engine.clockNow();
                 if (!s.wheeling) {
                     s.wheeling = true;
@@ -528,15 +531,17 @@ final class Input {
             double t = (double) (now - s.wheelStart) / GLIDE;
             float v;
             if (t >= 1) {
-                v = s.wheelTo;
+                v = s.wheelDistance;
                 s.wheeling = false;
             } else {
                 double u = 1 - Math.max(0, t);
-                v = (float) (s.wheelFrom + (s.wheelTo - s.wheelFrom) * (1 - u * u * u));
+                v = (float) (s.wheelDistance * (1 - u * u * u));
             }
+            float step = v - s.wheelDone;
+            s.wheelDone = v;
             float max = Math.max(0, s.contentH - s.h);
-            float next = Math.max(0, Math.min(max, v));
-            if (next == s.scrollY && t > 0 && (next == 0 || next == max)) {
+            float next = Math.max(0, Math.min(max, s.scrollY + step));
+            if (next == s.scrollY && step != 0) {
                 s.wheeling = false; // it cannot move any further
             }
             s.scrollY = next;

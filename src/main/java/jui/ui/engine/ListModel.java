@@ -23,6 +23,8 @@ public final class ListModel {
 
     /** Whether the view stays at the list's end: its last row meets the bottom, frame after frame. */
     boolean atEnd;
+    /** A reveal moved the anchor in this frame: the next plan keeps it, rather than reading the offset again. */
+    boolean revealed;
 
     /** The offset the list last wrote; an offset and a row asked for (NaN, -1 for none). */
     float wroteY;

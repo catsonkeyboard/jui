@@ -191,4 +191,29 @@ public final class ScrollTest {
         tt.hover("s");
         Check.isTrue(thumb(tt) == null, "nothing to scroll");
     }
+
+    // Final review I3: a scroll container that wraps has one column (its height has no limit), and scrolls.
+    public void testAWrappingScrollContainerStillScrolls() {
+        Tester tt = Tester.of(c -> scroll(c, st).size(200, 100).wrap().label("s").children(() -> {
+            for (int i = 0; i < 20; i++) box(c.key(i)).size(90, 40).label("b" + i);
+        }), 400, 300);
+        tt.frame();
+        Check.near(700, st.maxY());                               // 20 * 40 - 100
+        tt.scroll("s", 0, 50);
+        Check.near(-50, tt.find("b0").y());
+    }
+
+    // Final review (ScrollState, as I4): a container hidden for a frame keeps its offset.
+    boolean hidden;
+
+    public void testAScrollContainerHiddenForAFrameKeepsItsOffset() {
+        Tester tt = Tester.of(c -> {
+            if (!hidden) view.build(c);
+            else text(c.key(77), "other");
+        }, 400, 300);
+        tt.scroll("s", 0, 120);
+        hidden = true; tt.frame();
+        hidden = false; tt.frame(); tt.frame();
+        Check.near(120, st.y());
+    }
 }

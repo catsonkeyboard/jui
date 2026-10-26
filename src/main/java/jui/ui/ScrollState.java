@@ -12,6 +12,8 @@ public final class ScrollState {
     private Engine engine;
     private long id;
     private float pending = Float.NaN;
+    /** The offset as last seen bound: a container back after a frame away takes it again. */
+    private float remembered = Float.NaN;
 
     public ScrollState() {}
 
@@ -47,9 +49,15 @@ public final class ScrollState {
     void bind(Engine engine, long id) {
         this.engine = engine;
         this.id = id;
+        ElementState s = engine.stateOf(id);
         if (!Float.isNaN(pending)) {
             engine.requestScroll(id, pending);
             pending = Float.NaN;
+        } else if (s != null && s.born == engine.frame() && !Float.isNaN(remembered)) {
+            engine.requestScroll(id, remembered); // its state is new: the container was away
+        }
+        if (s != null && s.born < engine.frame()) {
+            remembered = s.scrollY;
         }
     }
 }

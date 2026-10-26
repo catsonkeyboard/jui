@@ -56,7 +56,7 @@ public final class FlexLayout {
         }
         float pl = p.padLeft + p.border, pt = p.padTop + p.border;
         float innerW = Math.max(0, p.w - insetX(p)), innerH = Math.max(0, p.h - insetY(p));
-        if (p.wrap) {
+        if (p.wrap && (p.flags & Node.SCROLL) == 0) { // a scroll container's height has no limit: one line (as MyGO)
             placeWrapped(p, innerW, innerH, pl, pt);
             return;
         }
