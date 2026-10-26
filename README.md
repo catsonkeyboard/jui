@@ -207,15 +207,75 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - 开关的滑动动画推到 M3；
 - 勾选标记先用文字“✓”，M6 有了线段图元再换成描边。
 
+## M3：滚动和列表（2026-10-26）
+
+按 [M3 计划](docs/plans/2026-10-25-m3-scroll-and-list.md)实现了滚动和长列表，行为对照 MyGO（commit `8049993`）的 `ui/scroll.go`、`ui/list.go`、`ui/wheel.go` 和 `ui/layout.go`。
+
+**滚动容器**
+- `scroll(c)` 和 `scroll(c, ScrollState)`：纵向滚动，内容裁剪在内边距框里。
+- 触控板的精确滚动立刻生效，惯性来自 macOS 的动量事件；鼠标滚轮每格 40 DIP，用 150 ms 缓出曲线平滑滚动。
+- 滚动交给指针下最内层、还能往这个方向滚的容器，内层滚到头以后才轮到外层。
+- 叠在内容上的滚动条：指针在容器上或正在拖动时显示，可以拖滑块，也可以点轨道翻页。
+- 键盘：方向键、PageUp/PageDown、空格、Home/End；按 Tab 时把焦点元素滚进视野。
+
+**长列表**
+- `list(c, ListState, count, row)`：只构建可见的行，上下各多建 2 行；行高可以各不相同。
+- 行高按行号缓存，没量过的行按已量行的平均高度估计。滚动时行严格移动滚动的距离，不受估计值影响。
+- 行没有盖满视口时，同一帧里再建一次、再排一次，所以第一帧就是满的。
+- `ListState`：`scrollToTop()`、`scrollTo(row)`、`first()`/`last()`（读了可见范围、范围又变了，就再出一帧）。
+- 行回调里用 `c.key(id)` 指定 key，行的局部状态跟着数据项走。
+
+**布局**
+- flexbox 补上了换行：`wrap()`、`gapX`/`gapY`、`alignContent`（默认 `START`，同 MyGO）。
+- 绝对定位：`absolute()` 加 `top`/`right`/`bottom`/`left`，包含块是父元素的内边距框。
+- `clip()` 和 `invisible()`。
+
+**时间和动画**
+- `c.now()`、`c.after(Duration)`、`Element.animate(...)`，开关有了 140 ms 的滑动动画。
+- `Tester.advance(Duration)` 按 60 Hz 推进时间。
+
+**macOS 平台**
+- 连续出帧走 display link，空闲时暂停；窗口被遮挡时也暂停，露出来再补一帧。
+- 视图接收滚轮和触控板事件。
+
+验收示例在 native image 下的画面如下（`./build.sh demo Files`）：
+
+![1 万篇笔记的文件列表](docs/m3-files.png)
+
+- **文件列表示例**：1 万篇笔记，大约每 7 篇里有 1 篇带摘要，行高因此不同。点击选中，悬停变色，顶部显示可见范围，底部有“回到顶部”按钮。
+- **测试**：`./build.sh test`，192 个测试全部通过。
+- **滚动帧耗时**（`./build.sh listbench`，native image）：
+  - 方法：1 万行列表，每帧滚动 24 DIP，连续 3000 帧，统计每帧构建 + 布局 + 绘制到 `Scene` 的时间；
+  - 结果：p50 0.63 ms，p95 0.77 ms，最大 2.57 ms，门槛是 p95 ≤ 4 ms、最大 ≤ 8 ms；
+  - 每帧最多构建 23 行，可见行最多 19 行。
+- **分配**（`./build.sh alloc`，native image）：内容不变的帧里，框架内部每个列表行分配 0 字节，每个控件也是 0 字节；卡片整帧 200 字节。
+
+**还需要手动核对的**
+- 触控板滚动和惯性；
+- 鼠标滚轮的平滑滚动；
+- 拖动滚动条、点轨道翻页；
+- 按 Tab 时滚进视野；
+- 窗口被遮挡后恢复时画面是否更新。
+
+**推迟到后面的**
+- 横向滚动；
+- `ScrollState.scrollTo` 的动画（现在立刻跳过去）；
+- 圆角裁剪（现在只有矩形）；
+- 列表按 key 找回锚点、焦点行滚出视野后仍然保留构建；
+- `alignContent` 的 `space-*` 值和 `wrapReverse`；
+- 流内元素的相对定位；
+- `cursor`、`onSubmit` 仍在 M4。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
 
 ```bash
 ./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
-./build.sh demo            # 卡片示例，在 JVM 上运行；./build.sh demo Counter、./build.sh demo Todo 运行 M2 的示例
+./build.sh demo            # 卡片示例，在 JVM 上运行；Counter、Todo（M2）、Files（M3）是其他示例的名字
 ./build.sh native-demo     # 同上，编译成 native image（build/<name>-demo）后运行，也接受示例名
 ./build.sh alloc           # 实测 UI API 每帧的分配（native image 和 JVM）
+./build.sh listbench       # 1 万行列表的滚动帧耗时（native image，M3 的门槛）
 ./build.sh jvm             # 原型，在 JVM 上运行
 ./build.sh native          # 原型，编译成 native image：build/jui-spike
 ./build.sh bench 10        # 原型的启动时间、内存和体积（每种模式跑 10 次取中位数）
@@ -256,7 +316,12 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 | `jui/ui/engine/{HitList,Input,Actions}.java` | 命中测试列表、指针和键盘的处理、焦点、快捷键路由、回调 | `ui/input.go`、`ui/actions.go` |
 | `jui/platform/mac/MacKeys.java` | AppKit 的按键码和修饰键映射 | `internal/darwin/surface.go` |
 | `jui/util/LongMap.java` | 以 `long` 为键、查找和删除都不分配的哈希表 | — |
+| `jui/ui/{ScrollState,ListState}.java` | 滚动容器和列表的状态 | `ScrollState`、`ListState` |
+| `jui/ui/engine/ListModel.java` | 列表的行高缓存、锚点、请求和可见范围 | `ui/list.go` |
+| `jui/ui/engine/{Motion,ScrollBar}.java` | 元素动画的通道；滚动条的几何 | `ui/motion.go`、`ui/paint.go` |
+| `jui/spike/ListBench.java` | 1 万行列表滚动帧耗时的门槛 | — |
 | `jui/app/{App,Window,WindowOptions}.java` | 应用和窗口 | `mygo.App`、`mygo.NewWindow` |
 | `jui/examples/CardDemo.java` | M1 验收示例 | — |
 | `jui/examples/{CounterDemo,TodoDemo}.java` | M2 验收示例：计数器和待办清单 | `examples/counter-native` |
+| `jui/examples/FilesDemo.java` | M3 验收示例：1 万篇笔记的文件列表 | — |
 | `src/test/java/jui/testing/` | 零依赖的断言和测试运行器 | — |

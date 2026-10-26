@@ -7,6 +7,7 @@
 #                                 and the same app in Objective-C (baseline/spike.m)
 #   ./build.sh test [Class[#m]]   run the tests in src/test/java
 #   ./build.sh alloc              measure per-frame allocation of the UI API (native and JVM)
+#   ./build.sh listbench          time scroll frames of a 10000-row list in a native image (the M3 gate)
 #   ./build.sh demo [Name] [args]        run an example on the JVM: Card (default), Counter or Todo
 #   ./build.sh native-demo [Name] [args] build an example into build/<name>-demo and run it
 #
@@ -102,6 +103,13 @@ alloc() {
   "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.AllocSpike
 }
 
+# listbench builds the scroll frame gate into a native image and runs it.
+listbench() {
+  compile
+  native_image jui.spike.ListBench build/list-bench > build/list-bench-build.log
+  build/list-bench
+}
+
 run_jvm() {
   "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.Main "$@"
 }
@@ -173,7 +181,8 @@ case "${1:-native}" in
   bench) shift; bench "$@" ;;
   test) shift; run_tests "$@" ;;
   alloc) alloc ;;
+  listbench) listbench ;;
   demo) shift; demo "$@" ;;
   native-demo) shift; native_demo "$@" ;;
-  *) echo "usage: $0 jvm|native|bench|test|alloc|demo|native-demo" >&2; exit 2 ;;
+  *) echo "usage: $0 jvm|native|bench|test|alloc|listbench|demo|native-demo" >&2; exit 2 ;;
 esac

@@ -35,12 +35,16 @@ public final class ListModel {
 
     /** The rows the last frame showed, or -1 before the list first shows. */
     int first = -1, last = -1;
+    /** Whether the view read first or last since the list last laid out: if they change, it needs another frame. */
+    boolean rangeRead;
 
     public int first() {
+        rangeRead = true;
         return first;
     }
 
     public int last() {
+        rangeRead = true;
         return last;
     }
 

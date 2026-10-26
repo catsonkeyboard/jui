@@ -163,4 +163,18 @@ public final class ListTest {
         tt.advance(java.time.Duration.ofMillis(300));
         Check.near(-10, tt.find("row1").y());     // 30 - 40
     }
+
+    public void testReadingTheVisibleRowsAsksForAFrameWhenTheyChange() { // as MyGO's list.go: Visible() read, range changed
+        String[] header = {""};
+        Tester tt = Tester.of(c -> {
+            header[0] = "rows " + state.first() + "-" + state.last();      // read before the list is built
+            list(c, state, 1000, i -> box(c).height(30).label("row" + i)).height(200).label("list");
+        }, 300, 400);
+        tt.frame();
+        Check.isTrue(tt.framePending(), "the rows it read changed: another frame");
+        tt.settle();
+        Check.equal("rows 0-6", header[0]);
+        tt.scroll("list", 0, 300);
+        Check.equal("rows 10-16", header[0]);
+    }
 }

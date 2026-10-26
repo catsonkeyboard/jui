@@ -10,6 +10,7 @@ import jui.ui.BoolRef;
 import jui.ui.Context;
 import jui.ui.DoubleRef;
 import jui.ui.Element;
+import jui.ui.ListState;
 import jui.ui.Rect;
 import jui.ui.Theme;
 import jui.ui.View;
@@ -18,6 +19,7 @@ import jui.ui.engine.Engine;
 import static jui.ui.Ui.box;
 import static jui.ui.Ui.button;
 import static jui.ui.Ui.checkbox;
+import static jui.ui.Ui.list;
 import static jui.ui.Ui.slider;
 import static jui.ui.Ui.row;
 import static jui.ui.Ui.text;
@@ -92,12 +94,27 @@ public final class AllocSpike {
         double controlsHover = (perFrame(controlsFrame) - emptyPainted) / CONTROLS;
         te.pointerLeave();
 
+        // A list of 10000 rows in a frame that does not change: per row in view, net of an empty frame.
+        ListState rowsState = new ListState();
+        Rows rows = new Rows();
+        View listView = c -> {
+            rows.c = c;
+            list(c, rowsState, 10_000, rows).height(560);
+        };
+        double listRaw = perFrame(() -> {
+            te.buildAndLayout(listView, 800, 600);
+            scene.begin(2, text, atlas);
+            te.paint(scene);
+        });
+        int inView = rowsState.last() - rowsState.first() + 1;
+        double listFrame = (listRaw - emptyPainted) / Math.max(1, inView);
+
         boolean nativeImage = "runtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode"));
         System.out.printf("ALLOC mode=%s empty_frame=%.0f handles=%.1f lambdas=%.1f temprefs=%.1f"
                         + " key_long=%.1f key_object=%.1f shell_frame=%.0f text_frame=%.0f text_instances=%d"
-                        + " card_frame=%.0f controls_frame=%.1f controls_hover_frame=%.1f%n",
+                        + " card_frame=%.0f controls_frame=%.1f controls_hover_frame=%.1f list_frame=%.1f list_rows=%d%n",
                 nativeImage ? "native" : "jvm", empty, handles, lambdas, temprefs, keyLong, keyObject, shell,
-                textFrame, textInstances, cardFrame, controls, controlsHover);
+                textFrame, textInstances, cardFrame, controls, controlsHover, listFrame, inView);
         // Design §8, checked where it ships: the framework allocates nothing
         // per element, and a whole frame stays within 32 KB.
         if (nativeImage && textFrame > 0.5 * textInstances) {
@@ -108,6 +125,10 @@ public final class AllocSpike {
         if (nativeImage && (controls > 0.5 || controlsHover > 0.5)) {
             System.out.printf("FAIL: the framework allocates %.1f bytes per control (%.1f hovered)%n",
                     controls, controlsHover);
+            System.exit(1);
+        }
+        if (nativeImage && listFrame > 0.5) {
+            System.out.printf("FAIL: the framework allocates %.1f bytes per list row in view%n", listFrame);
             System.exit(1);
         }
         if (nativeImage && cardFrame > 32768) {
@@ -141,6 +162,16 @@ public final class AllocSpike {
         }
         for (int i = 0; i < 20; i++) {
             slider(c.key(200 + i), VALUES[i], 0, 100);
+        }
+    }
+
+    /** A list's rows, made once, so a frame builds them without a lambda of its own. */
+    private static final class Rows implements java.util.function.IntConsumer {
+        Context c;
+
+        @Override
+        public void accept(int i) {
+            text(c.key(i), LABELS[i % LABELS.length]);
         }
     }
 

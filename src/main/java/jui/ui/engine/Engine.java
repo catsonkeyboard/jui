@@ -520,6 +520,7 @@ public final class Engine {
      */
     private boolean afterList(Node n, ListModel m) {
         float vt = n.y + n.padTop + n.border, vb = n.y + n.h - n.padBottom - n.border, v = Math.max(0, vb - vt);
+        int firstBefore = m.first, lastBefore = m.last;
         m.viewH = v;
         m.gap = n.gapY;
         Node first = null, last = null;
@@ -596,6 +597,10 @@ public final class Engine {
         }
         m.requestY = Float.NaN;
         m.requestRow = -1;
+        if (m.rangeRead && (m.first != firstBefore || m.last != lastBefore)) {
+            requestFrame.run(); // the view read rows that have changed: show it what they are now (as MyGO)
+        }
+        m.rangeRead = false;
         return again;
     }
 

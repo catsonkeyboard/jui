@@ -27,6 +27,11 @@ public final class ListState {
         return model.first();
     }
 
+    /** How many rows the last frame built: for tools. */
+    public int rowsBuilt() {
+        return Math.max(0, model.builtLast() - model.builtFirst() + 1);
+    }
+
     /** The last row the last frame showed, or -1 before the list shows. */
     public int last() {
         return model.last();
