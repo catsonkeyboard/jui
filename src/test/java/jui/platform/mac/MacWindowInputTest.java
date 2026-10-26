@@ -19,6 +19,7 @@ import jui.ui.Mod;
 import static java.lang.foreign.ValueLayout.JAVA_BOOLEAN;
 import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
 import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
+import static java.lang.foreign.ValueLayout.JAVA_INT;
 import static java.lang.foreign.ValueLayout.JAVA_LONG;
 import static java.lang.foreign.ValueLayout.JAVA_SHORT;
 
@@ -34,6 +35,11 @@ public final class MacWindowInputTest {
             FunctionDescriptor.of(JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG, POINT, JAVA_LONG, JAVA_DOUBLE, JAVA_LONG,
                     JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_BOOLEAN, JAVA_SHORT));
 
+    private static final MethodHandle SCROLL_EVENT = Linker.nativeLinker().downcallHandle(
+            SymbolLookup.libraryLookup("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", Arena.global())
+                    .find("CGEventCreateScrollWheelEvent2").orElseThrow(),
+            FunctionDescriptor.of(JAVA_LONG, JAVA_LONG, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT));
+
     /** What the window told its input, as text. */
     static final class Recorder implements MacWindow.Input {
         final List<String> events = new ArrayList<>();
@@ -48,6 +54,15 @@ public final class MacWindowInputTest {
         public void modifiersChanged(int mods) { events.add("mods " + mods); }
         public void windowFocusChanged(boolean focused) { events.add("focus " + focused); }
         public void appearanceChanged(boolean dark) { events.add("dark " + dark); }
+        double scrollDy;
+        boolean scrollPrecise;
+        int scrolls;
+        @Override
+        public void scroll(double x, double y, double dx, double dy, boolean precise, int mods) {
+            scrollDy = dy;
+            scrollPrecise = precise;
+            scrolls++;
+        }
     }
 
     public void testMouseAndKeyEventsReachTheInput() throws Throwable {
@@ -70,6 +85,29 @@ public final class MacWindowInputTest {
                     10L, at, 0L, 0.0, w.windowNumber(), 0L, ObjC.nsString("\t"), ObjC.nsString("\t"), false, (short) 0x30);
             ObjC.send(w.view(), "keyDown:", tab);
             Check.isTrue(r.events.contains("key TAB 0 false"), r.events.toString());
+        } finally {
+            ObjC.poolPop(pool);
+            w.close();
+        }
+    }
+
+    public void testScrollWheelEventsReachTheInput() throws Throwable {
+        ObjC.send(ObjC.cls("NSApplication"), "sharedApplication");
+        Recorder r = new Recorder();
+        MacWindow w = MacWindow.open("scroll test", 200, 150, 0xFFFFFF, null, (scene, width, height) -> {}, r);
+        long pool = ObjC.poolPush();
+        try {
+            long pixels = (long) SCROLL_EVENT.invokeExact(0L, 0, 1, 10, 0, 0);      // pixel units: 10 up
+            ObjC.send(w.view(), "scrollWheel:", ObjC.send(ObjC.cls("NSEvent"), "eventWithCGEvent:", pixels));
+            Check.equal(1, r.scrolls);
+            Check.isTrue(r.scrollPrecise, "pixel deltas are precise");
+            Check.near(-10, r.scrollDy);                                          // up moves the content down
+            long lines = (long) SCROLL_EVENT.invokeExact(0L, 1, 1, 1, 0, 0);       // line units: one notch up
+            long event = ObjC.send(ObjC.cls("NSEvent"), "eventWithCGEvent:", lines);
+            ObjC.send(w.view(), "scrollWheel:", event);
+            Check.isTrue(!r.scrollPrecise, "line deltas are not precise");
+            Check.isTrue(r.scrollDy < 0, "up moves the content down: " + r.scrollDy);
+            Check.near(-40 * ObjC.sendDouble(event, "scrollingDeltaY"), r.scrollDy);
         } finally {
             ObjC.poolPop(pool);
             w.close();

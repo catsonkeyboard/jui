@@ -113,6 +113,11 @@ public final class Window implements MacWindow.Input {
         engine.windowFocusChanged(focused);
     }
 
+    @Override
+    public void scroll(double x, double y, double dx, double dy, boolean precise, int mods) {
+        engine.scroll((float) x, (float) y, (float) dx, (float) dy, precise, mods);
+    }
+
     /** The system's appearance changed: the theme follows, and the window clears to its background. */
     @Override
     public void appearanceChanged(boolean dark) {

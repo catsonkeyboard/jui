@@ -50,6 +50,9 @@ public final class MacWindow {
         void windowFocusChanged(boolean focused);
 
         void appearanceChanged(boolean dark);
+
+        /** A scroll at (x, y): dy above 0 moves the content up; precise for a trackpad, else a wheel's DIPs. */
+        void scroll(double x, double y, double dx, double dy, boolean precise, int mods);
     }
 
     private static final long STYLE_TITLED = 1, STYLE_CLOSABLE = 2, STYLE_MINIATURIZABLE = 4, STYLE_RESIZABLE = 8;
@@ -359,6 +362,18 @@ public final class MacWindow {
         }
     }
 
+    /** A scroll: a wheel's notches are 40 DIPs, and the deltas turn so that up shows what is above (as MyGO). */
+    private void wheel(long event) {
+        if (input == null) {
+            return;
+        }
+        double[] p = ObjC.locationInView(view, event);
+        boolean precise = ObjC.sendBool(event, "hasPreciseScrollingDeltas");
+        double k = precise ? -1 : -40;
+        input.scroll(p[0], p[1], k * ObjC.sendDouble(event, "scrollingDeltaX"), k * ObjC.sendDouble(event, "scrollingDeltaY"),
+                precise, MacKeys.mods(send(event, "modifierFlags")));
+    }
+
     private void key(long event) {
         if (input == null) {
             return;
@@ -433,6 +448,7 @@ public final class MacWindow {
                     }
                 }))
                 .method1("keyDown:", (self, cmd, e) -> withView(self, w -> w.key(e)))
+                .method1("scrollWheel:", (self, cmd, e) -> withView(self, w -> w.wheel(e)))
                 .method1("juiTick:", (self, cmd, link) -> withView(self, MacWindow::tick))
                 .method1("juiTimer:", (self, cmd, arg) -> withView(self, MacWindow::requestFrame))
                 .method1("flagsChanged:", (self, cmd, e) -> withView(self, w -> {
