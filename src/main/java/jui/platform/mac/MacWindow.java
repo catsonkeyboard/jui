@@ -53,6 +53,54 @@ public final class MacWindow {
 
         /** A scroll at (x, y): dy above 0 moves the content up; precise for a trackpad, else a wheel's DIPs. */
         void scroll(double x, double y, double dx, double dy, boolean precise, int mods);
+
+        // Text input, for the view's NSTextInputClient: ranges count UTF-16 units of the shown text
+        // (the committed text with the marked text in it); -1 is no range. Without a text input
+        // that takes text they do nothing.
+
+        /** Whether a text input takes text now: keys then go through the input method. */
+        default boolean textActive() {
+            return false;
+        }
+
+        default boolean textComposing() {
+            return false;
+        }
+
+        default void textInsert(String s, int replStart, int replLength) {}
+
+        default void textMark(String s, int selStart, int selLength, int replStart, int replLength) {}
+
+        default void textUnmark() {}
+
+        default boolean textMarkedRange(int[] out) {
+            return false;
+        }
+
+        default boolean textSelectedRange(int[] out) {
+            return false;
+        }
+
+        default int textLength() {
+            return -1;
+        }
+
+        default String textIn(int start, int end) {
+            return null;
+        }
+
+        /** The rect of [start, end) in view points: x, y, width, height, and the end of the range it covers in out[4]. */
+        default boolean textRect(int start, int end, float[] out) {
+            return false;
+        }
+
+        /** The index nearest a point in view points, or -1. */
+        default int textIndexAt(double x, double y) {
+            return -1;
+        }
+
+        /** A command of the Edit menu. */
+        default void editCommand(jui.ui.EditCommand c) {}
     }
 
     private static final long STYLE_TITLED = 1, STYLE_CLOSABLE = 2, STYLE_MINIATURIZABLE = 4, STYLE_RESIZABLE = 8;
@@ -96,6 +144,17 @@ public final class MacWindow {
     /** A control-click: the primary button acts as the secondary until it is released (as MyGO). */
     private boolean ctrlClick;
     private final Scene scene = new Scene();
+
+    // A key in interpretKeyEvents:, sent to the input only if the input method hands it back
+    // (doCommandBySelector:) while it held it as a composition's.
+    private boolean suppressed;
+    private jui.ui.Key owedKey;
+    private int owedMods;
+    private boolean owedRepeat;
+    /** Tests: in place of interpretKeyEvents:, whose result depends on the input source in use. */
+    java.util.function.LongConsumer interpretHook;
+    private final int[] rangeOut = new int[2];
+    private final float[] rectOut = new float[5];
 
     private LongConsumer onFirstFrame;
     private int polls;
@@ -204,6 +263,27 @@ public final class MacWindow {
     /** The content view: for tests. */
     long view() {
         return view;
+    }
+
+    /** The window: for tests. */
+    long window() {
+        return window;
+    }
+
+    /** The input method forgets its marked text: the app committed or dropped it. */
+    public void discardMarkedText() {
+        long context = send(view, "inputContext");
+        if (context != 0) {
+            send(context, "discardMarkedText");
+        }
+    }
+
+    /** The input method asks where the caret is again. */
+    public void invalidateCharacterCoordinates() {
+        long context = send(view, "inputContext");
+        if (context != 0) {
+            send(context, "invalidateCharacterCoordinates");
+        }
     }
 
     public MetalRenderer renderer() {
@@ -374,14 +454,114 @@ public final class MacWindow {
                 precise, MacKeys.mods(send(event, "modifierFlags")));
     }
 
+    /**
+     * A key, as MyGO's surface takes it: the input gets it first, unless the
+     * input method is composing; then, with a text input that takes text
+     * and no Command or Control held, the input method sees it and answers
+     * with insertText: or setMarkedText:.
+     */
     private void key(long event) {
         if (input == null) {
             return;
         }
         int code = (int) (send(event, "keyCode") & 0xFFFF);
         long chars = send(event, "charactersIgnoringModifiers");
-        input.keyDown(MacKeys.key(code, chars == 0 ? "" : ObjC.string(chars)), MacKeys.mods(send(event, "modifierFlags")),
-                ObjC.sendBool(event, "isARepeat"));
+        jui.ui.Key key = MacKeys.key(code, chars == 0 ? "" : ObjC.string(chars));
+        int mods = MacKeys.mods(send(event, "modifierFlags"));
+        boolean repeat = ObjC.sendBool(event, "isARepeat");
+        boolean text = input.textActive() && (mods & (jui.ui.Mod.CMD | jui.ui.Mod.CTRL)) == 0;
+        boolean composing = text && input.textComposing();
+        if (!composing) {
+            input.keyDown(key, mods, repeat);
+        }
+        if (text) {
+            suppressed = composing;
+            owedKey = key;
+            owedMods = mods;
+            owedRepeat = repeat;
+            try {
+                if (interpretHook != null) {
+                    interpretHook.accept(event);
+                } else {
+                    send(view, "interpretKeyEvents:", ObjC.array(event));
+                }
+            } finally {
+                suppressed = false;
+            }
+        }
+    }
+
+    /** The input method handed back the key it held for a composition, as a command: the input gets it, once. */
+    private void command() {
+        if (suppressed && input != null) {
+            suppressed = false;
+            input.keyDown(owedKey, owedMods, owedRepeat);
+        }
+    }
+
+    /** A Java string of an NSString or NSAttributedString. */
+    private static String stringOf(long obj) {
+        if (obj != 0 && ObjC.sendBool(obj, "isKindOfClass:", ObjC.cls("NSAttributedString"))) {
+            return ObjC.string(send(obj, "string"));
+        }
+        return ObjC.string(obj);
+    }
+
+    /** A location from AppKit: NSNotFound (or one past int) is -1. */
+    private static int location(long l) {
+        return l < 0 || l > Integer.MAX_VALUE ? -1 : (int) l;
+    }
+
+    private static int length(long n) {
+        return (int) Math.max(0, Math.min(n, Integer.MAX_VALUE));
+    }
+
+    private boolean range(boolean marked, long[] out) {
+        boolean ok = input != null && (marked ? input.textMarkedRange(rangeOut) : input.textSelectedRange(rangeOut));
+        out[0] = ok ? rangeOut[0] : ObjC.NOT_FOUND;
+        out[1] = ok ? rangeOut[1] : 0;
+        return ok;
+    }
+
+    /** attributedSubstringForProposedRange:actualRange:: an autoreleased NSAttributedString of the shown text's part. */
+    private long substring(long location, long length, long actual) {
+        int n = input == null ? -1 : input.textLength();
+        int a = location(location);
+        if (n < 0 || a < 0) {
+            return 0;
+        }
+        a = Math.min(a, n);
+        int z = (int) Math.min((long) a + length(length), n);
+        String s = input.textIn(a, z);
+        if (s == null) {
+            return 0;
+        }
+        ObjC.writeRange(actual, a, z - a);
+        long attributed = send(send(ObjC.cls("NSAttributedString"), "alloc"), "initWithString:", ObjC.nsString(s));
+        return send(attributed, "autorelease");
+    }
+
+    /** characterIndexForPoint:: a screen point to the view, then the input's index, NSNotFound for none. */
+    private long indexAt(double x, double y) {
+        if (input == null) {
+            return ObjC.NOT_FOUND;
+        }
+        double[] r = ObjC.convertRect(window, "convertRectFromScreen:", x, y, 0, 0);
+        double[] v = ObjC.convertRect(view, "convertRect:fromView:", r[0], r[1], 0, 0, 0);
+        int i = input.textIndexAt(v[0], v[1]);
+        return i < 0 ? ObjC.NOT_FOUND : i;
+    }
+
+    /** firstRectForCharacterRange:actualRange:: the input's rect, in screen coordinates; a zero rect for none. */
+    private void firstRect(long location, long length, long actual, double[] out) {
+        int a = location(location);
+        if (input == null || a < 0 || !input.textRect(a, (int) Math.min((long) a + length(length), Integer.MAX_VALUE), rectOut)) {
+            return;
+        }
+        double[] r = ObjC.convertRect(view, "convertRect:toView:", rectOut[0], rectOut[1], rectOut[2], rectOut[3], 0);
+        double[] screen = ObjC.convertRect(window, "convertRectToScreen:", r[0], r[1], r[2], r[3]);
+        System.arraycopy(screen, 0, out, 0, 4);
+        ObjC.writeRange(actual, a, Math.max(0, (int) rectOut[4] - a));
     }
 
     /** Runs what to do with the window of a view, if it has one. */
@@ -448,6 +628,66 @@ public final class MacWindow {
                     }
                 }))
                 .method1("keyDown:", (self, cmd, e) -> withView(self, w -> w.key(e)))
+                // NSTextInputClient, as MyGO's surface implements it.
+                .protocol("NSTextInputClient")
+                .boolMethod("hasMarkedText", (self, cmd) -> {
+                    MacWindow w = BY_VIEW.get(self);
+                    return w != null && w.range(true, new long[2]);
+                })
+                .rangeMethod("markedRange", (self, cmd, out) -> {
+                    MacWindow w = BY_VIEW.get(self);
+                    if (w == null) {
+                        out[0] = ObjC.NOT_FOUND;
+                    } else {
+                        w.range(true, out);
+                    }
+                })
+                .rangeMethod("selectedRange", (self, cmd, out) -> {
+                    MacWindow w = BY_VIEW.get(self);
+                    if (w == null) {
+                        out[0] = ObjC.NOT_FOUND;
+                    } else {
+                        w.range(false, out);
+                    }
+                })
+                .textRangesMethod("setMarkedText:selectedRange:replacementRange:",
+                        (self, cmd, text, selLocation, selLength, replLocation, replLength) -> withView(self, w -> {
+                            if (w.input != null) {
+                                w.input.textMark(stringOf(text), Math.max(0, location(selLocation)), length(selLength),
+                                        location(replLocation), length(replLength));
+                            }
+                        }))
+                .method("unmarkText", (self, cmd) -> withView(self, w -> {
+                    if (w.input != null) {
+                        w.input.textUnmark();
+                    }
+                }))
+                .textRangeMethod("insertText:replacementRange:", (self, cmd, text, location, length) -> withView(self, w -> {
+                    if (w.input != null) {
+                        w.input.textInsert(stringOf(text), location(location), length(length));
+                    }
+                }))
+                .method1("insertText:", (self, cmd, text) -> withView(self, w -> {
+                    if (w.input != null) {
+                        w.input.textInsert(stringOf(text), -1, 0);
+                    }
+                }))
+                .wordMethod("validAttributesForMarkedText", (self, cmd) -> send(ObjC.cls("NSArray"), "array"))
+                .wordRangeMethod("attributedSubstringForProposedRange:actualRange:", (self, cmd, location, length, actual) -> {
+                    MacWindow w = BY_VIEW.get(self);
+                    return w == null ? 0 : w.substring(location, length, actual);
+                })
+                .wordPointMethod("characterIndexForPoint:", (self, cmd, x, y) -> {
+                    MacWindow w = BY_VIEW.get(self);
+                    return w == null ? ObjC.NOT_FOUND : w.indexAt(x, y);
+                })
+                .rectRangeMethod("firstRectForCharacterRange:actualRange:", (self, cmd, location, length, actual, out) -> {
+                    MacWindow w = BY_VIEW.get(self);
+                    if (w != null) {
+                        w.firstRect(location, length, actual, out);
+                    }
+                })
+                .method1("doCommandBySelector:", (self, cmd, selector) -> withView(self, MacWindow::command))
                 .method1("scrollWheel:", (self, cmd, e) -> withView(self, w -> w.wheel(e)))
                 .method1("juiTick:", (self, cmd, link) -> withView(self, MacWindow::tick))
                 .method1("juiTimer:", (self, cmd, arg) -> withView(self, MacWindow::requestFrame))
