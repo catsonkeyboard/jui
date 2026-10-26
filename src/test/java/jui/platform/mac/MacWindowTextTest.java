@@ -256,7 +256,8 @@ public final class MacWindowTextTest {
             Check.isTrue(edit != 0, "an Edit menu");
             String[] actions = {"undo:", "redo:", null, "cut:", "copy:", "paste:", "selectAll:"};
             String[] keys = {"z", "Z", null, "x", "c", "v", "a"};
-            Check.equal((long) actions.length, ObjC.send(edit, "numberOfItems"));
+            // A launched app gets AppKit's own items after these (AutoFill, Start Dictation, Emoji & Symbols).
+            Check.isTrue(ObjC.send(edit, "numberOfItems") >= actions.length, "the standard items first");
             for (int k = 0; k < actions.length; k++) {
                 long item = ObjC.send(edit, "itemAtIndex:", k);
                 if (actions[k] == null) {
