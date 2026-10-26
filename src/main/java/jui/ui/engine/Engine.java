@@ -48,6 +48,11 @@ public final class Engine {
     private int parent = Node.NONE;
     private boolean keyPending;
     private long pendingKey;
+    /** A list row's index, the next element's identity unless it is keyed. */
+    private boolean rowPending;
+    private int rowIndex;
+    /** The window's height in this frame: a list's view before it has been laid out. */
+    private float windowH;
     /** Dev mode: this frame's nodes by identity, to find siblings with the same key at once. */
     private final java.util.HashMap<Long, Integer> nodesById = Dev.ENABLED ? new java.util.HashMap<>() : null;
 
@@ -91,27 +96,40 @@ public final class Engine {
         wake = Long.MAX_VALUE; // a frame that asks for no wake-up stops the timer (as MyGO)
         input.advanceGlides(now);
         input.routeKey();
-        for (pass = 0; pass < MAX_PASSES; pass++) {
-            consumed = false;
-            input.beginPass();
-            buildPass(view, width, height);
-            endPass();
-            if (pass == 0) {
-                input.dropKey();
+        windowH = height;
+        // A round builds, lays out and fixes up lists; a list that did not cover its view
+        // in the first round gets a second, in the same frame (at most two rounds).
+        for (int round = 0; ; round++) {
+            for (pass = 0; pass < MAX_PASSES; pass++) {
+                consumed = false;
+                input.beginPass();
+                buildPass(view, width, height);
+                endPass();
+                if (pass == 0) {
+                    input.dropKey();
+                }
+                if (!consumed) {
+                    break;
+                }
             }
-            if (!consumed) {
+            passes = Math.min(pass + 1, MAX_PASSES);
+            pass = passes - 1;
+            if (consumed) {
+                requestFrame.run(); // still reporting after the last pass: show the rest next frame
+            }
+            inheritTextStyle();
+            layout.layout(0, width, height);
+            if (reveal()) {
+                layout.layout(0, width, height); // the offsets reveal set, in this frame
+            }
+            boolean again = afterLayout();
+            if (!again) {
                 break;
             }
-        }
-        passes = Math.min(pass + 1, MAX_PASSES);
-        pass = passes - 1;
-        if (consumed) {
-            requestFrame.run(); // still reporting after the last pass: show the rest next frame
-        }
-        inheritTextStyle();
-        layout.layout(0, width, height);
-        if (reveal()) {
-            layout.layout(0, width, height); // the offsets reveal set, in this frame
+            if (round == 1) {
+                requestFrame.run(); // still not covered: the next frame goes on
+                break;
+            }
         }
         commit();
     }
@@ -422,6 +440,153 @@ public final class Engine {
 
     StateTable states() {
         return states;
+    }
+
+    // Lists.
+
+    /**
+     * Plans a list for this pass, before its rows are built: from the view's
+     * height (as last laid out, else the window's), the offset events or the
+     * app changed, and the heights it knows, the rows to build (those in
+     * view and two more each way) and where the first goes.
+     */
+    public void listPlan(int index, ListModel m, int count) {
+        Node n = pool.node(index);
+        n.flags |= Node.LIST;
+        n.listModel = m;
+        m.resize(count);
+        float v = m.viewH > 0 ? m.viewH : windowH;
+        ElementState s = state(index);
+        double max = Math.max(0, m.content() - v);
+        if (count > 0) {
+            if (m.requestRow >= 0) {
+                m.anchor = Math.min(m.requestRow, count - 1);
+                m.anchorY = 0;
+            } else {
+                boolean asked = !Float.isNaN(m.requestY);
+                double y = asked ? Math.max(0, Math.min(max, m.requestY)) : s.scrollY;
+                if (max > 0.5 && y >= max - 0.5) {
+                    m.anchorEnd(v); // at the end: the last row meets the bottom (as MyGO)
+                } else if (asked) {
+                    m.anchorAt(y);
+                } else {
+                    double d = y - m.wroteY;
+                    if (Math.abs(d) <= 2 * v) {
+                        m.anchorY -= (float) d; // rows move by exactly what was scrolled, whatever the estimates
+                    } else {
+                        m.anchorAt(y);
+                    }
+                }
+            }
+            m.normalize();
+        }
+        m.plan(v);
+        n.listFirstY = m.firstY;
+    }
+
+    /** The next element is list row i: its identity is its index, unless it is keyed. */
+    public void rowIndex(int i) {
+        rowPending = true;
+        rowIndex = i;
+    }
+
+    /** A row's callback returned: an index it did not use goes. */
+    public void rowDone() {
+        rowPending = false;
+    }
+
+    /** After a layout, each list's fix-up; reports whether one needs another round. */
+    private boolean afterLayout() {
+        boolean again = false;
+        for (int i = 0; i < pool.size(); i++) {
+            Node n = pool.node(i);
+            if (n.listModel != null) {
+                again |= afterList(n, n.listModel);
+            }
+        }
+        return again;
+    }
+
+    /**
+     * A list after layout: records its rows' heights, anchors to the first
+     * row in view, pulls its ends to the view's edges, checks that its rows
+     * cover the view, and writes its offset and content height.
+     */
+    private boolean afterList(Node n, ListModel m) {
+        float vt = n.y + n.padTop + n.border, vb = n.y + n.h - n.padBottom - n.border, v = Math.max(0, vb - vt);
+        m.viewH = v;
+        m.gap = n.gapY;
+        Node first = null, last = null;
+        int idx = m.builtFirst;
+        boolean anchored = false;
+        for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+            Node r = pool.node(c);
+            if (r.absolute) {
+                continue;
+            }
+            m.setHeight(idx, r.h);
+            if (first == null) {
+                first = r;
+            }
+            last = r;
+            if (!anchored && r.y + r.h > vt + 0.001f) {
+                m.anchor = idx;
+                m.anchorY = r.y - vt;
+                anchored = true;
+            }
+            idx++;
+        }
+        boolean again = false;
+        if (first == null) {
+            m.first = m.last = -1;
+        } else {
+            if (!anchored) {
+                m.anchor = m.builtLast;
+                m.anchorY = last.y - vt;
+            }
+            float bottom = last.y + last.h;
+            if (m.builtLast == m.count - 1 && bottom < vb - 0.01f && m.content() > v + 0.5) {
+                float shift = vb - bottom;
+                if (m.builtFirst == 0) {
+                    shift = Math.min(shift, vt - first.y); // row 0 never starts below the top
+                }
+                if (shift > 0.01f) {
+                    m.anchorY += shift;
+                    again = true;
+                }
+            } else if (m.builtFirst == 0 && first.y > vt + 0.01f) {
+                m.anchorY -= first.y - vt;
+                again = true;
+            }
+            if (!again) {
+                boolean top = m.builtFirst == 0 || first.y <= vt + 0.01f;
+                boolean covered = m.builtLast == m.count - 1 || bottom >= vb - 0.01f;
+                again = !(top && covered);
+            }
+            m.first = m.anchor;
+            m.last = m.anchor;
+            int k = m.builtFirst;
+            for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+                Node r = pool.node(c);
+                if (!r.absolute) {
+                    if (r.y < vb - 0.001f && k >= m.anchor) {
+                        m.last = k;
+                    }
+                    k++;
+                }
+            }
+        }
+        double max = Math.max(0, m.content() - v);
+        float y = m.count == 0 ? 0 : (float) Math.max(0, Math.min(max, m.top(m.anchor) - m.anchorY));
+        m.wroteY = y;
+        n.scrollY = y;
+        n.contentH = (float) m.content() + n.padTop + n.padBottom + 2 * n.border;
+        if (n.state != null) {
+            n.state.scrollY = y; // so a second round sees no change it has not made
+        }
+        m.requestY = Float.NaN;
+        m.requestRow = -1;
+        return again;
     }
 
     // Scrolling.
@@ -773,8 +938,10 @@ public final class Engine {
         n.kind = kind;
         n.parent = parent;
         n.disabled = p.disabled;
-        n.id = keyPending ? Identity.keyed(p.id, pendingKey) : Identity.child(p.id, p.childCount);
+        n.id = keyPending ? Identity.keyed(p.id, pendingKey)
+                : rowPending ? Identity.child(p.id, rowIndex) : Identity.child(p.id, p.childCount);
         keyPending = false;
+        rowPending = false;
         ElementState s = states.get(n.id);
         if (s != null) {
             n.state = s;

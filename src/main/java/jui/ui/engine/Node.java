@@ -14,7 +14,7 @@ public final class Node {
     public static final int NONE = -1;
 
     // Flags: what input the element takes, set by the queries and controls that build it.
-    public static final int CLICKABLE = 1, FOCUSABLE = 2, HOVER = 4, DRAG = 8, TOGGLE = 16, KEYS = 32, SCROLL = 64;
+    public static final int CLICKABLE = 1, FOCUSABLE = 2, HOVER = 4, DRAG = 8, TOGGLE = 16, KEYS = 32, SCROLL = 64, LIST = 128;
 
     // Structure.
     public long id;
@@ -60,6 +60,9 @@ public final class Node {
     public boolean clip;
     /** A scroll container's offset (in from its state, out clamped), the offset asked for (NaN none), and its content's height. */
     public float scrollY, scrollRequest, contentH;
+    /** A list's model, and where its first built row goes, from its content box's top. */
+    public ListModel listModel;
+    public float listFirstY;
     /** Whether its scroll bar shows (hovered or dragged), and whether its thumb is being dragged. */
     boolean bars, barDrag;
     public float top, right, bottom, left;
@@ -132,6 +135,8 @@ public final class Node {
         scrollY = contentH = 0;
         scrollRequest = Float.NaN;
         bars = barDrag = false;
+        listModel = null;
+        listFirstY = 0;
         top = right = bottom = left = Float.NaN;
         padTop = padRight = padBottom = padLeft = 0;
         marTop = marRight = marBottom = marLeft = 0;

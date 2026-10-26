@@ -60,6 +60,10 @@ public final class FlexLayout {
             placeWrapped(p, innerW, innerH, pl, pt);
             return;
         }
+        if ((p.flags & Node.LIST) != 0) {
+            placeList(p, innerW, pl, pt);
+            return;
+        }
         boolean row = p.row;
         boolean scroll = (p.flags & Node.SCROLL) != 0;
         float main = row ? innerW : innerH, cross = row ? innerH : innerW;
@@ -314,6 +318,26 @@ public final class FlexLayout {
 
     private static Align alignOf(Node parent, Node child) {
         return child.alignSelf != null ? child.alignSelf : parent.alignItems;
+    }
+
+    /**
+     * A list's rows, one under another across its content box, each as high
+     * as its content, from where the list's plan put the first; they do not
+     * flex. The list scrolls by that plan, not by an offset here.
+     */
+    private void placeList(Node p, float innerW, float pl, float pt) {
+        float y = p.y + pt + p.listFirstY, gap = mainGap(p);
+        for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
+            Node n = pool.node(c);
+            float w = columnChildWidth(p, c, innerW);
+            float h = resolved(n.height, n.heightPercent, Float.NaN);
+            h = Float.isNaN(h) ? contentHeight(c, w) : clamp(h, n.minHeight, n.maxHeight);
+            y += m(n.marTop);
+            set(n, p.x + pl + m(n.marLeft), y, w, h);
+            y += h + m(n.marBottom) + gap;
+            place(c);
+        }
+        placeAbsolute(p);
     }
 
     // Absolute children: out of the flow (as MyGO's layoutAbsolute).
@@ -638,6 +662,9 @@ public final class FlexLayout {
         Node n = pool.node(index);
         if (!Float.isNaN(n.height)) {
             return clamp(n.height, n.minHeight, n.maxHeight);
+        }
+        if (n.listModel != null) {
+            return clamp((float) n.listModel.content() + insetY(n), n.minHeight, n.maxHeight); // its rows, estimated
         }
         float innerW = Math.max(0, width - insetX(n));
         float h;
