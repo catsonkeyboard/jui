@@ -10,6 +10,7 @@ import jui.ffi.ObjC;
 import jui.util.LongMap;
 
 import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
+import static java.lang.foreign.ValueLayout.JAVA_LONG;
 import static java.lang.foreign.ValueLayout.JAVA_SHORT;
 
 /**
@@ -123,7 +124,8 @@ public final class TextEngine {
     private TextLayout shape(String text, float size, int weight, float maxWidth) {
         long font = systemFont(size, weight);
         if (text.isEmpty()) {
-            return new TextLayout(text, size, weight, maxWidth, 0, 0, 0, 0, new long[0], new short[0], new float[0], new float[0]);
+            return new TextLayout(text, size, weight, maxWidth, 0, 0, 0, 0, new long[0], new short[0], new float[0],
+                    new float[0], new int[0]);
         }
         long str = CoreText.string(text);
         long attrs = CoreText.dictionary(
@@ -137,6 +139,7 @@ public final class TextEngine {
         short[] glyphs = new short[cap];
         float[] xs = new float[cap];
         float[] ys = new float[cap];
+        int[] indices = new int[cap];
         int count = 0, lines = 0;
         double top = 0, widest = 0;
         // Without a width, lines still break at newlines.
@@ -166,14 +169,17 @@ public final class TextEngine {
                     }
                     MemorySegment ids = arena.allocate(JAVA_SHORT, ng);
                     MemorySegment points = arena.allocate(16L * ng, 8);
+                    MemorySegment where = arena.allocate(JAVA_LONG, ng);
                     CoreText.runGlyphs(run, ids);
                     CoreText.runPositions(run, points);
+                    CoreText.runStringIndices(run, where);
                     if (count + ng > fonts.length) {
                         int grown = Math.max(fonts.length * 2, count + ng);
                         fonts = Arrays.copyOf(fonts, grown);
                         glyphs = Arrays.copyOf(glyphs, grown);
                         xs = Arrays.copyOf(xs, grown);
                         ys = Arrays.copyOf(ys, grown);
+                        indices = Arrays.copyOf(indices, grown);
                     }
                     for (int j = 0; j < ng; j++) {
                         fonts[count] = runFont;
@@ -181,6 +187,7 @@ public final class TextEngine {
                         xs[count] = (float) points.get(JAVA_DOUBLE, 16L * j);
                         // Core Text's y goes up from the baseline.
                         ys[count] = (float) (baseline - points.get(JAVA_DOUBLE, 16L * j + 8));
+                        indices[count] = (int) where.getAtIndex(JAVA_LONG, j);
                         count++;
                     }
                 }
@@ -196,7 +203,18 @@ public final class TextEngine {
             CoreText.release(attrs);
             CoreText.release(str);
         }
-        return new TextLayout(text, size, weight, maxWidth, (float) widest, (float) top, lines, count, fonts, glyphs, xs, ys);
+        return new TextLayout(text, size, weight, maxWidth, (float) widest, (float) top, lines, count, fonts, glyphs, xs, ys,
+                indices);
+    }
+
+    /**
+     * The height of a line of text of {@code size} and {@code weight} that
+     * holds Latin and Han alike: Core Text falls back to PingFang for Han
+     * characters, whose line is higher than the system font's, so a text
+     * input sized by this keeps its height as Chinese is typed into it.
+     */
+    public float lineHeight(float size, int weight) {
+        return layout("Ag中", size, weight, 0).height;
     }
 
     /**

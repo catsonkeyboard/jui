@@ -42,6 +42,7 @@ final class CoreText {
     private static final MemorySegment CT_RUN_GET_GLYPH_COUNT = ObjC.symbol(CT, "CTRunGetGlyphCount");
     private static final MemorySegment CT_RUN_GET_GLYPHS = ObjC.symbol(CT, "CTRunGetGlyphs");
     private static final MemorySegment CT_RUN_GET_POSITIONS = ObjC.symbol(CT, "CTRunGetPositions");
+    private static final MemorySegment CT_RUN_GET_STRING_INDICES = ObjC.symbol(CT, "CTRunGetStringIndices");
     private static final MemorySegment CT_FONT_GET_BOUNDING_RECTS = ObjC.symbol(CT, "CTFontGetBoundingRectsForGlyphs");
     private static final MemorySegment CT_FONT_DRAW_GLYPHS = ObjC.symbol(CT, "CTFontDrawGlyphs");
     private static final MemorySegment CT_FONT_GET_SYMBOLIC_TRAITS = ObjC.symbol(CT, "CTFontGetSymbolicTraits");
@@ -179,6 +180,11 @@ final class CoreText {
     /** Copies all the run's glyph positions (CGPoint, 16 bytes each) to {@code buffer}. */
     static void runPositions(long run, MemorySegment buffer) {
         runGet(CT_RUN_GET_POSITIONS, run, buffer);
+    }
+
+    /** Copies the index in the string (UTF-16, CFIndex: 8 bytes each) of each of the run's glyphs to {@code buffer}. */
+    static void runStringIndices(long run, MemorySegment buffer) {
+        runGet(CT_RUN_GET_STRING_INDICES, run, buffer);
     }
 
     private static void runGet(MemorySegment fn, long run, MemorySegment buffer) {
