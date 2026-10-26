@@ -24,6 +24,7 @@ public final class Window implements MacWindow.Input {
                 App.text(), (scene, w, h) -> {
                     engine.buildAndLayout(view, (float) w, (float) h);
                     engine.paint(scene);
+                    armTimer();
                 }, this);
         appearanceChanged(mac.dark());
     }
@@ -55,6 +56,19 @@ public final class Window implements MacWindow.Input {
         }
         change.run();
         invalidate();
+    }
+
+    /** Arms the window's timer for the wake-up the frame asked for (c.after), or cancels it. */
+    private void armTimer() {
+        if (mac == null) {
+            return;
+        }
+        long wake = engine.nextWake();
+        if (wake == Long.MAX_VALUE) {
+            mac.cancelTimer();
+        } else {
+            mac.armTimer(wake - engine.now());
+        }
     }
 
     /** Closes the window. */

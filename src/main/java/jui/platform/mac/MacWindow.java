@@ -63,6 +63,9 @@ public final class MacWindow {
     // Tracking area options: EnteredAndExited, MouseMoved, ActiveInActiveApp, InVisibleRect.
     private static final long TRACKING = 0x01 | 0x02 | 0x40 | 0x200;
     private static final int MOVE = 0, DOWN = 1, UP = 2;
+    /** NSRunLoopCommonModes, a Foundation NSString constant: its value is read from the symbol. */
+    private static final long COMMON_MODES = ObjC.symbol(ObjC.framework("Foundation"), "NSRunLoopCommonModes")
+            .reinterpret(8).get(java.lang.foreign.ValueLayout.JAVA_LONG, 0);
 
     /** The app's text engine, shared by its windows. */
     private final TextEngine text;
@@ -72,6 +75,20 @@ public final class MacWindow {
     private final Painter painter;
     private final Input input;
     private final long delegate;
+    /** The view's display link (macOS 14): runs while frames come one after another, paused otherwise. */
+    private final long displayLink;
+    private boolean linkRunning;
+    /** A frame is asked for; and one was owed while the window was hidden. */
+    private boolean due, owed;
+    /**
+     * Whether the window shows: assumed until AppKit says otherwise in
+     * windowDidChangeOcclusionState:, as occlusionState can read as hidden
+     * for a window that is displayed (seen for a test process's windows).
+     */
+    private boolean shown = true;
+    /** When the last frame was drawn, and the display's refresh period, in nanoseconds. */
+    private long lastFrameNanos;
+    private long refresh = 1_000_000_000L / 60;
     private int background;
     /** A control-click: the primary button acts as the secondary until it is released (as MyGO). */
     private boolean ctrlClick;
@@ -114,11 +131,20 @@ public final class MacWindow {
         delegate = send(send(delegateClass, "alloc"), "init");
         BY_DELEGATE.put(delegate, this);
         send(window, "setDelegate:", delegate);
+        // Frames that follow one another come from the display link, as MyGO's surface.go does.
+        displayLink = ObjC.retain(send(view, "displayLinkWithTarget:selector:", view, ObjC.sel("juiTick:")));
+        send(displayLink, "setPaused:", 1);
+        send(displayLink, "addToRunLoop:forMode:", send(ObjC.cls("NSRunLoop"), "mainRunLoop"), COMMON_MODES);
 
         send(window, "setContentView:", view);
         send(window, "center");
         send(window, "makeKeyAndOrderFront:", 0);
         send(window, "makeFirstResponder:", view);
+        long screen = send(window, "screen");
+        if (screen != 0) {
+            long fps = send(screen, "maximumFramesPerSecond");
+            refresh = 1_000_000_000L / Math.max(fps, 30);
+        }
         send(view, "setNeedsDisplay:", 1);
     }
 
@@ -163,6 +189,9 @@ public final class MacWindow {
 
     /** Closes the window. */
     public void close() {
+        cancelTimer();
+        send(displayLink, "invalidate");
+        ObjC.release(displayLink);
         send(window, "setDelegate:", 0);
         send(window, "close");
         BY_VIEW.remove(view);
@@ -178,9 +207,75 @@ public final class MacWindow {
         return renderer;
     }
 
-    /** Asks for a frame: AppKit displays the view, and the painter paints, in its next pass. */
+    /**
+     * Asks for a frame, as MyGO's surface does: after a pause, AppKit
+     * displays the view in this pass of the run loop; while frames follow
+     * one another, the display link draws one a refresh.
+     */
     public void requestFrame() {
-        send(view, "setNeedsDisplay:", 1);
+        if (linkRunning) {
+            due = true;
+            return;
+        }
+        if (System.nanoTime() - lastFrameNanos > 2 * refresh && visible()) {
+            send(view, "setNeedsDisplay:", 1);
+            return;
+        }
+        send(displayLink, "setPaused:", 0);
+        linkRunning = true;
+        due = true;
+    }
+
+    /** Draws a frame after delayNanos, in place of any timer armed before. */
+    public void armTimer(long delayNanos) {
+        cancelTimer();
+        ObjC.performAfter(view, "juiTimer:", 0, Math.max(0, delayNanos) / 1e9);
+    }
+
+    public void cancelTimer() {
+        send(ObjC.cls("NSObject"), "cancelPreviousPerformRequestsWithTarget:selector:object:", view,
+                ObjC.sel("juiTimer:"), 0);
+    }
+
+    /** Whether the display link is running: for tests. */
+    boolean displayLinkRunning() {
+        return linkRunning;
+    }
+
+    /** Whether any of the window shows on screen, as the last occlusion change said. */
+    private boolean visible() {
+        return shown;
+    }
+
+    /** A display link tick: draws the frame asked for, else pauses; a hidden window owes it. */
+    private void tick() {
+        if (!due) {
+            pauseLink();
+            return;
+        }
+        if (!visible()) {
+            pauseLink();
+            owed = true;
+            return;
+        }
+        due = false;
+        if (ObjC.sendBool(send(view, "layer"), "needsDisplay")) {
+            return; // AppKit displays the view in this pass
+        }
+        draw();
+    }
+
+    private void pauseLink() {
+        send(displayLink, "setPaused:", 1);
+        linkRunning = false;
+    }
+
+    private void occlusionChanged() {
+        shown = (send(window, "occlusionState") & 2) != 0; // NSWindowOcclusionStateVisible
+        if (owed && shown) {
+            owed = false;
+            requestFrame();
+        }
     }
 
     /** The window server's number for the window, as screencapture -l takes. */
@@ -198,6 +293,7 @@ public final class MacWindow {
     }
 
     private void draw() {
+        lastFrameNanos = System.nanoTime();
         double[] bounds = ObjC.sendRect(view, "bounds");
         double scale = ObjC.sendDouble(window, "backingScaleFactor");
         lastWidth = bounds[2];
@@ -337,6 +433,8 @@ public final class MacWindow {
                     }
                 }))
                 .method1("keyDown:", (self, cmd, e) -> withView(self, w -> w.key(e)))
+                .method1("juiTick:", (self, cmd, link) -> withView(self, MacWindow::tick))
+                .method1("juiTimer:", (self, cmd, arg) -> withView(self, MacWindow::requestFrame))
                 .method1("flagsChanged:", (self, cmd, e) -> withView(self, w -> {
                     if (w.input != null) {
                         w.input.modifiersChanged(MacKeys.mods(send(e, "modifierFlags")));
@@ -352,6 +450,12 @@ public final class MacWindow {
         delegateClass = ObjCClass.define("JUIWindowDelegate", "NSObject")
                 .method1("windowDidBecomeKey:", (self, cmd, note) -> focusChanged(self, true))
                 .method1("windowDidResignKey:", (self, cmd, note) -> focusChanged(self, false))
+                .method1("windowDidChangeOcclusionState:", (self, cmd, note) -> {
+                    MacWindow w = BY_DELEGATE.get(self);
+                    if (w != null) {
+                        w.occlusionChanged();
+                    }
+                })
                 .register();
     }
 }
