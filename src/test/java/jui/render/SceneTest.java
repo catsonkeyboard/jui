@@ -49,4 +49,24 @@ public final class SceneTest {
         Check.equal(10.2f * 1.5f, r[0]);
         Check.equal(20.1f * 1.5f, r[2]);
     }
+
+    public void testClipsSplitTheSceneIntoBatchesWithPixelScissors() {
+        Scene s = new Scene();
+        s.begin(2, null, null);
+        s.box(0, 0, 10, 10, 0, 0xFF0000FF);
+        s.pushClip(10.2f, 20, 50, 30);
+        s.box(0, 0, 10, 10, 0, 0xFF0000FF);
+        s.pushClip(0, 0, 40, 40);                    // nested: intersected
+        s.box(0, 0, 10, 10, 0, 0xFF0000FF);
+        s.popClip();
+        s.popClip();
+        s.box(0, 0, 10, 10, 0, 0xFF0000FF);
+        Check.equal(4, s.batches());
+        int[] r = new int[4];
+        Check.isTrue(!s.batchClipped(0), "unclipped first");
+        s.batchScissor(1, r); Check.equal(java.util.List.of(20, 40, 100, 60), java.util.List.of(r[0], r[1], r[2], r[3]));
+        s.batchScissor(2, r); Check.equal(java.util.List.of(20, 40, 60, 40), java.util.List.of(r[0], r[1], r[2], r[3]));
+        Check.isTrue(!s.batchClipped(3), "unclipped after the pops");
+        Check.equal(1, s.batchStart(1)); Check.equal(2, s.batchEnd(1));
+    }
 }

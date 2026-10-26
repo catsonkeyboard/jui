@@ -15,13 +15,16 @@ final class HitList {
     float[] x = new float[64], y = new float[64], w = new float[64], h = new float[64];
     int[] parent = new int[64];
     int[] flags = new int[64];
+    /** The clip of each entry's clipping ancestors, intersected; infinite for none. */
+    float[] clipX0 = new float[64], clipY0 = new float[64], clipX1 = new float[64], clipY1 = new float[64];
     int size;
 
     void clear() {
         size = 0;
     }
 
-    void add(long id, float bx, float by, float bw, float bh, int parentIndex, int nodeFlags) {
+    void add(long id, float bx, float by, float bw, float bh, int parentIndex, int nodeFlags,
+             float cx0, float cy0, float cx1, float cy1) {
         if (size == ids.length) {
             int n = size * 2;
             ids = Arrays.copyOf(ids, n);
@@ -31,6 +34,10 @@ final class HitList {
             h = Arrays.copyOf(h, n);
             parent = Arrays.copyOf(parent, n);
             flags = Arrays.copyOf(flags, n);
+            clipX0 = Arrays.copyOf(clipX0, n);
+            clipY0 = Arrays.copyOf(clipY0, n);
+            clipX1 = Arrays.copyOf(clipX1, n);
+            clipY1 = Arrays.copyOf(clipY1, n);
         }
         ids[size] = id;
         x[size] = bx;
@@ -39,11 +46,17 @@ final class HitList {
         h[size] = bh;
         parent[size] = parentIndex;
         flags[size] = nodeFlags;
+        clipX0[size] = cx0;
+        clipY0[size] = cy0;
+        clipX1[size] = cx1;
+        clipY1[size] = cy1;
         size++;
     }
 
+    /** Whether the point is in entry i's box and inside its ancestors' clips. */
     boolean contains(int i, float px, float py) {
-        return px >= x[i] && px < x[i] + w[i] && py >= y[i] && py < y[i] + h[i];
+        return px >= x[i] && px < x[i] + w[i] && py >= y[i] && py < y[i] + h[i]
+                && px >= clipX0[i] && px < clipX1[i] && py >= clipY0[i] && py < clipY1[i];
     }
 
     /** The index of identity id, or -1. */

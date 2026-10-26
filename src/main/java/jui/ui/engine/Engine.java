@@ -298,7 +298,8 @@ public final class Engine {
      */
     private void commit() {
         hits.clear();
-        commitHits(0, -1);
+        commitHits(0, -1, Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY,
+                Float.POSITIVE_INFINITY);
         for (int i = 0; i < pool.size(); i++) {
             Node n = pool.node(i);
             ElementState s = n.state;
@@ -333,7 +334,7 @@ public final class Engine {
      * flow, then absolute children), so that what paints later is on top.
      * An invisible node takes no hits, nor its children, and loses focus.
      */
-    private void commitHits(int index, int parentHit) {
+    private void commitHits(int index, int parentHit, float cx0, float cy0, float cx1, float cy1) {
         Node n = pool.node(index);
         if (n.invisible) {
             if (input.focusedId != 0 && holds(index, input.focusedId)) {
@@ -342,15 +343,22 @@ public final class Engine {
             return;
         }
         int h = hits.size;
-        hits.add(n.id, n.x, n.y, n.w, n.h, parentHit, n.disabled ? n.flags | HitList.DISABLED : n.flags);
+        hits.add(n.id, n.x, n.y, n.w, n.h, parentHit, n.disabled ? n.flags | HitList.DISABLED : n.flags,
+                cx0, cy0, cx1, cy1);
+        if (n.clip) { // what it holds takes the pointer only inside its padding box
+            cx0 = Math.max(cx0, n.x + n.border);
+            cy0 = Math.max(cy0, n.y + n.border);
+            cx1 = Math.min(cx1, n.x + n.w - n.border);
+            cy1 = Math.min(cy1, n.y + n.h - n.border);
+        }
         for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
             if (!pool.node(c).absolute) {
-                commitHits(c, h);
+                commitHits(c, h, cx0, cy0, cx1, cy1);
             }
         }
         for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
             if (pool.node(c).absolute) {
-                commitHits(c, h);
+                commitHits(c, h, cx0, cy0, cx1, cy1);
             }
         }
     }

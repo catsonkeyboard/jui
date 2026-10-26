@@ -101,4 +101,14 @@ public final class PaintTest {
         Check.near(2, ring[16]);                 // stroke
         Check.near(0, ring[11]);                 // no fill
     }
+
+    public void testAClippingBoxPaintsItsChildrenInsideItsPaddingBox() {
+        e.buildAndLayout(c -> box(c).size(100, 50).background(Color.rgb(0xEEEEEE)).border(2, Color.rgb(0)).clip().children(() ->
+                box(c).size(300, 300).background(Color.rgb(0xFF0000))), 200, 100);
+        Scene s = paint(1);
+        Check.equal(3, s.batches());                // own background | the child, clipped | the border, over it
+        int[] r = new int[4];
+        s.batchScissor(1, r);
+        Check.equal(java.util.List.of(2, 2, 96, 46), java.util.List.of(r[0], r[1], r[2], r[3]));
+    }
 }

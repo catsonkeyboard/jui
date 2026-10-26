@@ -63,6 +63,7 @@ public final class MetalRenderer {
     private final int[] dirty = new int[4];
     private int frame;
     private int drawn;
+    private final int[] scissor = new int[4];
     private long drawableWidth, drawableHeight;
     private double drawableScale;
     private boolean presentsWithTransaction;
@@ -174,7 +175,6 @@ public final class MetalRenderer {
                 allocate(slot, Math.max(scene.count(), capacities[slot] * 2));
             }
             int n = scene.writeTo(contents[slot], capacities[slot]);
-            drawn = n;
             globals.set(JAVA_FLOAT, 0, pw);
             globals.set(JAVA_FLOAT, 4, ph);
             // Glyphs new to the atlas go up in one rectangle. They land where
@@ -191,9 +191,28 @@ public final class MetalRenderer {
             send(encoder, "setFragmentBuffer:offset:atIndex:", buffers[slot], 0, 0);
             send(encoder, "setVertexBytes:length:atIndex:", globals.address(), 16, 1);
             send(encoder, "setFragmentTexture:atIndex:", atlasTexture, 0);
-            if (n > 0) {
-                send(encoder, "drawPrimitives:vertexStart:vertexCount:instanceCount:",
-                        PRIMITIVE_TRIANGLE_STRIP, 0, 4, n);
+            // A batch a clip: its scissor rectangle within the drawable, then its instances.
+            drawn = 0;
+            for (int b = 0; b < scene.batches() && n > 0; b++) {
+                int start = scene.batchStart(b), end = Math.min(scene.batchEnd(b), n);
+                if (end <= start) {
+                    continue;
+                }
+                long sx = 0, sy = 0, sw = pw, sh = ph;
+                if (scene.batchClipped(b)) {
+                    scene.batchScissor(b, scissor);
+                    sx = Math.max(0, Math.min(pw, scissor[0]));
+                    sy = Math.max(0, Math.min(ph, scissor[1]));
+                    sw = Math.max(0, Math.min(pw, (long) scissor[0] + scissor[2]) - sx);
+                    sh = Math.max(0, Math.min(ph, (long) scissor[1] + scissor[3]) - sy);
+                    if (sw == 0 || sh == 0) {
+                        continue;
+                    }
+                }
+                ObjC.setScissor(encoder, sx, sy, sw, sh);
+                send(encoder, "drawPrimitives:vertexStart:vertexCount:instanceCount:baseInstance:",
+                        PRIMITIVE_TRIANGLE_STRIP, 0, 4, end - start, start);
+                drawn += end - start;
             }
             send(encoder, "endEncoding");
             if (onCompleted != 0) {

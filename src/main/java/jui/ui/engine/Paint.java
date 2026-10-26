@@ -34,6 +34,12 @@ final class Paint {
         }
         if (n.kind == Node.DIVIDER) {
             scene.box(n.x, n.y, n.w, n.h, 0, fade(theme.border().rgba(), o));
+        } else if (n.clip) {
+            // A clipping box draws its border over what it holds, once that is drawn (as MyGO).
+            if (alpha(background) != 0) {
+                scene.box(n.x, n.y, n.w, n.h, Math.min(n.radiusTL, half), Math.min(n.radiusTR, half),
+                        Math.min(n.radiusBR, half), Math.min(n.radiusBL, half), background, 0, 0);
+            }
         } else if (alpha(background) != 0 || n.border > 0 && alpha(borderColor) != 0) {
             scene.box(n.x, n.y, n.w, n.h, Math.min(n.radiusTL, half), Math.min(n.radiusTR, half),
                     Math.min(n.radiusBR, half), Math.min(n.radiusBL, half), background, n.border, borderColor);
@@ -45,6 +51,9 @@ final class Paint {
         if (n.kind == Node.SLIDER) {
             slider(n, scene, theme, o, ringId);
         }
+        if (n.clip) {
+            scene.pushClip(n.x + n.border, n.y + n.border, n.w - 2 * n.border, n.h - 2 * n.border);
+        }
         // The flow first, then absolute children over it, in the order built (as MyGO).
         for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
             if (!pool.node(c).absolute) {
@@ -54,6 +63,13 @@ final class Paint {
         for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
             if (pool.node(c).absolute) {
                 paint(pool, c, scene, theme, o, n.disabled, ringId);
+            }
+        }
+        if (n.clip) {
+            scene.popClip();
+            if (n.border > 0 && alpha(borderColor) != 0) {
+                scene.box(n.x, n.y, n.w, n.h, Math.min(n.radiusTL, half), Math.min(n.radiusTR, half),
+                        Math.min(n.radiusBR, half), Math.min(n.radiusBL, half), 0, n.border, borderColor);
             }
         }
         // The focus ring goes over the children: 3 DIPs out, 2 wide (as MyGO's paint.go).

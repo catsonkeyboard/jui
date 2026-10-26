@@ -284,6 +284,15 @@ public final class Element {
         return this;
     }
 
+    /** Clips what the element holds to its padding box: nothing of it shows, or takes the pointer, outside. */
+    public Element clip() {
+        Node n = node();
+        if (n != null) {
+            n.clip = true;
+        }
+        return this;
+    }
+
     /** Keeps the element's room but shows nothing of it: not painted, not hit, not focused. */
     public Element invisible() {
         Node n = node();

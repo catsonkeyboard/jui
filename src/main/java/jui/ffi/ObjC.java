@@ -58,6 +58,7 @@ public final class ObjC {
     private static final MemorySegment COLOR_ARG = Arena.global().allocate(Sigs.MTL_CLEAR_COLOR);
     private static final MemorySegment SUPER_ARG = Arena.global().allocate(16, 8); // struct objc_super
     private static final MemorySegment REGION_ARG = Arena.global().allocate(Sigs.MTL_REGION);
+    private static final MemorySegment SCISSOR_ARG = Arena.global().allocate(Sigs.MTL_SCISSOR);
     private static final SegmentAllocator RECT_RET = SegmentAllocator.prefixAllocator(
             Arena.global().allocate(Sigs.CG_RECT));
     private static final SegmentAllocator POINT_RET = SegmentAllocator.prefixAllocator(
@@ -112,6 +113,23 @@ public final class ObjC {
 
     public static long send(long obj, String sel, long a, long b, long c, long d) {
         return Native.call(MSG_SEND, obj, sel(sel), a, b, c, d);
+    }
+
+    public static long send(long obj, String sel, long a, long b, long c, long d, long e) {
+        return Native.call(MSG_SEND, obj, sel(sel), a, b, c, d, e);
+    }
+
+    /** {@code [encoder setScissorRect:(MTLScissorRect){x, y, width, height}]}, in pixels. */
+    public static void setScissor(long encoder, long x, long y, long width, long height) {
+        try {
+            SCISSOR_ARG.set(JAVA_LONG, 0, x);
+            SCISSOR_ARG.set(JAVA_LONG, 8, y);
+            SCISSOR_ARG.set(JAVA_LONG, 16, width);
+            SCISSOR_ARG.set(JAVA_LONG, 24, height);
+            Native.SET_SCISSOR.invokeExact(MSG_SEND, encoder, sel("setScissorRect:"), SCISSOR_ARG);
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
     }
 
     /** A message returning BOOL, which sets only the low byte of the register. */

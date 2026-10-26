@@ -57,6 +57,7 @@ public final class Native {
     static final MethodHandle SET_CLEAR_COLOR = handle(Sigs.SET_CLEAR_COLOR);
     static final MethodHandle PERFORM_AFTER = handle(Sigs.PERFORM_AFTER);
     static final MethodHandle REPLACE_REGION = handle(Sigs.REPLACE_REGION);
+    static final MethodHandle SET_SCISSOR = handle(Sigs.SET_SCISSOR);
 
     // Calls of functions whose arguments and result are words.
 

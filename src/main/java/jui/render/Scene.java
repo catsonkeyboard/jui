@@ -29,6 +29,11 @@ public final class Scene {
     /** Starts a frame at {@code scale} pixels a point, whose text goes through {@code text} and {@code atlas}. */
     public void begin(float scale, TextEngine text, GlyphAtlas atlas) {
         this.count = 0;
+        this.depth = 0;
+        this.clipX0 = this.clipY0 = Float.NEGATIVE_INFINITY;
+        this.clipX1 = this.clipY1 = Float.POSITIVE_INFINITY;
+        this.batchCount = 0;
+        this.clipChanged = true;
         this.scale = scale;
         this.text = text;
         this.atlas = atlas;
@@ -158,7 +163,107 @@ public final class Scene {
         if ((count + 1) * FLOATS > data.length) {
             data = Arrays.copyOf(data, data.length * 2);
         }
+        if (clipChanged) {
+            startBatch();
+        }
         return count++ * FLOATS;
+    }
+
+    // Clipping: a stack of rectangles, in points; instances drawn under one
+    // clip form a batch, which the renderer draws with one scissor rectangle.
+
+    private float clipX0, clipY0, clipX1, clipY1;
+    private float[] stack = new float[16];
+    private int depth;
+    private boolean clipChanged;
+    private int[] batchStarts = new int[8];
+    private int[] scissors = new int[32]; // x, y, width, height in pixels; width -1 for none
+    private int batchCount;
+
+    /** Clips what is drawn next to the rectangle, in points, within the clip already set. */
+    public void pushClip(float x, float y, float w, float h) {
+        if (depth + 4 > stack.length) {
+            stack = Arrays.copyOf(stack, stack.length * 2);
+        }
+        stack[depth++] = clipX0;
+        stack[depth++] = clipY0;
+        stack[depth++] = clipX1;
+        stack[depth++] = clipY1;
+        clipX0 = Math.max(clipX0, x);
+        clipY0 = Math.max(clipY0, y);
+        clipX1 = Math.min(clipX1, x + w);
+        clipY1 = Math.min(clipY1, y + h);
+        clipChanged = true;
+    }
+
+    /** Back to the clip before the last push. */
+    public void popClip() {
+        clipY1 = stack[--depth];
+        clipX1 = stack[--depth];
+        clipY0 = stack[--depth];
+        clipX0 = stack[--depth];
+        clipChanged = true;
+    }
+
+    /** Starts a batch for the current clip, unless the last batch has the same scissor. */
+    private void startBatch() {
+        clipChanged = false;
+        int x = -1, y = 0, w = 0, h = 0;
+        if (clipX0 != Float.NEGATIVE_INFINITY || clipY0 != Float.NEGATIVE_INFINITY
+                || clipX1 != Float.POSITIVE_INFINITY || clipY1 != Float.POSITIVE_INFINITY) {
+            // Each edge to the nearest pixel, as MyGO's snap; an empty clip is 0 wide or high.
+            x = snap(clipX0);
+            y = snap(clipY0);
+            w = Math.max(0, snap(clipX1) - x);
+            h = Math.max(0, snap(clipY1) - y);
+        }
+        if (batchCount > 0) {
+            int o = (batchCount - 1) * 4;
+            if (scissors[o] == x && scissors[o + 1] == y && scissors[o + 2] == w && scissors[o + 3] == h) {
+                return;
+            }
+        }
+        if (batchCount == batchStarts.length) {
+            batchStarts = Arrays.copyOf(batchStarts, batchCount * 2);
+            scissors = Arrays.copyOf(scissors, batchCount * 8);
+        }
+        batchStarts[batchCount] = count;
+        int o = batchCount * 4;
+        scissors[o] = x;
+        scissors[o + 1] = y;
+        scissors[o + 2] = w;
+        scissors[o + 3] = h;
+        batchCount++;
+    }
+
+    private int snap(float points) {
+        float v = points * scale;
+        if (v < -1e9f) {
+            return -1_000_000_000;
+        }
+        return v > 1e9f ? 1_000_000_000 : Math.round(v);
+    }
+
+    /** Batches of instances, each under one clip. */
+    public int batches() {
+        return batchCount;
+    }
+
+    public int batchStart(int i) {
+        return batchStarts[i];
+    }
+
+    public int batchEnd(int i) {
+        return i + 1 < batchCount ? batchStarts[i + 1] : count;
+    }
+
+    public boolean batchClipped(int i) {
+        return scissors[i * 4] != -1;
+    }
+
+    /** The batch's scissor rectangle in pixels, {x, y, width, height}; only for a clipped batch. */
+    public void batchScissor(int i, int[] out) {
+        System.arraycopy(scissors, i * 4, out, 0, 4);
     }
 
     private void put(int o, float a, float b, float c, float d) {

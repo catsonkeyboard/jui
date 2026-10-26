@@ -166,4 +166,15 @@ public final class PointerTest {
         e.pointerDown(75, 20, 0, 2, 0); e.pointerUp(75, 20, 0, 0); e.buildAndLayout(v, 300, 200);   // and its double click
         Check.equal(1, dbl[0]);
     }
+
+    public void testAClippedChildIsNotHitOutsideItsClip() { // Review Focus 5
+        int[] n = {0};
+        Tester tt = Tester.of(c -> box(c).size(100, 50).clip().children(() -> {
+            if (box(c).size(300, 300).label("big").clicked()) n[0]++;
+        }), 400, 400);
+        tt.press(150, 150); tt.release(150, 150);  // inside big's box, outside the clip
+        Check.equal(0, n[0]);
+        tt.press(50, 25); tt.release(50, 25);
+        Check.equal(1, n[0]);
+    }
 }

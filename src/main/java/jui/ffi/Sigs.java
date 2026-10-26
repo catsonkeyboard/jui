@@ -86,6 +86,11 @@ public final class Sigs {
     public static final StructLayout MTL_REGION = MemoryLayout.structLayout(
             JAVA_LONG.withName("x"), JAVA_LONG.withName("y"), JAVA_LONG.withName("z"),
             JAVA_LONG.withName("width"), JAVA_LONG.withName("height"), JAVA_LONG.withName("depth"));
+    /** MTLScissorRect: x, y, width, height in pixels. */
+    public static final StructLayout MTL_SCISSOR = MemoryLayout.structLayout(
+            JAVA_LONG.withName("x"), JAVA_LONG.withName("y"), JAVA_LONG.withName("width"), JAVA_LONG.withName("height"));
+    /** void (id, SEL, MTLScissorRect): setScissorRect:. */
+    public static final FunctionDescriptor SET_SCISSOR = down(FunctionDescriptor.ofVoid(JAVA_LONG, JAVA_LONG, MTL_SCISSOR));
     /** void (id, SEL, MTLRegion, NSUInteger, const void *, NSUInteger): replaceRegion:mipmapLevel:withBytes:bytesPerRow:. */
     public static final FunctionDescriptor REPLACE_REGION = down(FunctionDescriptor.ofVoid(
             JAVA_LONG, JAVA_LONG, MTL_REGION, JAVA_LONG, JAVA_LONG, JAVA_LONG));

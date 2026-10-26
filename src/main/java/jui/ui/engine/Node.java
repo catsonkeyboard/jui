@@ -56,6 +56,8 @@ public final class Node {
     public float gapX, gapY;
     /** Placed in the parent's padding box by its insets (NaN unset), out of the flow; and not shown. */
     public boolean absolute, invisible;
+    /** Clips what it holds to its padding box. */
+    public boolean clip;
     public float top, right, bottom, left;
     /** Wraps children onto lines, placed by alignContent (START unless set, as MyGO). */
     public boolean wrap;
@@ -122,7 +124,7 @@ public final class Node {
         gapX = gapY = 0;
         wrap = false;
         alignContent = Align.START;
-        absolute = invisible = false;
+        absolute = invisible = clip = false;
         top = right = bottom = left = Float.NaN;
         padTop = padRight = padBottom = padLeft = 0;
         marTop = marRight = marBottom = marLeft = 0;
