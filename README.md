@@ -316,8 +316,11 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - **签名检查**（`./build.sh ffi-check`）：接受和返回 `NSRange`、`NSRect`、`NSPoint` 的 Objective-C 方法，在 JVM 和 native image 下都能调用。漏登记一个签名，要到输入法第一次调用时才会崩溃，所以单独检查。
 - **滚动帧耗时**（`./build.sh listbench`）：p95 0.23 ms，最大 0.33 ms，仍在门槛内。
 
-**还需要手动核对的**（native image，`./build.sh native-demo Files`）
+**已手动核对通过**（native image，`./build.sh native-demo Files`）
 - 英文输入；拼音输入时候选框出现在光标下面，选词后列表过滤；
+- 输入框获得焦点和失去焦点。
+
+**还需要手动核对的**
 - 方向键、Option+方向键、Home/End、Shift 选择；拖动选择、双击选词；
 - 和别的应用之间 ⌘C、⌘V；⌘Z；
 - 输入框上是 I 形指针；
