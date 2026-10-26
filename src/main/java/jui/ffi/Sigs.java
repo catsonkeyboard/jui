@@ -128,6 +128,32 @@ public final class Sigs {
     /** void (id, SEL, SEL, id, NSTimeInterval): performSelector:withObject:afterDelay:. */
     public static final FunctionDescriptor PERFORM_AFTER = down(FunctionDescriptor.ofVoid(
             JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_DOUBLE));
+    /** CGRect (id, SEL, CGRect, id): convertRect:toView:, convertRect:fromView:. */
+    public static final FunctionDescriptor RECT_RECT_W = down(FunctionDescriptor.of(CG_RECT,
+            JAVA_LONG, JAVA_LONG, CG_RECT, JAVA_LONG));
+    /** CGRect (id, SEL, CGRect): convertRectToScreen:, convertRectFromScreen:. */
+    public static final FunctionDescriptor RECT_RECT = down(FunctionDescriptor.of(CG_RECT, JAVA_LONG, JAVA_LONG, CG_RECT));
+
+    // NSTextInputClient's shapes, for calling such methods (FfiCheck, tests).
+    /** NSRange: location and length, the same layout as CFRange. */
+    public static final StructLayout NS_RANGE = CF_RANGE;
+    /** NSRange (id, SEL). */
+    public static final FunctionDescriptor MSG_RANGE = down(FunctionDescriptor.of(NS_RANGE, JAVA_LONG, JAVA_LONG));
+    /** void (id, SEL, id, NSRange). */
+    public static final FunctionDescriptor MSG_V_W_RANGE = down(FunctionDescriptor.ofVoid(
+            JAVA_LONG, JAVA_LONG, JAVA_LONG, NS_RANGE));
+    /** void (id, SEL, id, NSRange, NSRange). */
+    public static final FunctionDescriptor MSG_V_W_RANGE2 = down(FunctionDescriptor.ofVoid(
+            JAVA_LONG, JAVA_LONG, JAVA_LONG, NS_RANGE, NS_RANGE));
+    /** id (id, SEL, NSRange, NSRange *). */
+    public static final FunctionDescriptor MSG_W_RANGE_W = down(FunctionDescriptor.of(JAVA_LONG,
+            JAVA_LONG, JAVA_LONG, NS_RANGE, JAVA_LONG));
+    /** NSRect (id, SEL, NSRange, NSRange *). */
+    public static final FunctionDescriptor MSG_RECT_RANGE_W = down(FunctionDescriptor.of(CG_RECT,
+            JAVA_LONG, JAVA_LONG, NS_RANGE, JAVA_LONG));
+    /** NSUInteger (id, SEL, NSPoint). */
+    public static final FunctionDescriptor MSG_W_POINT = down(FunctionDescriptor.of(JAVA_LONG,
+            JAVA_LONG, JAVA_LONG, CG_POINT));
 
     // Objective-C methods implemented in Java (IMPs). BOOL is C's bool on arm64.
     /** void (id, SEL). */
@@ -141,6 +167,25 @@ public final class Sigs {
             JAVA_LONG, JAVA_LONG, JAVA_LONG));
     /** void (id, SEL, NSSize). */
     public static final FunctionDescriptor IMP_V_SIZE = up(FunctionDescriptor.ofVoid(JAVA_LONG, JAVA_LONG, CG_SIZE));
+    /** NSRange (id, SEL): selectedRange, markedRange. */
+    public static final FunctionDescriptor IMP_RANGE = up(FunctionDescriptor.of(NS_RANGE, JAVA_LONG, JAVA_LONG));
+    /** id (id, SEL): validAttributesForMarkedText. */
+    public static final FunctionDescriptor IMP_W = up(FunctionDescriptor.of(JAVA_LONG, JAVA_LONG, JAVA_LONG));
+    /** void (id, SEL, id, NSRange): insertText:replacementRange:. */
+    public static final FunctionDescriptor IMP_V_W_RANGE = up(FunctionDescriptor.ofVoid(
+            JAVA_LONG, JAVA_LONG, JAVA_LONG, NS_RANGE));
+    /** void (id, SEL, id, NSRange, NSRange): setMarkedText:selectedRange:replacementRange:. */
+    public static final FunctionDescriptor IMP_V_W_RANGE2 = up(FunctionDescriptor.ofVoid(
+            JAVA_LONG, JAVA_LONG, JAVA_LONG, NS_RANGE, NS_RANGE));
+    /** id (id, SEL, NSRange, NSRange *): attributedSubstringForProposedRange:actualRange:. */
+    public static final FunctionDescriptor IMP_W_RANGE_W = up(FunctionDescriptor.of(JAVA_LONG,
+            JAVA_LONG, JAVA_LONG, NS_RANGE, JAVA_LONG));
+    /** NSRect (id, SEL, NSRange, NSRange *): firstRectForCharacterRange:actualRange:. */
+    public static final FunctionDescriptor IMP_RECT_RANGE_W = up(FunctionDescriptor.of(CG_RECT,
+            JAVA_LONG, JAVA_LONG, NS_RANGE, JAVA_LONG));
+    /** NSUInteger (id, SEL, NSPoint): characterIndexForPoint:. */
+    public static final FunctionDescriptor IMP_W_POINT = up(FunctionDescriptor.of(JAVA_LONG,
+            JAVA_LONG, JAVA_LONG, CG_POINT));
 
     private static FunctionDescriptor down(FunctionDescriptor fd) {
         DOWNCALLS.add(fd);

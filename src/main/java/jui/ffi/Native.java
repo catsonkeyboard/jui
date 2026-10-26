@@ -58,6 +58,14 @@ public final class Native {
     static final MethodHandle PERFORM_AFTER = handle(Sigs.PERFORM_AFTER);
     static final MethodHandle REPLACE_REGION = handle(Sigs.REPLACE_REGION);
     static final MethodHandle SET_SCISSOR = handle(Sigs.SET_SCISSOR);
+    static final MethodHandle RECT_RECT_W = handle(Sigs.RECT_RECT_W);
+    static final MethodHandle RECT_RECT = handle(Sigs.RECT_RECT);
+    static final MethodHandle MSG_RANGE = handle(Sigs.MSG_RANGE);
+    static final MethodHandle MSG_V_W_RANGE = handle(Sigs.MSG_V_W_RANGE);
+    static final MethodHandle MSG_V_W_RANGE2 = handle(Sigs.MSG_V_W_RANGE2);
+    static final MethodHandle MSG_W_RANGE_W = handle(Sigs.MSG_W_RANGE_W);
+    static final MethodHandle MSG_RECT_RANGE_W = handle(Sigs.MSG_RECT_RANGE_W);
+    static final MethodHandle MSG_W_POINT = handle(Sigs.MSG_W_POINT);
 
     // Calls of functions whose arguments and result are words.
 

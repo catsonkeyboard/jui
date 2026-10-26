@@ -45,6 +45,8 @@ public final class ObjC {
     private static final MemorySegment REGISTER_CLASS_PAIR = symbol(LIBOBJC, "objc_registerClassPair");
     private static final MemorySegment ADD_METHOD = symbol(LIBOBJC, "class_addMethod");
     private static final MemorySegment GET_SUPERCLASS = symbol(LIBOBJC, "class_getSuperclass");
+    private static final MemorySegment GET_PROTOCOL = symbol(LIBOBJC, "objc_getProtocol");
+    private static final MemorySegment ADD_PROTOCOL = symbol(LIBOBJC, "class_addProtocol");
     private static final MemorySegment POOL_PUSH = symbol(LIBOBJC, "objc_autoreleasePoolPush");
     private static final MemorySegment POOL_POP = symbol(LIBOBJC, "objc_autoreleasePoolPop");
     // objc_msgSend must be called with the exact signature of the method: on
@@ -65,6 +67,13 @@ public final class ObjC {
             Arena.global().allocate(Sigs.CG_POINT));
     private static final MemorySegment POINT_ARG = Arena.global().allocate(Sigs.CG_POINT);
     private static final MemorySegment IDS_ARG = Arena.global().allocate(JAVA_LONG, 8);
+    private static final MemorySegment RANGE_ARG = Arena.global().allocate(Sigs.NS_RANGE);
+    private static final MemorySegment RANGE_ARG2 = Arena.global().allocate(Sigs.NS_RANGE);
+    private static final SegmentAllocator RANGE_RET = SegmentAllocator.prefixAllocator(
+            Arena.global().allocate(Sigs.NS_RANGE));
+
+    /** NSNotFound: the location of no range. */
+    public static final long NOT_FOUND = Long.MAX_VALUE;
 
     private static final ConcurrentHashMap<String, Long> CLASSES = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Long> SELECTORS = new ConcurrentHashMap<>();
@@ -313,6 +322,114 @@ public final class ObjC {
         }
     }
 
+    /** {@code [obj sel:rect toView:view]} or {@code fromView:}, as {x, y, width, height}. */
+    public static double[] convertRect(long obj, String sel, double x, double y, double width, double height, long view) {
+        try {
+            MemorySegment r = (MemorySegment) Native.RECT_RECT_W.invokeExact(MSG_SEND, RECT_RET, obj, sel(sel),
+                    rect(x, y, width, height), view);
+            return new double[] {
+                r.get(JAVA_DOUBLE, 0), r.get(JAVA_DOUBLE, 8), r.get(JAVA_DOUBLE, 16), r.get(JAVA_DOUBLE, 24)
+            };
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
+    }
+
+    /** {@code [window convertRectToScreen:rect]} or {@code convertRectFromScreen:}, as {x, y, width, height}. */
+    public static double[] convertRect(long obj, String sel, double x, double y, double width, double height) {
+        try {
+            MemorySegment r = (MemorySegment) Native.RECT_RECT.invokeExact(MSG_SEND, RECT_RET, obj, sel(sel),
+                    rect(x, y, width, height));
+            return new double[] {
+                r.get(JAVA_DOUBLE, 0), r.get(JAVA_DOUBLE, 8), r.get(JAVA_DOUBLE, 16), r.get(JAVA_DOUBLE, 24)
+            };
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
+    }
+
+    // Messages of NSTextInputClient's shapes: ranges are (location, length), NOT_FOUND for none.
+
+    /** A message returning an NSRange, written to out as {location, length}. */
+    public static void sendRange(long obj, String sel, long[] out) {
+        try {
+            MemorySegment r = (MemorySegment) Native.MSG_RANGE.invokeExact(MSG_SEND, RANGE_RET, obj, sel(sel));
+            out[0] = r.get(JAVA_LONG, 0);
+            out[1] = r.get(JAVA_LONG, 8);
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
+    }
+
+    /** {@code [obj sel:text range:(location, length)]}, as insertText:replacementRange:. */
+    public static void sendTextRange(long obj, String sel, long text, long location, long length) {
+        try {
+            Native.MSG_V_W_RANGE.invokeExact(MSG_SEND, obj, sel(sel), text, range(RANGE_ARG, location, length));
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
+    }
+
+    /** {@code [obj sel:text range:a range:b]}, as setMarkedText:selectedRange:replacementRange:. */
+    public static void sendTextRanges(long obj, String sel, long text, long selLocation, long selLength,
+                                      long replLocation, long replLength) {
+        try {
+            Native.MSG_V_W_RANGE2.invokeExact(MSG_SEND, obj, sel(sel), text, range(RANGE_ARG, selLocation, selLength),
+                    range(RANGE_ARG2, replLocation, replLength));
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
+    }
+
+    /** {@code [obj sel:range actualRange:pointer]} returning an id, as attributedSubstringForProposedRange:actualRange:. */
+    public static long sendWordRange(long obj, String sel, long location, long length, long actualRange) {
+        try {
+            return (long) Native.MSG_W_RANGE_W.invokeExact(MSG_SEND, obj, sel(sel), range(RANGE_ARG, location, length),
+                    actualRange);
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
+    }
+
+    /** {@code [obj sel:range actualRange:pointer]} returning an NSRect, written to out as {x, y, width, height}. */
+    public static void sendRectRange(long obj, String sel, long location, long length, long actualRange, double[] out) {
+        try {
+            MemorySegment r = (MemorySegment) Native.MSG_RECT_RANGE_W.invokeExact(MSG_SEND, RECT_RET, obj, sel(sel),
+                    range(RANGE_ARG, location, length), actualRange);
+            for (int i = 0; i < 4; i++) {
+                out[i] = r.get(JAVA_DOUBLE, 8L * i);
+            }
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
+    }
+
+    /** {@code [obj sel:(NSPoint){x, y}]} returning a word, as characterIndexForPoint:. */
+    public static long sendWordPoint(long obj, String sel, double x, double y) {
+        try {
+            POINT_ARG.set(JAVA_DOUBLE, 0, x);
+            POINT_ARG.set(JAVA_DOUBLE, 8, y);
+            return (long) Native.MSG_W_POINT.invokeExact(MSG_SEND, obj, sel(sel), POINT_ARG);
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
+    }
+
+    /** Writes an NSRange through an {@code NSRange *}; a null pointer is left alone. */
+    public static void writeRange(long address, long location, long length) {
+        if (address != 0) {
+            MemorySegment r = MemorySegment.ofAddress(address).reinterpret(16);
+            r.set(JAVA_LONG, 0, location);
+            r.set(JAVA_LONG, 8, length);
+        }
+    }
+
+    private static MemorySegment range(MemorySegment arg, long location, long length) {
+        arg.set(JAVA_LONG, 0, location);
+        arg.set(JAVA_LONG, 8, length);
+        return arg;
+    }
+
     private static MemorySegment rect(double x, double y, double width, double height) {
         RECT_ARG.set(JAVA_DOUBLE, 0, x);
         RECT_ARG.set(JAVA_DOUBLE, 8, y);
@@ -341,6 +458,27 @@ public final class ObjC {
 
     public static long superclass(long cls) {
         return Native.call(GET_SUPERCLASS, cls);
+    }
+
+    /**
+     * The protocol named {@code name}. The runtime knows a framework's
+     * protocols once the framework is loaded: AppKit is loaded for one not
+     * found yet. Fails for a protocol that does not exist.
+     */
+    public static long protocol(String name) {
+        long p = withCString(name, n -> Native.call(GET_PROTOCOL, n));
+        if (p == 0) {
+            framework("AppKit");
+            p = withCString(name, n -> Native.call(GET_PROTOCOL, n));
+        }
+        if (p == 0) {
+            throw new IllegalStateException("Objective-C protocol " + name + " not found");
+        }
+        return p;
+    }
+
+    static void addProtocol(long cls, long protocol) {
+        Native.call(ADD_PROTOCOL, cls, protocol);
     }
 
     // Memory management.
