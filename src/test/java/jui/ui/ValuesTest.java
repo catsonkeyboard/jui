@@ -57,4 +57,10 @@ public final class ValuesTest {
         FloatRef f = new FloatRef(1); f.set(3); Check.near(3, f.get());
         Ref<String> r = new Ref<>("a"); r.set("b"); Check.equal("b", r.get());
     }
+
+    public void testThemesHaveMyGosScrollbar() {
+        Check.equal(Color.rgba(0x000000, 0.32f), Theme.light().scrollbar());
+        Check.equal(Color.rgba(0xFFFFFF, 0.35f), Theme.dark().scrollbar());
+        Check.near(6, Theme.light().scrollbarWidth());
+    }
 }

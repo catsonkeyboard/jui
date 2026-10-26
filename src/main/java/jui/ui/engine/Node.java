@@ -60,6 +60,8 @@ public final class Node {
     public boolean clip;
     /** A scroll container's offset (in from its state, out clamped), the offset asked for (NaN none), and its content's height. */
     public float scrollY, scrollRequest, contentH;
+    /** Whether its scroll bar shows (hovered or dragged), and whether its thumb is being dragged. */
+    boolean bars, barDrag;
     public float top, right, bottom, left;
     /** Wraps children onto lines, placed by alignContent (START unless set, as MyGO). */
     public boolean wrap;
@@ -129,6 +131,7 @@ public final class Node {
         absolute = invisible = clip = false;
         scrollY = contentH = 0;
         scrollRequest = Float.NaN;
+        bars = barDrag = false;
         top = right = bottom = left = Float.NaN;
         padTop = padRight = padBottom = padLeft = 0;
         marTop = marRight = marBottom = marLeft = 0;

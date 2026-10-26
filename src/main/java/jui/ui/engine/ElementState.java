@@ -33,6 +33,8 @@ public final class ElementState {
     float wheelFrom, wheelTo;
     long wheelStart;
     boolean wheeling;
+    /** Whether the last frame showed its scroll bar, so a press there takes it. */
+    boolean barsShown;
     /** Whether the element was disabled in the last frame: an element around it may disable it after building it. */
     public boolean disabledLast;
     /** Keys sent to this element while it had focus, for controls that take keys (sliders). */
@@ -61,6 +63,7 @@ public final class ElementState {
         wheelFrom = wheelTo = 0;
         wheelStart = 0;
         wheeling = false;
+        barsShown = false;
         keyCount = 0;
         if (locals != null) {
             locals.clear();

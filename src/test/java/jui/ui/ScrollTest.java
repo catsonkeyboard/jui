@@ -144,4 +144,51 @@ public final class ScrollTest {
         Check.near(60, st.y());                                   // as little as shows it: 160 - 100
         Check.near(60, tt.find("f3").y());                        // its bottom at the view's bottom, in the same frame
     }
+
+    /** The scroll bar's thumb, a 6-wide box in the theme's scrollbar color, or null. */
+    static float[] thumb(Tester tt) {
+        for (int i = 0; i < tt.instances(); i++) {
+            float[] in = tt.scene().instance(i);
+            if (in[18] == 0 && Math.abs(in[2] - 6) < 0.01 && Math.abs(in[11] - 0.32f) < 0.01) return in;
+        }
+        return null;
+    }
+
+    public void testTheBarShowsWhileThePointerIsOverTheContainer() {
+        Tester tt = Tester.of(view, 400, 300);
+        tt.frame();
+        Check.isTrue(thumb(tt) == null, "hidden without hover");
+        tt.hover("s");
+        float[] t = thumb(tt);
+        Check.near(10 + 200 - 6 - 3, t[0]);
+        Check.near(24, t[3]);                                     // 96 * 100 / 400 = 24, the minimum
+        Check.near(10 + 2, t[1]);
+    }
+
+    public void testDraggingTheThumbScrolls() {
+        Tester tt = Tester.of(view, 400, 300);
+        tt.hover("s");
+        float[] t = thumb(tt);
+        float x = t[0] + 3, y = t[1] + 12;
+        tt.press(x, y);
+        tt.move(x, y + 36);                                       // half of the travel, 96 - 24 = 72
+        Check.near(150, st.y());
+        tt.release(x, y + 36);
+    }
+
+    public void testClickingTheTrackPages() {
+        Tester tt = Tester.of(view, 400, 300);
+        tt.hover("s");
+        float[] t = thumb(tt);
+        tt.press(t[0] + 3, t[1] + 60); tt.release(t[0] + 3, t[1] + 60);
+        Check.near(90, st.y());                                   // 0.9 of the 100-high view
+        Check.equal(0, clicks[1]);                                // the press stayed with the bar
+    }
+
+    public void testNoBarWhenTheContentFits() {
+        rows = 2;
+        Tester tt = Tester.of(view, 400, 300);
+        tt.hover("s");
+        Check.isTrue(thumb(tt) == null, "nothing to scroll");
+    }
 }

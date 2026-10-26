@@ -72,6 +72,13 @@ final class Paint {
                         Math.min(n.radiusBR, half), Math.min(n.radiusBL, half), 0, n.border, borderColor);
             }
         }
+        if (n.bars) {
+            // The scroll bar's thumb, over the content (as MyGO's paint.go); a dragged one is 2 wider.
+            float w = theme.scrollbarWidth() + (n.barDrag ? 2 : 0);
+            float length = ScrollBar.thumbLength(n.h, n.contentH), top = ScrollBar.thumbTop(n.y, n.h, n.contentH, n.scrollY);
+            scene.box(n.x + n.w - theme.scrollbarWidth() - 3 - (n.barDrag ? 1 : 0), top, w, length, w / 2,
+                    fade(theme.scrollbar().rgba(), o));
+        }
         // The focus ring goes over the children: 3 DIPs out, 2 wide (as MyGO's paint.go).
         if (n.ring || ringId != 0 && n.id == ringId && !n.noFocusRing) {
             scene.box(n.x - 3, n.y - 3, n.w + 6, n.h + 6, Math.min(n.radiusTL, half) + 3,

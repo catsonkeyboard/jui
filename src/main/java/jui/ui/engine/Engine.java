@@ -336,6 +336,14 @@ public final class Engine {
                 n.hot = !n.disabled && input.hoveredNode(n);
                 n.down = !n.disabled && input.downNode(n);
             }
+            if ((n.flags & Node.SCROLL) != 0) {
+                // Its bar shows while the pointer is over it or its thumb is dragged, if it has room to scroll.
+                n.barDrag = input.dragId == n.id;
+                n.bars = (n.barDrag || input.hovering(n.id)) && n.contentH > n.h + 0.5f;
+                if (n.state != null) {
+                    n.state.barsShown = n.bars;
+                }
+            }
         }
     }
 

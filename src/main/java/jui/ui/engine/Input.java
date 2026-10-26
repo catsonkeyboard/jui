@@ -32,6 +32,10 @@ final class Input {
 
     private int[][] scratch = {new int[16]};
 
+    /** A scroll bar's thumb being dragged: its container (0 for none), the offset, reach and pointer y it started from, and its travel. */
+    long dragId;
+    private float dragFrom, dragReach, dragStartY, dragTravel;
+
     // Focus: the focused identity (0 for none), whether its ring shows, and the window's key state.
     long focusedId;
     boolean focusVisible;
@@ -69,6 +73,17 @@ final class Input {
     void pointerMove(float x, float y, int mods) {
         float dx = x - pointerX, dy = y - pointerY;
         place(x, y, mods);
+        if (dragId != 0) {
+            // The thumb follows the pointer as a share of the travel (as MyGO's dragTo).
+            ElementState s = engine.states().get(dragId);
+            if (s != null) {
+                float reach = Math.max(0, s.contentH - s.h);
+                float f = (dragReach > 0 ? dragFrom / dragReach : 0) + (y - dragStartY) / Math.max(1, dragTravel);
+                s.scrollY = Math.max(0, Math.min(1, f)) * reach;
+                engine.requestFrame();
+            }
+            return;
+        }
         if (pressedId != 0) {
             ElementState s = engine.states().get(pressedId);
             if (s != null) {
@@ -87,6 +102,9 @@ final class Input {
         place(x, y, mods);
         if (pressedId == 0) {
             rehover();
+        }
+        if (button == 0 && barPress(x, y)) {
+            return;
         }
         if (button == 0) {
             // Focus goes to the innermost enabled focusable element under the pointer, or nowhere.
@@ -134,6 +152,12 @@ final class Input {
 
     void pointerUp(float x, float y, int button, int mods) {
         place(x, y, mods);
+        if (dragId != 0 && button == 0) {
+            dragId = 0;
+            rehover();
+            engine.requestFrame();
+            return;
+        }
         if (pressedId != 0 && button == pressButton) {
             int i = hits.indexOf(pressedId);
             ElementState s = engine.states().get(pressedId);
@@ -395,6 +419,47 @@ final class Input {
             }
         }
         return false;
+    }
+
+    /**
+     * A press on a shown scroll bar, before anything else takes it (as
+     * MyGO's scrollbarPress): on the thumb it starts a drag, elsewhere on
+     * the track it pages by 0.9 of the view. Reports whether a bar took it.
+     */
+    private boolean barPress(float x, float y) {
+        float width = engine.theme().scrollbarWidth();
+        for (int k = 0; k < hoverCount; k++) {
+            if ((hoverFlags[k] & Node.SCROLL) == 0) {
+                continue;
+            }
+            ElementState s = engine.states().get(hoverIds[k]);
+            if (s == null || !s.barsShown) {
+                continue;
+            }
+            float right = s.x + s.w;
+            if (x < right - width - 6 || x >= right || y < s.y || y >= s.y + s.h) {
+                continue;
+            }
+            float length = ScrollBar.thumbLength(s.h, s.contentH), top = ScrollBar.thumbTop(s.y, s.h, s.contentH, s.scrollY);
+            s.wheeling = false;
+            if (y >= top && y < top + length) {
+                dragId = s.id;
+                dragFrom = s.scrollY;
+                dragReach = Math.max(0, s.contentH - s.h);
+                dragStartY = y;
+                dragTravel = Math.max(0, s.h - 4 - length);
+            } else {
+                float max = Math.max(0, s.contentH - s.h);
+                s.scrollY = Math.max(0, Math.min(max, s.scrollY + (y < top ? -0.9f : 0.9f) * s.h));
+            }
+            engine.requestFrame();
+            return true;
+        }
+        return false;
+    }
+
+    boolean hovering(long id) {
+        return inChain(id);
     }
 
     /** A wheel glides over 150 ms, eased out (as MyGO's wheel.go). */
