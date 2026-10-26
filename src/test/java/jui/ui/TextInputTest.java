@@ -193,4 +193,60 @@ public final class TextInputTest {
         Check.equal("abni", tt.engine().textIn(0, 99));
         Check.equal(4, tt.engine().textLength());
     }
+
+    public void testACompositionAfterOneTheWindowCommittedIsItsOwnUndoStep() { // final review #1
+        TextRef q = new TextRef("");
+        Tester tt = Tester.of(c -> textInput(c, q).placeholder("搜索"), 300, 200);
+        tt.click("搜索");
+        tt.compose("ni", 2);
+        tt.engine().windowFocusChanged(false);             // the window goes to the back: "ni" is committed
+        tt.settle();
+        tt.engine().windowFocusChanged(true);
+        tt.settle();
+        tt.compose("hao", 3);
+        tt.type("好");
+        Check.equal("ni好", q.get());
+        tt.key(Shortcut.cmd(Key.Z));
+        Check.equal("ni", q.get());
+    }
+
+    /** A host that notes whether a composition was still open when the input method was told to discard it. */
+    static final class OrderHost implements jui.ui.engine.Host {
+        jui.ui.engine.Engine engine;
+        final java.util.List<Boolean> composingAtDiscard = new java.util.ArrayList<>();
+        public String readClipboard() { return null; }
+        public void writeClipboard(String s) {}
+        public void setCursor(Cursor c) {}
+        public void discardMarkedText() { composingAtDiscard.add(engine.textComposing()); }
+        public void textInputChanged() {}
+    }
+
+    public void testTheCompositionIsCommittedBeforeTheInputMethodIsToldToDiscardIt() { // final review #4
+        TextRef q = new TextRef("");
+        Tester tt = Tester.of(c -> textInput(c, q).label("in"), 300, 200);
+        OrderHost host = new OrderHost();
+        host.engine = tt.engine();
+        tt.click("in");
+        tt.engine().setHost(host);
+        tt.compose("ni", 2);
+        tt.click("in");                                    // a press in the input commits it
+        tt.compose("hao", 3);
+        tt.command(EditCommand.SELECT_ALL);                // so does a menu command
+        Check.equal(java.util.List.of(false, false), host.composingAtDiscard);
+        Check.equal("nihao", q.get());
+    }
+
+    public void testAValueWithALineBreakShowsOnOneLine() { // final review #7
+        TextRef one = new TextRef("ab"), two = new TextRef("a\nb");
+        Tester tt = Tester.of(c -> column(c).children(() -> {
+            textInput(c, one).label("one");
+            textInput(c, two).label("two");
+        }), 300, 200);
+        tt.frame();
+        Check.near(tt.find("one").height(), tt.find("two").height());
+        Check.isTrue(tt.find("a b") != null, "the break shows as a space");
+        Check.equal("a\nb", two.get());                   // the app's value is left as it is until the user edits
+        tt.frame();
+        Check.equal("a\nb", two.get());
+    }
 }

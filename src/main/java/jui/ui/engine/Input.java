@@ -164,7 +164,8 @@ final class Input {
                 if ((pressFlags & Node.TEXT_INPUT) != 0 && (pressFlags & HitList.DISABLED) == 0 && e != null
                         && e.layout != null) {
                     if (e.composing()) {
-                        engine.host().discardMarkedText(); // the press commits it
+                        e.unmark(engine.clockNow()); // the press commits it; then the input method forgets it
+                        engine.host().discardMarkedText();
                     }
                     e.press(e.layout.indexAt(x - e.originX), count, (mods & jui.ui.Mod.SHIFT) != 0);
                     blinkStart = engine.clockNow();
@@ -573,9 +574,10 @@ final class Input {
         edited(now);
     }
 
-    /** Runs a command, through the host's clipboard; a composition it commits, the input method forgets. */
+    /** Runs a command, through the host's clipboard; the composition is committed first, and the input method forgets it. */
     private void runCommand(TextEdit e, jui.ui.EditCommand c, long now) {
         if (e.composing()) {
+            e.unmark(now);
             engine.host().discardMarkedText();
         }
         String clipboard = c == jui.ui.EditCommand.PASTE ? engine.host().readClipboard() : null;

@@ -311,7 +311,7 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 
 - **文件列表示例**：顶部加了搜索框，按标题过滤，输入时实时更新；拼音组字期间不过滤，选词提交后才过滤。
 - **待办清单**：可以输入新待办的标题，按回车或点“添加”。
-- **测试**：`./build.sh test`，275 个测试全部通过。
+- **测试**：`./build.sh test`，278 个测试全部通过。
 - **分配**（`./build.sh alloc`，native image）：20 个输入框、其中一个获得焦点且光标在闪烁的帧，框架内部每个输入框分配 0 字节。
 - **签名检查**（`./build.sh ffi-check`）：接受和返回 `NSRange`、`NSRect`、`NSPoint` 的 Objective-C 方法，在 JVM 和 native image 下都能调用。漏登记一个签名，要到输入法第一次调用时才会崩溃，所以单独检查。
 - **滚动帧耗时**（`./build.sh listbench`）：p95 0.23 ms，最大 0.33 ms，仍在门槛内。
@@ -322,6 +322,7 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - 和别的应用之间 ⌘C、⌘V；⌘Z；
 - 输入框上是 I 形指针；
 - 组字时点别处，组字被提交，候选框消失；
+- 在 A 框里组字时点进 B 框：文字只出现一次，留在 A 框里；
 - M3 遗留的一项：按 Tab 时滚进视野。
 
 **推迟到后面的**

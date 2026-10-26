@@ -62,12 +62,12 @@ public final class TextEdit {
     public float clipX0, clipY0, clipX1, clipY1;
     public float scrollX;
 
-    /** An edit of text, the caret and the anchor at its end. */
+    /** An edit of text, on one line, the caret and the anchor at its end. */
     public TextEdit(String text) {
-        this.text = text == null ? "" : text;
+        this.text = singleLine(text);
         this.stops = TextBounds.graphemes(this.text);
         this.anchor = this.caret = this.text.length();
-        this.synced = this.text;
+        this.synced = text == null ? "" : text;
     }
 
     public String text() {
@@ -305,7 +305,9 @@ public final class TextEdit {
                 a = selStart();
                 z = selEnd();
             }
-            if (!compositionActive) {
+            // A new composition is a step of its own, even after one that unmarkText committed
+            // (as MyGO); a replacement inside a composition joins its step.
+            if (!(compositionActive && !compose.isEmpty())) {
                 record(false, now);
                 compositionActive = true;
             }
@@ -472,10 +474,12 @@ public final class TextEdit {
     /**
      * The app changed the value: the caret and the anchor are clamped, the
      * composition goes, the last undo step ends at the new text and redo
-     * is cleared (as MyGO's setText).
+     * is cleared (as MyGO's setText). synced keeps the value as the app
+     * gave it, line breaks and all, so it is not taken for a new change.
      */
     public void setText(String s) {
-        text = s == null ? "" : s;
+        text = singleLine(s); // a line break the app gives shows as a space: the input is one line
+        synced = s == null ? "" : s;
         stops = TextBounds.graphemes(text);
         compose = "";
         display = null;
@@ -490,7 +494,6 @@ public final class TextEdit {
             last.afterCaret = caret;
         }
         redo.clear();
-        synced = text;
         dirty = false;
     }
 
