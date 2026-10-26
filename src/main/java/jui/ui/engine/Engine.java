@@ -399,12 +399,16 @@ public final class Engine {
                     s.viewH = s.ch;
                     s.requestY = Float.NaN;
                 }
+                if (n.kind == Node.INPUT && s.edit != null && n.layout != null) {
+                    inputGeometry(n, s);
+                }
             }
         }
         states.prune(frame, pass);
         input.commitFocus();
         input.commitShortcuts();
         input.rehover();
+        input.updateCursor();
         input.updateTextInput();
         // The looks that hover and press pick at paint, as the pointer stands now.
         for (int i = 0; i < pool.size(); i++) {
@@ -438,7 +442,9 @@ public final class Engine {
             return;
         }
         int h = hits.size;
-        hits.add(n.id, n.x, n.y, n.w, n.h, parentHit, n.disabled ? n.flags | HitList.DISABLED : n.flags,
+        // A text input without a cursor of its own shows the I-beam.
+        byte cursor = n.cursor != 0 ? n.cursor : n.kind == Node.INPUT ? (byte) (jui.ui.Cursor.TEXT.ordinal() + 1) : 0;
+        hits.add(n.id, n.x, n.y, n.w, n.h, parentHit, n.disabled ? n.flags | HitList.DISABLED : n.flags, cursor,
                 cx0, cy0, cx1, cy1);
         if (n.clip) { // what it holds takes the pointer only inside its padding box
             cx0 = Math.max(cx0, n.x + n.border);
@@ -456,6 +462,44 @@ public final class Engine {
                 commitHits(c, h, cx0, cy0, cx1, cy1);
             }
         }
+    }
+
+    /**
+     * A text input's geometry, for paint, presses and the input method: its
+     * line, centered in the content box, and its horizontal scroll (as
+     * MyGO's layoutInput): with focus, the least move that keeps the caret in
+     * view; without, the start of the text.
+     */
+    private void inputGeometry(Node n, ElementState s) {
+        TextEdit e = s.edit;
+        jui.text.TextLayout l = n.layout;
+        float cx = n.x + n.padLeft + n.border, cy = n.y + n.padTop + n.border;
+        float cw = Math.max(0, n.w - n.padLeft - n.padRight - 2 * n.border);
+        float ch = Math.max(0, n.h - n.padTop - n.padBottom - 2 * n.border);
+        float lineH = Math.max(text.lineHeight(n.resolvedSize, n.resolvedWeight), l.height);
+        float top = cy + Math.max((ch - lineH) / 2, 0);
+        if (input.focusedId != n.id) {
+            e.scrollX = 0;
+        } else {
+            float x = l.caretX(e.displayCaret());
+            if (x - e.scrollX < 0) {
+                e.scrollX = x;
+            } else if (x - e.scrollX > cw - 1) {
+                e.scrollX = x - cw + 1;
+            }
+        }
+        e.scrollX = Math.max(0, Math.min(e.scrollX, Math.max(l.width - cw + 1, 0)));
+        e.layout = l;
+        e.originX = cx - e.scrollX;
+        e.lineTop = top;
+        e.lineH = lineH;
+        e.clipX0 = n.x + n.border;
+        e.clipY0 = n.y + n.border;
+        e.clipX1 = n.x + n.w - n.border;
+        e.clipY1 = n.y + n.h - n.border;
+        n.inputX = e.originX;
+        n.inputTop = top;
+        n.inputLineH = lineH;
     }
 
     /** Whether the node or one inside it has identity id. */
@@ -1047,6 +1091,65 @@ public final class Engine {
     public String textIn(int start, int end) {
         TextEdit e = input.activeEdit();
         return e == null ? null : e.substring(start, end);
+    }
+
+    /**
+     * The rect of [start, end) of the shown text, in window DIPs, for the
+     * input method's candidate window (as MyGO's BoundsForRange): the caret,
+     * 1 wide, for an empty range, else the range's first grapheme cluster,
+     * whose end goes to out[4] when out has room. False without a text
+     * input, or when the rect is outside the input's padding box.
+     */
+    public boolean textRect(int start, int end, float[] out) {
+        TextEdit e = input.activeEdit();
+        if (e == null || e.layout == null) {
+            return false;
+        }
+        jui.text.TextLayout l = e.layout;
+        int n = l.length();
+        int a = Math.max(0, Math.min(start, n)), z = Math.max(a, Math.min(end, n));
+        float x = e.originX + l.caretX(a), w = 1;
+        int actual = a;
+        if (z > a) {
+            actual = Math.min(l.stopAfter(a), z);
+            w = Math.max(1, l.caretX(actual) - l.caretX(a));
+        }
+        float y = e.lineTop, h = e.lineH;
+        if (x + w < e.clipX0 || x > e.clipX1 || y + h < e.clipY0 || y > e.clipY1) {
+            return false;
+        }
+        out[0] = x;
+        out[1] = y;
+        out[2] = w;
+        out[3] = h;
+        if (out.length >= 5) {
+            out[4] = actual;
+        }
+        return true;
+    }
+
+    /** The caret's rect in window DIPs, as textRect gives it; false without a text input. */
+    public boolean textCaretRect(float[] out) {
+        TextEdit e = input.activeEdit();
+        return e != null && textRect(e.displayCaret(), e.displayCaret(), out);
+    }
+
+    /** The index of the shown text nearest the point in window DIPs, or -1 without a text input. */
+    public int textIndexAt(float x, float y) {
+        TextEdit e = input.activeEdit();
+        if (e == null || e.layout == null) {
+            return -1;
+        }
+        return e.layout.indexAt(x - e.originX);
+    }
+
+    /** The horizontal scroll of the text input showing or labeled s, or NaN: for Tester. */
+    public float textScroll(String s) {
+        int i = find(s);
+        if (i == Node.NONE || pool.node(i).state == null || pool.node(i).state.edit == null) {
+            return Float.NaN;
+        }
+        return pool.node(i).state.edit.scrollX;
     }
 
     /** A command of the Edit menu: for the text input, else as its key, for shortcuts. */

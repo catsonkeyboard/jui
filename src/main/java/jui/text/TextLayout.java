@@ -94,6 +94,14 @@ public final class TextLayout {
         return width;
     }
 
+    /** The caret stop after {@code index}: the end of its grapheme cluster; the length at the end. */
+    public int stopAfter(int index) {
+        if (stops == null) {
+            stops = TextBounds.graphemes(text);
+        }
+        return TextBounds.after(stops, index);
+    }
+
     /**
      * The caret stop nearest {@code x}, from the line's left: a grapheme
      * cluster boundary, so never inside an emoji or between a letter and its

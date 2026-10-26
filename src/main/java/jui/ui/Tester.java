@@ -172,6 +172,25 @@ public final class Tester {
         return new int[] {r[0], r[0] + r[1]};
     }
 
+    /** The caret of the text input with focus, in window DIPs, as the input method sees it; null without one. */
+    public Rect textCaret() {
+        started();
+        float[] r = new float[4];
+        return engine.textCaretRect(r) ? new Rect(r[0], r[1], r[2], r[3]) : null;
+    }
+
+    /** How far the text input showing or labeled s has scrolled its text. */
+    public float textScroll(String s) {
+        started();
+        find(s);
+        return engine.textScroll(s);
+    }
+
+    /** The pointer's shape, as last set. */
+    public Cursor cursor() {
+        return host.cursor;
+    }
+
     /** Whether the element showing or labeled s, or one around it, has focus. */
     public boolean focused(String s) {
         started();

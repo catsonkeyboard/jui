@@ -102,6 +102,15 @@ public final class Element {
         return this;
     }
 
+    /** The pointer's shape over the element (a text input's is TEXT unless set). */
+    public Element cursor(Cursor shape) {
+        Node n = node();
+        if (n != null) {
+            n.cursor = (byte) (shape.ordinal() + 1);
+        }
+        return this;
+    }
+
     /** What an empty text input shows, in the theme's muted text color. Only for text inputs. */
     public Element placeholder(String text) {
         Node n = node();

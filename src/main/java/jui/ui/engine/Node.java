@@ -90,6 +90,10 @@ public final class Node {
     public boolean singleLine;
     /** A text input's placeholder, shown while it is empty; its shown text is in text. */
     public String placeholder;
+    /** The pointer's shape over the element: 0 unset, else a Cursor's ordinal plus 1. */
+    public byte cursor;
+    /** A text input's paint, from the commit: its text's origin x, its line's top and height. */
+    public float inputX, inputTop, inputLineH;
 
     // Visual, colors as 0xRRGGBBAA.
     public int background, borderColor, shadowColor;
@@ -157,6 +161,8 @@ public final class Node {
         fontWeight = 0;
         singleLine = false;
         placeholder = null;
+        cursor = 0;
+        inputX = inputTop = inputLineH = 0;
 
         background = borderColor = shadowColor = 0;
         radiusTL = radiusTR = radiusBR = radiusBL = 0;

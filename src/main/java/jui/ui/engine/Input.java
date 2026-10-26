@@ -20,6 +20,7 @@ final class Input {
     /** The hover chain, innermost first: identities and their flags when the chain was found. */
     long[] hoverIds = new long[16];
     int[] hoverFlags = new int[16];
+    byte[] hoverCursors = new byte[16];
     int hoverCount;
 
     /** The element a button is held on (0 for none), the button, and its flags at the press. */
@@ -62,6 +63,8 @@ final class Input {
     /** The text input that takes text, as last told to the platform (0 for none), and its editing. */
     private long textClient;
     private TextEdit clientEdit;
+    /** The caret's rect as the input method last heard of it (x, top, height). */
+    private float caretX = Float.NaN, caretY, caretH;
 
     /** The key this frame delivers in its first pass: to an identity (0 the window), or to whoever claims it. */
     private jui.ui.Key deliveredKey;
@@ -95,6 +98,10 @@ final class Input {
             if (s != null) {
                 s.dragX += dx;
                 s.dragY += dy;
+                TextEdit e = s.edit;
+                if (pressButton == 0 && (pressFlags & Node.TEXT_INPUT) != 0 && e != null && e.layout != null) {
+                    e.drag(e.layout.indexAt(x - e.originX)); // selects as the pointer moves (as MyGO's editor.drag)
+                }
             }
             if ((pressFlags & (Node.HOVER | Node.DRAG)) != 0) {
                 engine.requestFrame();
@@ -102,6 +109,7 @@ final class Input {
         } else {
             rehover();
         }
+        updateCursor();
     }
 
     void pointerDown(float x, float y, int button, int clickCount, int mods) {
@@ -152,8 +160,18 @@ final class Input {
                 if (count == 2) {
                     s.doubleClicks++;
                 }
+                TextEdit e = s.edit;
+                if ((pressFlags & Node.TEXT_INPUT) != 0 && (pressFlags & HitList.DISABLED) == 0 && e != null
+                        && e.layout != null) {
+                    if (e.composing()) {
+                        engine.host().discardMarkedText(); // the press commits it
+                    }
+                    e.press(e.layout.indexAt(x - e.originX), count, (mods & jui.ui.Mod.SHIFT) != 0);
+                    blinkStart = engine.clockNow();
+                }
             }
         }
+        updateCursor();
         engine.requestFrame();
     }
 
@@ -181,6 +199,7 @@ final class Input {
             pressedId = 0;
         }
         rehover();
+        updateCursor();
         engine.requestFrame();
     }
 
@@ -418,6 +437,41 @@ final class Input {
         engine.requestFrame();
     }
 
+    // The pointer's shape.
+
+    private static final jui.ui.Cursor[] CURSORS = jui.ui.Cursor.values();
+    private jui.ui.Cursor cursor = jui.ui.Cursor.DEFAULT;
+
+    /**
+     * The pointer's shape, as MyGO's updateCursor: while a button is held,
+     * the pressed element's; else the first of the hover chain, innermost
+     * first, that sets one, up to a clickable element. The host hears of a
+     * change only.
+     */
+    void updateCursor() {
+        jui.ui.Cursor c = jui.ui.Cursor.DEFAULT;
+        if (pressedId != 0) {
+            int i = hits.indexOf(pressedId);
+            if (i >= 0 && hits.cursor[i] != 0) {
+                c = CURSORS[hits.cursor[i] - 1];
+            }
+        } else if (pointerInside) {
+            for (int k = 0; k < hoverCount; k++) {
+                if (hoverCursors[k] != 0) {
+                    c = CURSORS[hoverCursors[k] - 1];
+                    break;
+                }
+                if ((hoverFlags[k] & Node.CLICKABLE) != 0) {
+                    break;
+                }
+            }
+        }
+        if (c != cursor) {
+            cursor = c;
+            engine.host().setCursor(c);
+        }
+    }
+
     // Text input.
 
     /** The editing of the text input that takes text now, or null: it has focus, is enabled, and the window is focused. */
@@ -443,6 +497,16 @@ final class Input {
         TextEdit e = activeEdit();
         long client = e == null ? 0 : focusedId;
         if (client == textClient && e == clientEdit) {
+            // The same input: the input method asks again where the caret is once it moved.
+            if (e != null && e.layout != null) {
+                float x = e.originX + e.layout.caretX(Math.min(e.displayCaret(), e.layout.length()));
+                if (x != caretX || e.lineTop != caretY || e.lineH != caretH) {
+                    caretX = x;
+                    caretY = e.lineTop;
+                    caretH = e.lineH;
+                    engine.host().textInputChanged();
+                }
+            }
             return;
         }
         if (clientEdit != null && clientEdit.composing()) {
@@ -790,6 +854,7 @@ final class Input {
         if (same) {
             for (int k = 0; k < n; k++) {
                 hoverFlags[k] = hits.flags[idx[k]];
+                hoverCursors[k] = hits.cursor[idx[k]];
             }
             return;
         }
@@ -797,10 +862,12 @@ final class Input {
         if (n > hoverIds.length) {
             hoverIds = Arrays.copyOf(hoverIds, n * 2);
             hoverFlags = Arrays.copyOf(hoverFlags, n * 2);
+            hoverCursors = Arrays.copyOf(hoverCursors, n * 2);
         }
         for (int k = 0; k < n; k++) {
             hoverIds[k] = hits.ids[idx[k]];
             hoverFlags[k] = hits.flags[idx[k]];
+            hoverCursors[k] = hits.cursor[idx[k]];
         }
         hoverCount = n;
         if (hovering || involvesHover()) {

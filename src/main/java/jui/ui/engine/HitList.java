@@ -15,6 +15,8 @@ final class HitList {
     float[] x = new float[64], y = new float[64], w = new float[64], h = new float[64];
     int[] parent = new int[64];
     int[] flags = new int[64];
+    /** The pointer's shape over each entry: 0 unset, else a Cursor's ordinal plus 1. */
+    byte[] cursor = new byte[64];
     /** The clip of each entry's clipping ancestors, intersected; infinite for none. */
     float[] clipX0 = new float[64], clipY0 = new float[64], clipX1 = new float[64], clipY1 = new float[64];
     int size;
@@ -23,7 +25,7 @@ final class HitList {
         size = 0;
     }
 
-    void add(long id, float bx, float by, float bw, float bh, int parentIndex, int nodeFlags,
+    void add(long id, float bx, float by, float bw, float bh, int parentIndex, int nodeFlags, byte nodeCursor,
              float cx0, float cy0, float cx1, float cy1) {
         if (size == ids.length) {
             int n = size * 2;
@@ -34,6 +36,7 @@ final class HitList {
             h = Arrays.copyOf(h, n);
             parent = Arrays.copyOf(parent, n);
             flags = Arrays.copyOf(flags, n);
+            cursor = Arrays.copyOf(cursor, n);
             clipX0 = Arrays.copyOf(clipX0, n);
             clipY0 = Arrays.copyOf(clipY0, n);
             clipX1 = Arrays.copyOf(clipX1, n);
@@ -46,6 +49,7 @@ final class HitList {
         h[size] = bh;
         parent[size] = parentIndex;
         flags[size] = nodeFlags;
+        cursor[size] = nodeCursor;
         clipX0[size] = cx0;
         clipY0[size] = cy0;
         clipX1[size] = cx1;
