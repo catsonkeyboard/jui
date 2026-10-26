@@ -306,6 +306,38 @@ public final class Ui {
         return sliderBase(c, value, lo, hi, step).height(20).minWidth(80).padding(0, 10);
     }
 
+    /**
+     * A single-line text input without looks, bound to ref: it takes focus,
+     * keys, the input method's text, the clipboard and the pointer; style it
+     * as you like (as MyGO's TextInputBase).
+     */
+    public static Element textInputBase(Context c, TextRef ref) {
+        Element e = open(c, Node.INPUT, false, Align.STRETCH);
+        Node n = e.node();
+        if (n == null) {
+            return e;
+        }
+        n.flags |= Node.FOCUSABLE | Node.HOVER | Node.DRAG | Node.TEXT_INPUT;
+        n.clip = true;
+        c.engine().textInput(e.index, ref);
+        return e;
+    }
+
+    /** A single-line text input bound to ref, on the theme's surface (as MyGO's TextInput). */
+    public static Element textInput(Context c, TextRef ref) {
+        Theme t = c.theme();
+        Element e = textInputBase(c, ref);
+        Node n = e.node();
+        if (n == null) {
+            return e;
+        }
+        e.padding(6, 10).radius(t.radius());
+        n.background = t.surface().rgba();
+        n.border = 1;
+        n.borderColor = t.border().rgba();
+        return e;
+    }
+
     /** a mixed a share t of the way to b, as 0xRRGGBBAA, without making a Color. */
     private static int mix(Color a, Color b, float t) {
         return mix(a.rgba(), b.rgba(), t);

@@ -94,6 +94,27 @@ public final class Element {
         return this;
     }
 
+    /** Runs action once this pass's view is built, if Enter was pressed in the element's text input. */
+    public Element onSubmit(Runnable action) {
+        if (node() != null) {
+            c.engine().onSubmit(index, action);
+        }
+        return this;
+    }
+
+    /** What an empty text input shows, in the theme's muted text color. Only for text inputs. */
+    public Element placeholder(String text) {
+        Node n = node();
+        if (n != null) {
+            if (n.kind != Node.INPUT) {
+                Dev.fail("placeholder is for text inputs");
+            } else {
+                n.placeholder = text;
+            }
+        }
+        return this;
+    }
+
     /** Runs action once this pass's view is built, if the element was clicked. */
     public Element onClick(Runnable action) {
         if (node() != null) {
@@ -554,6 +575,11 @@ public final class Element {
      */
     public float animate(String key, float target, java.time.Duration d) {
         return node() == null ? target : c.engine().animate(index, key, target, Math.max(1_000_000, d.toNanos()));
+    }
+
+    /** Whether Enter was pressed in the element's text input (never while composing). */
+    public boolean submitted() {
+        return node() != null && c.engine().submitted(index);
     }
 
     /** Whether the element's control changed its bound value in this pass. */

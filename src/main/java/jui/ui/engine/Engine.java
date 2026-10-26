@@ -24,6 +24,9 @@ public final class Engine {
     private final Input input = new Input(this, hits);
     private final Actions clickActions = new Actions();
     private final Actions changeActions = new Actions();
+    private final Actions submitActions = new Actions();
+    /** The platform: clipboard, cursor, input method. A window sets its own; Tester's is in memory. */
+    private Host host = new Host.Memory();
     private final Context context;
     private final FlexLayout layout = new FlexLayout(pool, this::measure);
 
@@ -168,13 +171,16 @@ public final class Engine {
             }
         }
         // Callbacks run once the whole view is built, so they may change what it
-        // iterated: changes first, then focus requests, then clicks (as MyGO).
+        // iterated: changes first, then focus requests, then submits, then clicks (as MyGO,
+        // which has no submit callbacks).
         try {
             consumed |= changeActions.run(pool);
             applyFocusRequest();
+            consumed |= submitActions.run(pool);
             consumed |= clickActions.run(pool);
         } finally {
             changeActions.clear();
+            submitActions.clear();
             clickActions.clear();
         }
     }
@@ -240,6 +246,53 @@ public final class Engine {
         focusRequest = id;
     }
 
+    /**
+     * The node's text input, bound to ref: syncs its editing with the value
+     * (the app's change wins; else the user's edits are written back and
+     * reported), drops a composition while disabled, and shows the text.
+     */
+    public void textInput(int index, jui.ui.TextRef ref) {
+        Node n = pool.node(index);
+        ElementState s = state(index);
+        TextEdit e = s.edit;
+        String value = ref.get();
+        if (e == null) {
+            e = s.edit = new TextEdit(value);
+        } else if (!value.equals(e.synced)) {
+            boolean composing = e.composing();
+            e.setText(value); // the app's value, over any edit since (as MyGO)
+            if (composing) {
+                host.discardMarkedText();
+            }
+        } else if (e.dirty) {
+            e.dirty = false;
+            e.synced = e.text();
+            ref.set(e.synced);
+            markChanged(index);
+        }
+        if (off(n) && e.composing()) {
+            e.setMarked("", 0, 0, -1, 0, now);
+            host.discardMarkedText();
+        }
+        n.text = e.display();
+    }
+
+    /** Runs action once this pass's view is built: Enter was pressed in the node's text input. */
+    public void onSubmit(int index, Runnable action) {
+        if (submitted(index)) {
+            submitActions.add(index, action);
+        }
+    }
+
+    /** Whether Enter was pressed in the node's text input since the last pass that built it. */
+    public boolean submitted(int index) {
+        Node n = pool.node(index);
+        ElementState s = state(index);
+        boolean k = !off(n) && s.submits > 0;
+        consumed |= k;
+        return k;
+    }
+
     /** Runs action once this pass's view is built: the node was clicked. */
     public void onClick(int index, Runnable action) {
         if (clicks(index) > 0) {
@@ -253,6 +306,7 @@ public final class Engine {
             ElementState s = pool.node(i).state;
             if (s != null && s.seenFrame == frame && s.seenPass == pass) {
                 s.clicks = s.rightClicks = s.doubleClicks = 0;
+                s.submits = 0;
                 s.pressPending = false;
                 s.changed = false;
                 s.dragX = s.dragY = 0;
@@ -351,6 +405,7 @@ public final class Engine {
         input.commitFocus();
         input.commitShortcuts();
         input.rehover();
+        input.updateTextInput();
         // The looks that hover and press pick at paint, as the pointer stands now.
         for (int i = 0; i < pool.size(); i++) {
             Node n = pool.node(i);
@@ -929,6 +984,76 @@ public final class Engine {
         return hit;
     }
 
+    // Text input, for the platform: on the main thread, between frames. Without a text input that
+    // takes text (focused, enabled, in a focused window) they do nothing.
+
+    public void setHost(Host host) {
+        this.host = host;
+    }
+
+    public Host host() {
+        return host;
+    }
+
+    /** Whether a text input takes text now: the platform sends keys through its input method then. */
+    public boolean textActive() {
+        return input.activeEdit() != null;
+    }
+
+    /** Whether the text input is composing (has marked text). */
+    public boolean textComposing() {
+        TextEdit e = input.activeEdit();
+        return e != null && e.composing();
+    }
+
+    /** Text typed or committed by the input method, over [replStart, replStart + replLength) of the shown text, or none (replStart below 0). */
+    public void textInsert(String s, int replStart, int replLength) {
+        input.textInsert(s, replStart, replLength);
+    }
+
+    /** The input method's marked text, with its selected range; replStart below 0 for no replacement range. */
+    public void textMark(String s, int selStart, int selLength, int replStart, int replLength) {
+        input.textMark(s, selStart, selLength, replStart, replLength);
+    }
+
+    /** The input method commits its marked text as it stands. */
+    public void textUnmark() {
+        input.textUnmark();
+    }
+
+    /** The marked text in the shown text, as {start, length}; false when there is none. */
+    public boolean textMarkedRange(int[] out) {
+        TextEdit e = input.activeEdit();
+        return e != null && e.markedRange(out);
+    }
+
+    /** The selection in the shown text, as {start, length}; false without a text input. */
+    public boolean textSelectedRange(int[] out) {
+        TextEdit e = input.activeEdit();
+        if (e == null) {
+            return false;
+        }
+        e.selectedRange(out);
+        return true;
+    }
+
+    /** The shown text's length, or -1. */
+    public int textLength() {
+        TextEdit e = input.activeEdit();
+        return e == null ? -1 : e.length();
+    }
+
+    /** A part of the shown text, clamped, or null. */
+    public String textIn(int start, int end) {
+        TextEdit e = input.activeEdit();
+        return e == null ? null : e.substring(start, end);
+    }
+
+    /** A command of the Edit menu: for the text input, else as its key, for shortcuts. */
+    public void editCommand(jui.ui.EditCommand c) {
+        input.editCommand(c);
+    }
+
     /** The window became, or stopped being, the key window. */
     public void windowFocusChanged(boolean focused) {
         input.windowFocusChanged(focused);
@@ -970,9 +1095,22 @@ public final class Engine {
         }
     }
 
+    /** A text input's content width when nothing sets it (as MyGO's intrinsic width of an input). */
+    private static final float INPUT_WIDTH = 200;
+
     /** Measures a node's own content, its text, and keeps the text's layout for paint. */
     private void measure(int index, float maxWidth, float[] out) {
         Node n = pool.node(index);
+        if (n.kind == Node.INPUT) {
+            if (text == null) {
+                throw new IllegalStateException("text inputs need an engine made with a TextEngine");
+            }
+            // One line, unwrapped; as high as a line of Latin and Han, so it keeps its height as Chinese is typed.
+            n.layout = text.layout(n.text == null ? "" : n.text, n.resolvedSize, n.resolvedWeight, 0);
+            out[0] = INPUT_WIDTH;
+            out[1] = Math.max(text.lineHeight(n.resolvedSize, n.resolvedWeight), n.layout.height);
+            return;
+        }
         if (n.kind != Node.TEXT || n.text == null) {
             out[0] = 0;
             out[1] = 0;
@@ -1116,7 +1254,7 @@ public final class Engine {
     private int find(String s) {
         for (int i = 0; i < pool.size(); i++) {
             Node n = pool.node(i);
-            if (s.equals(n.label) || s.equals(n.text)) {
+            if (s.equals(n.label) || s.equals(n.text) || s.equals(n.placeholder)) {
                 return i;
             }
         }

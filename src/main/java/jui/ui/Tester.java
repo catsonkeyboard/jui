@@ -19,6 +19,8 @@ public final class Tester {
     private final GlyphAtlas atlas = new GlyphAtlas(1024, 1024);
     private final Scene scene = new Scene();
     private final Engine engine;
+    /** The tester's platform: a clipboard in memory, the cursor last set. */
+    private final jui.ui.engine.Host.Memory host = new jui.ui.engine.Host.Memory();
     private boolean pending;
     private boolean started;
     /** The tester's clock, in nanoseconds: it moves only in advance(). */
@@ -32,6 +34,7 @@ public final class Tester {
         this.width = width;
         this.height = height;
         this.engine = new Engine(text, Theme.light(), () -> pending = true, () -> now);
+        engine.setHost(host);
     }
 
     /** A tester of the view in a window of width by height DIPs. */
@@ -125,6 +128,48 @@ public final class Tester {
         started();
         engine.keyDown(s.key(), s.mods(), false);
         settle();
+    }
+
+    // Text input, as the platform's input method gives it.
+
+    /** Types s into the text input with focus, as the input method commits it. */
+    public void type(String s) {
+        started();
+        engine.textInsert(s, -1, 0);
+        settle();
+    }
+
+    /** Composes text in the text input with focus, its caret at caret (UTF-16); empty text ends the composition. */
+    public void compose(String text, int caret) {
+        started();
+        engine.textMark(text, caret, 0, -1, 0);
+        settle();
+    }
+
+    /** Runs a command of the Edit menu. */
+    public void command(EditCommand c) {
+        started();
+        engine.editCommand(c);
+        settle();
+    }
+
+    /** The clipboard's text, or null. */
+    public String clipboard() {
+        return host.clipboard;
+    }
+
+    public void setClipboard(String s) {
+        host.clipboard = s;
+    }
+
+    /** The selection of the text input with focus, as {start, end} in its shown text; null without one. */
+    public int[] textSelection() {
+        started();
+        int[] r = new int[2];
+        if (!engine.textSelectedRange(r)) {
+            return null;
+        }
+        return new int[] {r[0], r[0] + r[1]};
     }
 
     /** Whether the element showing or labeled s, or one around it, has focus. */

@@ -10,11 +10,12 @@ import jui.ui.Justify;
  * public so that the ui package, layout and paint share them.
  */
 public final class Node {
-    public static final byte BOX = 0, TEXT = 1, SPACER = 2, DIVIDER = 3, SLIDER = 4;
+    public static final byte BOX = 0, TEXT = 1, SPACER = 2, DIVIDER = 3, SLIDER = 4, INPUT = 5;
     public static final int NONE = -1;
 
     // Flags: what input the element takes, set by the queries and controls that build it.
-    public static final int CLICKABLE = 1, FOCUSABLE = 2, HOVER = 4, DRAG = 8, TOGGLE = 16, KEYS = 32, SCROLL = 64, LIST = 128;
+    public static final int CLICKABLE = 1, FOCUSABLE = 2, HOVER = 4, DRAG = 8, TOGGLE = 16, KEYS = 32, SCROLL = 64, LIST = 128,
+            TEXT_INPUT = 256;
 
     // Structure.
     public long id;
@@ -87,6 +88,8 @@ public final class Node {
     public float fontSize;
     public int fontWeight;
     public boolean singleLine;
+    /** A text input's placeholder, shown while it is empty; its shown text is in text. */
+    public String placeholder;
 
     // Visual, colors as 0xRRGGBBAA.
     public int background, borderColor, shadowColor;
@@ -153,6 +156,7 @@ public final class Node {
         fontSize = Float.NaN;
         fontWeight = 0;
         singleLine = false;
+        placeholder = null;
 
         background = borderColor = shadowColor = 0;
         radiusTL = radiusTR = radiusBR = radiusBL = 0;

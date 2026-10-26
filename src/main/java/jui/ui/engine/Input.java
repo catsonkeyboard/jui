@@ -57,6 +57,12 @@ final class Input {
     private int[] queueMods = new int[8];
     private int queueCount;
 
+    /** When the caret's blink started over: at keys, edits, focus changes and input method calls (as MyGO). */
+    long blinkStart;
+    /** The text input that takes text, as last told to the platform (0 for none), and its editing. */
+    private long textClient;
+    private TextEdit clientEdit;
+
     /** The key this frame delivers in its first pass: to an identity (0 the window), or to whoever claims it. */
     private jui.ui.Key deliveredKey;
     private int deliveredMods;
@@ -119,6 +125,7 @@ final class Input {
                 focusedId = focus;
                 focusVisible = false;
             }
+            updateTextInput();
         }
         int target = -1;
         for (int k = 0; k < hoverCount; k++) {
@@ -191,6 +198,24 @@ final class Input {
     /** A key went down. Tab and the activation keys act at once; the rest wait for shortcuts. */
     void keyDown(jui.ui.Key key, int mods, boolean repeat) {
         this.mods = mods;
+        // A text input with focus takes the keys it wants before any shortcut (design §7.3, as MyGO).
+        TextEdit edit = activeEdit();
+        if (edit != null && TextEdit.wants(key, mods)) {
+            long now = engine.clockNow();
+            if (edit.composing()) {
+                edit.unmark(now); // macOS sends no keys while composing; other sources may
+                engine.host().discardMarkedText();
+            }
+            jui.ui.EditCommand command = TextEdit.commandOf(key, mods);
+            if (command != null) {
+                runCommand(edit, command, now);
+            } else if (edit.key(key, mods, now)) {
+                engine.states().get(focusedId).submits++;
+            }
+            blinkStart = now;
+            engine.requestFrame();
+            return;
+        }
         // Keys that act at once yield to a shortcut that claims them (as MyGO's claimedBy).
         if (key == jui.ui.Key.TAB && (mods == 0 || mods == jui.ui.Mod.SHIFT) && !claimedBy(mods, key, true)) {
             moveFocus(mods == 0);
@@ -379,11 +404,125 @@ final class Input {
         focusedId = focusOrder[next];
         focusVisible = true;
         revealId = focusedId;
+        ElementState s = engine.states().get(focusedId);
+        if (s != null && s.edit != null) {
+            s.edit.selectAll(); // a text input Tab focuses selects its text (as MyGO)
+        }
+        updateTextInput();
         engine.requestFrame();
     }
 
     void windowFocusChanged(boolean focused) {
         windowFocused = focused;
+        updateTextInput();
+        engine.requestFrame();
+    }
+
+    // Text input.
+
+    /** The editing of the text input that takes text now, or null: it has focus, is enabled, and the window is focused. */
+    TextEdit activeEdit() {
+        if (!windowFocused || focusedId == 0) {
+            return null;
+        }
+        int i = hits.indexOf(focusedId);
+        if (i < 0 || (hits.flags[i] & Node.TEXT_INPUT) == 0 || (hits.flags[i] & HitList.DISABLED) != 0) {
+            return null;
+        }
+        ElementState s = engine.states().get(focusedId);
+        return s == null ? null : s.edit;
+    }
+
+    /**
+     * Tells the platform when the text input that takes text changes (as
+     * MyGO's updateTextInput): one left while composing commits its
+     * composition, and the input method forgets it. After every event that
+     * moves focus, and at commit.
+     */
+    void updateTextInput() {
+        TextEdit e = activeEdit();
+        long client = e == null ? 0 : focusedId;
+        if (client == textClient && e == clientEdit) {
+            return;
+        }
+        if (clientEdit != null && clientEdit.composing()) {
+            clientEdit.unmark(engine.clockNow());
+            engine.host().discardMarkedText();
+            engine.requestFrame();
+        }
+        textClient = client;
+        clientEdit = e;
+        blinkStart = engine.clockNow();
+        engine.host().textInputChanged();
+    }
+
+    void textInsert(String s, int replStart, int replLength) {
+        TextEdit e = activeEdit();
+        if (e == null) {
+            return;
+        }
+        long now = engine.clockNow();
+        if (replStart >= 0) {
+            e.replace(replStart, replStart + Math.max(0, replLength), s, now);
+        } else {
+            e.insert(s, now);
+        }
+        edited(now);
+    }
+
+    void textMark(String s, int selStart, int selLength, int replStart, int replLength) {
+        TextEdit e = activeEdit();
+        if (e == null) {
+            return;
+        }
+        long now = engine.clockNow();
+        e.setMarked(s, selStart, selLength, replStart, replLength, now);
+        edited(now);
+    }
+
+    void textUnmark() {
+        TextEdit e = activeEdit();
+        if (e == null) {
+            return;
+        }
+        long now = engine.clockNow();
+        e.unmark(now);
+        edited(now);
+    }
+
+    /** A command of the Edit menu: for the text input; without one, its key goes to shortcuts. */
+    void editCommand(jui.ui.EditCommand c) {
+        TextEdit e = activeEdit();
+        if (e == null) {
+            switch (c) {
+                case UNDO -> keyDown(jui.ui.Key.Z, jui.ui.Mod.CMD, false);
+                case REDO -> keyDown(jui.ui.Key.Z, jui.ui.Mod.CMD | jui.ui.Mod.SHIFT, false);
+                case CUT -> keyDown(jui.ui.Key.X, jui.ui.Mod.CMD, false);
+                case COPY -> keyDown(jui.ui.Key.C, jui.ui.Mod.CMD, false);
+                case PASTE -> keyDown(jui.ui.Key.V, jui.ui.Mod.CMD, false);
+                case SELECT_ALL -> keyDown(jui.ui.Key.A, jui.ui.Mod.CMD, false);
+            }
+            return;
+        }
+        long now = engine.clockNow();
+        runCommand(e, c, now);
+        edited(now);
+    }
+
+    /** Runs a command, through the host's clipboard; a composition it commits, the input method forgets. */
+    private void runCommand(TextEdit e, jui.ui.EditCommand c, long now) {
+        if (e.composing()) {
+            engine.host().discardMarkedText();
+        }
+        String clipboard = c == jui.ui.EditCommand.PASTE ? engine.host().readClipboard() : null;
+        String out = e.command(c, clipboard, now);
+        if (out != null) {
+            engine.host().writeClipboard(out);
+        }
+    }
+
+    private void edited(long now) {
+        blinkStart = now;
         engine.requestFrame();
     }
 

@@ -37,6 +37,9 @@ public final class ElementState {
     boolean barsShown;
     /** Whether the element was disabled in the last frame: an element around it may disable it after building it. */
     public boolean disabledLast;
+    /** A text input's editing, made by its first build; and its Enters not yet reported. */
+    public TextEdit edit;
+    public int submits;
     /** Keys sent to this element while it had focus, for controls that take keys (sliders). */
     public Key[] keys = new Key[4];
     public int keyCount;
@@ -65,6 +68,8 @@ public final class ElementState {
         wheeling = false;
         barsShown = false;
         keyCount = 0;
+        edit = null;
+        submits = 0;
         if (locals != null) {
             locals.clear();
         }

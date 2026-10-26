@@ -47,7 +47,7 @@ public final class FlexLayout {
     /** Lays out the children of a node whose box is set, then theirs. */
     private void place(int index) {
         Node p = pool.node(index);
-        if (p.kind == Node.TEXT) {
+        if (p.kind == Node.TEXT || p.kind == Node.INPUT) {
             // The text's layout at its final width, for paint.
             measure.measure(index, p.singleLine ? UNLIMITED : Math.max(0, p.w - insetX(p)), out);
         }
@@ -645,7 +645,7 @@ public final class FlexLayout {
         }
         float w;
         switch (n.kind) {
-            case Node.TEXT -> {
+            case Node.TEXT, Node.INPUT -> {
                 measure.measure(index, UNLIMITED, out);
                 w = out[0];
             }
@@ -679,7 +679,7 @@ public final class FlexLayout {
         float innerW = Math.max(0, width - insetX(n));
         float h;
         switch (n.kind) {
-            case Node.TEXT -> {
+            case Node.TEXT, Node.INPUT -> {
                 measure.measure(index, n.singleLine ? UNLIMITED : innerW, out);
                 h = out[1];
             }
