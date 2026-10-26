@@ -51,6 +51,9 @@ final class Paint {
         if (n.kind == Node.SLIDER) {
             slider(n, scene, theme, o, ringId);
         }
+        if (n.kind == Node.INPUT) {
+            input(n, scene, theme, o);
+        }
         if (n.clip) {
             scene.pushClip(n.x + n.border, n.y + n.border, n.w - 2 * n.border, n.h - 2 * n.border);
         }
@@ -85,6 +88,39 @@ final class Paint {
                     Math.min(n.radiusTR, half) + 3, Math.min(n.radiusBR, half) + 3, Math.min(n.radiusBL, half) + 3,
                     0, 2, fade(theme.focusRing().rgba(), o));
         }
+    }
+
+    /**
+     * A text input, clipped to its padding box with square corners (as
+     * MyGO's paintInput): the placeholder while it is empty, the selection
+     * while it has focus, the text, the composition's underline, and the
+     * blinking caret, one device pixel wide.
+     */
+    private static void input(Node n, Scene scene, Theme theme, float o) {
+        jui.text.TextLayout l = n.layout;
+        scene.pushClip(n.x + n.border, n.y + n.border, n.w - 2 * n.border, n.h - 2 * n.border);
+        int color = fade(n.resolvedColor, o);
+        float top = n.inputTop, lineH = n.inputLineH;
+        if ((n.text == null || n.text.isEmpty()) && n.placeholder != null) {
+            jui.text.TextLayout p = scene.layout(n.placeholder, n.resolvedSize, n.resolvedWeight, 0);
+            scene.text(p, n.x + n.padLeft + n.border, top + (lineH - p.height) / 2, fade(theme.textMuted().rgba(), o));
+        }
+        if (l != null) {
+            if (n.inputFocused && n.inputSelA != n.inputSelB) {
+                float a = n.inputX + l.caretX(n.inputSelA), b = n.inputX + l.caretX(n.inputSelB);
+                scene.box(a, top, b - a, lineH, 0, fade(theme.selection().rgba(), o));
+            }
+            scene.text(l, n.inputX, top + (lineH - l.height) / 2, color);
+            if (n.inputMarkA >= 0) {
+                float a = n.inputX + l.caretX(n.inputMarkA), b = n.inputX + l.caretX(n.inputMarkB);
+                scene.box(a, top + lineH - 2, b - a, 1, 0, color);
+            }
+            if (n.inputFocused && n.caretShown && !n.disabled) {
+                float s = scene.scale(), w = Math.max(Math.round(s), 1) / s;
+                scene.box(n.inputX + l.caretX(n.inputCaret), top, w, lineH, 0, fade(theme.accent().rgba(), o));
+            }
+        }
+        scene.popClip();
     }
 
     private static final int KNOB_LIGHT = 0xFFFFFFFF, KNOB_DARK = 0xE0E1E1FF;

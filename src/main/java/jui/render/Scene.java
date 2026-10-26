@@ -44,6 +44,11 @@ public final class Scene {
      * border 12–15, params 16–19 (kind at 18: 0 box, 1 shadow, 2 glyph).
      * Boxes and shadows are in points, glyphs in pixels. For tests.
      */
+    /** The pixels a point of the frame being painted. */
+    public float scale() {
+        return scale;
+    }
+
     public float[] instance(int i) {
         return java.util.Arrays.copyOfRange(data, i * FLOATS, (i + 1) * FLOATS);
     }

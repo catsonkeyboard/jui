@@ -275,7 +275,30 @@ public final class Engine {
             host.discardMarkedText();
         }
         n.text = e.display();
+        n.noFocusRing = true; // a text input shows focus with its border, not a ring (as MyGO)
+        n.inputCaret = e.displayCaret();
+        if (e.composing()) {
+            n.inputSelA = n.inputSelB = n.inputCaret;
+            n.inputMarkA = e.caret();
+            n.inputMarkB = e.caret() + e.compose().length();
+        } else {
+            n.inputSelA = e.selStart();
+            n.inputSelB = e.selEnd();
+            n.inputMarkA = n.inputMarkB = -1;
+        }
+        n.inputFocused = focused(n.id);
+        if (n.inputFocused) {
+            // The caret blinks from the last key, edit or focus change; after 30 s it rests, shown.
+            long phase = Math.max(0, now - input.blinkStart);
+            n.caretShown = phase >= BLINK_REST || (phase / BLINK) % 2 == 0;
+            if (phase < BLINK_REST) {
+                after(now + BLINK - phase % BLINK);
+            }
+        }
     }
+
+    /** The caret's blink, each way, and how long after the last change it blinks (as MyGO, 530 ms and 30 s). */
+    private static final long BLINK = 530_000_000L, BLINK_REST = 30_000_000_000L;
 
     /** Runs action once this pass's view is built: Enter was pressed in the node's text input. */
     public void onSubmit(int index, Runnable action) {

@@ -94,6 +94,13 @@ public final class Node {
     public byte cursor;
     /** A text input's paint, from the commit: its text's origin x, its line's top and height. */
     public float inputX, inputTop, inputLineH;
+    /**
+     * And from the build, in its shown text: the caret, the selection (equal
+     * ends for none), the composition (-1 for none); whether it has focus,
+     * and whether the blinking caret shows.
+     */
+    public int inputCaret, inputSelA, inputSelB, inputMarkA, inputMarkB;
+    public boolean inputFocused, caretShown;
 
     // Visual, colors as 0xRRGGBBAA.
     public int background, borderColor, shadowColor;
@@ -163,6 +170,9 @@ public final class Node {
         placeholder = null;
         cursor = 0;
         inputX = inputTop = inputLineH = 0;
+        inputCaret = inputSelA = inputSelB = 0;
+        inputMarkA = inputMarkB = -1;
+        inputFocused = caretShown = false;
 
         background = borderColor = shadowColor = 0;
         radiusTL = radiusTR = radiusBR = radiusBL = 0;

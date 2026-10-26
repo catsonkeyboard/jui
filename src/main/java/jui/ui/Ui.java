@@ -334,7 +334,8 @@ public final class Ui {
         e.padding(6, 10).radius(t.radius());
         n.background = t.surface().rgba();
         n.border = 1;
-        n.borderColor = t.border().rgba();
+        // Focus shows on the border, in the accent; hover leans it to the text's color (as MyGO's inputBorder).
+        n.borderColor = e.focused() ? t.accent().rgba() : e.hovered() ? mix(t.border(), t.text(), 0.25f) : t.border().rgba();
         return e;
     }
 
