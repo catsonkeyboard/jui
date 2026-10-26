@@ -49,10 +49,15 @@ public final class ListBench {
         Arrays.sort(times);
         double p50 = times[FRAMES / 2] / 1e6, p95 = times[(int) (FRAMES * 0.95)] / 1e6, max = times[FRAMES - 1] / 1e6;
         boolean nativeImage = "runtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode"));
-        System.out.printf("LISTBENCH mode=%s p50=%.3fms p95=%.3fms max=%.3fms rows_max=%d visible_max=%d last_row=%d%n",
-                nativeImage ? "native" : "jvm", p50, p95, max, rowsMax, visibleMax, files.last());
+        System.out.printf("LISTBENCH mode=%s p50=%.3fms p95=%.3fms max=%.3fms rows_max=%d visible_max=%d last_row=%d"
+                        + " atlas_glyphs=%d%n",
+                nativeImage ? "native" : "jvm", p50, p95, max, rowsMax, visibleMax, files.last(), atlas.glyphs());
         if (nativeImage && (p95 > 4 || max > 8 || rowsMax > visibleMax + 5)) {
             System.out.println("FAIL: a scroll frame is over budget (p95 4 ms, max 8 ms) or builds rows out of view");
+            System.exit(1);
+        }
+        if (atlas.isFull()) { // glyphs went undrawn: the M3 hand check found this deep in the list
+            System.out.println("FAIL: the glyph atlas filled up while scrolling");
             System.exit(1);
         }
     }

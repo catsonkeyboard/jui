@@ -4,9 +4,7 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import jui.ffi.ObjC;
 import jui.util.LongMap;
@@ -29,7 +27,13 @@ public final class TextEngine {
     private final boolean smoothing = fontSmoothing();
     private final long language;
     private final Map<Long, Long> systemFonts = new HashMap<>();
-    private final Set<Long> runFonts = new HashSet<>();
+    /**
+     * One font for each PostScript name and size. Core Text makes new
+     * fallback fonts for each typesetter (PingFang for Han characters, say),
+     * and the glyph atlas keys on the font: without one font each, every new
+     * text would rasterize its glyphs again, until the atlas is full.
+     */
+    private final Map<String, Long> canonicalFonts = new HashMap<>();
 
     /**
      * Layouts in two generations: when the current one fills up, by count or
@@ -154,10 +158,8 @@ public final class TextEngine {
                 long runs = CoreText.glyphRuns(line);
                 for (long r = 0, nr = CoreText.arrayCount(runs); r < nr; r++) {
                     long run = CoreText.arrayGet(runs, r);
-                    long runFont = CoreText.dictionaryGetValue(CoreText.runAttributes(run), CoreText.FONT_ATTRIBUTE_NAME);
-                    if (runFonts.add(runFont)) {
-                        CoreText.retain(runFont); // the glyph cache keys on it
-                    }
+                    long runFont = canonical(CoreText.dictionaryGetValue(CoreText.runAttributes(run),
+                            CoreText.FONT_ATTRIBUTE_NAME));
                     int ng = (int) CoreText.runGlyphCount(run);
                     if (ng == 0) {
                         continue;
@@ -195,6 +197,27 @@ public final class TextEngine {
             CoreText.release(str);
         }
         return new TextLayout(text, size, weight, maxWidth, (float) widest, (float) top, lines, count, fonts, glyphs, xs, ys);
+    }
+
+    /**
+     * The font kept for font's PostScript name and size: the first such font
+     * seen, retained, as the glyph atlas keys on it. Others are the run's own,
+     * freed with it, so their references are never kept.
+     */
+    private long canonical(long font) {
+        long pool = ObjC.poolPush();
+        try {
+            String key = ObjC.string(ObjC.send(font, "fontName")) + "@" + ObjC.sendDouble(font, "pointSize");
+            Long kept = canonicalFonts.get(key);
+            if (kept != null) {
+                return kept;
+            }
+            CoreText.retain(font); // CTFont and NSFont are the same objects
+            canonicalFonts.put(key, font);
+            return font;
+        } finally {
+            ObjC.poolPop(pool);
+        }
     }
 
     /** The system font, as NSFont gives it with its weights, cached. */

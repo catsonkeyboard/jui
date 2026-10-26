@@ -48,6 +48,11 @@ public final class GlyphAtlas {
         return entries.size();
     }
 
+    /** Whether a glyph found no room: it was not drawn. */
+    public boolean isFull() {
+        return full;
+    }
+
     /**
      * The glyph drawn at {@code scale} and position {@code sub} of {@code n}
      * within a pixel, rasterizing it the first time; null when the atlas is
