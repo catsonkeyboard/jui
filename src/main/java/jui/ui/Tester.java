@@ -149,6 +149,9 @@ public final class Tester {
     /** Composes text in the text input with focus, its caret at caret (UTF-16); empty text ends the composition. */
     public void compose(String text, int caret) {
         started();
+        if (!engine.textInputMethod()) {
+            return; // without the input method nothing composes (as MyGO's headless Compose)
+        }
         engine.textMark(text, caret, 0, -1, 0);
         settle();
     }

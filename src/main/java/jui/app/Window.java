@@ -128,6 +128,11 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
     }
 
     @Override
+    public boolean textInputMethod() {
+        return engine.textInputMethod();
+    }
+
+    @Override
     public boolean textComposing() {
         return engine.textComposing();
     }

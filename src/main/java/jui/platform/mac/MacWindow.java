@@ -63,6 +63,11 @@ public final class MacWindow {
             return false;
         }
 
+        /** Whether keys go through the input method; with it off, a key types its characters (as MyGO's NoInputMethod). */
+        default boolean textInputMethod() {
+            return true;
+        }
+
         default boolean textComposing() {
             return false;
         }
@@ -497,6 +502,15 @@ public final class MacWindow {
         if (!composing) {
             input.keyDown(key, mods, repeat);
         }
+        if (text && !input.textInputMethod()) {
+            // Without the input method a key types the characters it makes, as a code editor's normal mode.
+            long typed = send(event, "characters");
+            String s = typed(typed == 0 ? "" : ObjC.string(typed));
+            if (!s.isEmpty()) {
+                input.textInsert(s, -1, 0);
+            }
+            return;
+        }
         if (text) {
             suppressed = composing;
             owedKey = key;
@@ -512,6 +526,25 @@ public final class MacWindow {
                 suppressed = false;
             }
         }
+    }
+
+    /**
+     * The text a key's characters type, without the input method: control
+     * characters, DEL and the function keys' private-use characters
+     * (U+F700–U+F8FF) type nothing (as MyGO's typedChars).
+     */
+    static String typed(String chars) {
+        StringBuilder b = null;
+        for (int i = 0; i < chars.length(); i++) {
+            char c = chars.charAt(i);
+            boolean drop = c < 0x20 || c == 0x7F || c >= 0xF700 && c <= 0xF8FF;
+            if (drop && b == null) {
+                b = new StringBuilder(chars.substring(0, i));
+            } else if (!drop && b != null) {
+                b.append(c);
+            }
+        }
+        return b == null ? chars : b.toString();
     }
 
     private void edit(jui.ui.EditCommand c) {

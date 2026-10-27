@@ -130,6 +130,19 @@ public final class Element {
 
     /** What an empty text input shows, in the theme's muted text color. Only for text inputs. */
     /**
+     * Turns a text input's input method on (the default) or off (as MyGO's
+     * InputMethod): off, keys type the characters the keyboard layout gives
+     * and nothing is composed, as in a code editor's normal mode. Turned off
+     * while it composes, what it composed stays.
+     */
+    public Element inputMethod(boolean on) {
+        if (node() != null) {
+            c.engine().inputMethod(index, on);
+        }
+        return this;
+    }
+
+    /**
      * Has fn see a key pressed in a text input before the input takes it, as
      * it comes (as MyGO's OnTextKey): the keys that type no text — those
      * with ⌘ or Ctrl, and Enter, Tab, Escape, Backspace, Delete, the arrows

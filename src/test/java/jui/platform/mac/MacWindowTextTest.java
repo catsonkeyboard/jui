@@ -37,6 +37,7 @@ public final class MacWindowTextTest {
         int[] selected = {0, 0}, marked;
         String shown = "abcdef";
         int index = 5;
+        boolean ime = true;
 
         public void pointerMove(double x, double y, int mods) {}
         public void pointerDown(double x, double y, int button, int clicks, int mods) {}
@@ -49,6 +50,7 @@ public final class MacWindowTextTest {
         public void scroll(double x, double y, double dx, double dy, boolean precise, int mods) {}
 
         @Override public boolean textActive() { return true; }
+        @Override public boolean textInputMethod() { return ime; }
         @Override public boolean textComposing() { return composing; }
         @Override public void textInsert(String s, int replStart, int replLength) {
             events.add("insert " + s + " " + replStart + " " + replLength);
@@ -108,6 +110,23 @@ public final class MacWindowTextTest {
             w.interpretHook = e -> r.events.add("ime");
             keyDown(w, "", 0x7B, 0);
             Check.equal(List.of("key LEFT 0 false", "ime"), r.events);
+        } finally {
+            w.close();
+        }
+    }
+
+    public void testWithTheInputMethodOffAKeyTypesItsCharacters() throws Throwable {
+        Recorder r = new Recorder();
+        r.ime = false;
+        MacWindow w = open(r);
+        try {
+            w.interpretHook = e -> r.events.add("ime");
+            keyDown(w, "j", 38, 0);
+            keyDown(w, "\r", 36, 0);                           // Return types nothing: the key alone
+            Check.equal(List.of("key J 0 false", "insert j -1 0", "key ENTER 0 false"), r.events);
+            Check.equal("", MacWindow.typed("\u001b"));
+            Check.equal("", MacWindow.typed("\uF702"));        // an arrow's private-use character
+            Check.equal("é", MacWindow.typed("é"));
         } finally {
             w.close();
         }

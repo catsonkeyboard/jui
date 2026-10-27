@@ -321,6 +321,15 @@ public final class Engine {
                 e.setMarked("", 0, 0, -1, 0, now);
                 host.discardMarkedText();
             }
+            boolean imeWasOff = e.inputMethodOff;
+            e.inputMethodOff = n.noInputMethod;
+            if (e.inputMethodOff && !imeWasOff && e.composing()) {
+                e.unmark(now); // the input method turned off mid-composition: what it composed stays
+                host.discardMarkedText();
+            }
+            if (e.dirty && n.state.ref != null) {
+                writeBack(i, e, n.state.ref); // what the options committed is the app's text in this frame
+            }
             // What shows, in its own indices: a password input's mask, a bullet a code point.
             n.text = e.password ? e.mask() : e.display();
             n.inputCaret = e.toShown(e.displayCaret());
@@ -383,6 +392,15 @@ public final class Engine {
             return;
         }
         state(index).onTextKey = fn;
+    }
+
+    /** Turns the node's text input's input method on or off, in this frame. */
+    public void inputMethod(int index, boolean on) {
+        if (pool.node(index).kind != Node.INPUT) {
+            Dev.fail("inputMethod is for text inputs");
+            return;
+        }
+        pool.node(index).noInputMethod = !on;
     }
 
     /** Makes the node's text input a password input, in this frame. */
@@ -1449,6 +1467,12 @@ public final class Engine {
 
     public Host host() {
         return host;
+    }
+
+    /** Whether the text input that takes text uses the input method; with it off, keys type their characters. */
+    public boolean textInputMethod() {
+        TextEdit e = input.activeEdit();
+        return e == null || !e.inputMethodOff;
     }
 
     /** Whether a text input takes text now: the platform sends keys through its input method then. */

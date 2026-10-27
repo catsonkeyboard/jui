@@ -42,6 +42,8 @@ public final class TextEdit {
     public boolean readOnly;
     /** A password input: it shows a bullet a code point, and Copy and Cut do nothing. */
     public boolean password;
+    /** Keys type their characters without the input method (Element.inputMethod(false)). */
+    public boolean inputMethodOff;
     /** The mask last made, and the shown text it was made of, so a frame that changes nothing makes none. */
     private String mask = "", maskOf = "";
     /** The TextRef's value as last synced; and the frame that last wrote the user's edit to it (-1 none). */
