@@ -66,7 +66,8 @@ public final class ObjC {
     private static final SegmentAllocator POINT_RET = SegmentAllocator.prefixAllocator(
             Arena.global().allocate(Sigs.CG_POINT));
     private static final MemorySegment POINT_ARG = Arena.global().allocate(Sigs.CG_POINT);
-    private static final MemorySegment IDS_ARG = Arena.global().allocate(JAVA_LONG, 8);
+    /** The objects of an array being made; it grows for an array that needs more room. */
+    private static MemorySegment idsArg = Arena.global().allocate(JAVA_LONG, 8);
     private static final MemorySegment RANGE_ARG = Arena.global().allocate(Sigs.NS_RANGE);
     private static final MemorySegment RANGE_ARG2 = Arena.global().allocate(Sigs.NS_RANGE);
     private static final SegmentAllocator RANGE_RET = SegmentAllocator.prefixAllocator(
@@ -234,12 +235,15 @@ public final class ObjC {
         }
     }
 
-    /** An autoreleased NSArray of the objects. */
+    /** An autoreleased NSArray of the objects, as many as there are. */
     public static long array(long... objects) {
-        for (int i = 0; i < objects.length; i++) {
-            IDS_ARG.setAtIndex(JAVA_LONG, i, objects[i]);
+        if (objects.length > idsArg.byteSize() / 8) {
+            idsArg = Arena.ofAuto().allocate(JAVA_LONG, Math.max(objects.length, 2 * idsArg.byteSize() / 8));
         }
-        return send(cls("NSArray"), "arrayWithObjects:count:", IDS_ARG.address(), objects.length);
+        for (int i = 0; i < objects.length; i++) {
+            idsArg.setAtIndex(JAVA_LONG, i, objects[i]);
+        }
+        return send(cls("NSArray"), "arrayWithObjects:count:", idsArg.address(), objects.length);
     }
 
     public static void sendSize(long obj, String sel, double width, double height) {
