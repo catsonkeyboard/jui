@@ -261,11 +261,17 @@ public final class MacWindow {
         send(window, "close");
         BY_VIEW.remove(view);
         BY_DELEGATE.remove(delegate);
+        ObjC.release(delegate); // the window does not retain its delegate: ours was the only reference
     }
 
     /** The content view: for tests. */
     long view() {
         return view;
+    }
+
+    /** The window's delegate: for tests. */
+    long delegate() {
+        return delegate;
     }
 
     /** The window: for tests. */
