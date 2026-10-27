@@ -15,4 +15,23 @@ public final class Dev {
             throw new IllegalStateException(message);
         }
     }
+
+    private static final java.util.Set<String> WARNED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Use that works but costs: in development mode, says so once, on standard error. */
+    public static void warn(String message) {
+        if (ENABLED && WARNED.add(message)) {
+            System.err.println("jui: warning: " + message);
+        }
+    }
+
+    /** Whether this warning was given: for tests. */
+    public static boolean warned(String message) {
+        return WARNED.contains(message);
+    }
+
+    /** Forgets the warnings given: for tests. */
+    public static void clearWarnings() {
+        WARNED.clear();
+    }
 }

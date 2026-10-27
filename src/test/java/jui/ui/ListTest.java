@@ -299,4 +299,18 @@ public final class ListTest {
         tt.key(Shortcut.of(Mod.SHIFT, Key.TAB));
         Check.isTrue(tt.focused("row19"), "Shift+Tab from there walks up as usual");
     }
+
+    public void testAListWithoutAHeightBoundIsWarnedAboutInDevelopment() { // M3 final review minor
+        jui.ui.engine.Dev.clearWarnings();
+        ListState a = new ListState(), b = new ListState();   // made once: a list's state lives outside the view
+        Tester bounded = Tester.of(c -> list(c, a, 500, i -> box(c).height(30).label("r" + i)).height(200), 300, 200);
+        bounded.frame();
+        Check.isTrue(!jui.ui.engine.Dev.warned(jui.ui.engine.Engine.UNBOUNDED_LIST), "a list with a height builds the rows in view");
+        // In a scroll container nothing bounds its height (in a column, flex shrink does).
+        Tester unbounded = Tester.of(c -> scroll(c).size(300, 200).children(() ->
+                list(c, b, 500, i -> box(c).height(30).label("r" + i))), 300, 200);
+        unbounded.frame();
+        Check.equal(500, unbounded.engine().nodeCount() - 3); // root, scroll, list: every row built
+        Check.isTrue(jui.ui.engine.Dev.warned(jui.ui.engine.Engine.UNBOUNDED_LIST), "warned: it builds all 500 rows");
+    }
 }

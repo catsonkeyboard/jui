@@ -643,6 +643,10 @@ public final class Engine {
         rowPending = false;
     }
 
+    /** The warning for a list as high as all its rows, which then builds them all, every frame. */
+    public static final String UNBOUNDED_LIST = "a list higher than twice its window builds all its rows, every frame:"
+            + " bound its height (height, maxHeight, or grow in a column whose height is set)";
+
     /** After a layout, each list's fix-up; reports whether one needs another round. */
     private boolean afterLayout() {
         boolean again = false;
@@ -662,6 +666,11 @@ public final class Engine {
      */
     private boolean afterList(Node n, ListModel m) {
         float vt = n.y + n.padTop + n.border, vb = n.y + n.h - n.padBottom - n.border, v = Math.max(0, vb - vt);
+        if (Dev.ENABLED && m.count > 0 && m.builtFirst == 0 && m.builtLast == m.count - 1 && v > 2 * windowH) {
+            // Only a list whose height nothing bounds (in a scroll container, or a column without
+            // grow) is as high as all its rows: virtualizing then builds them all (as MyGO's would).
+            Dev.warn(UNBOUNDED_LIST);
+        }
         int firstBefore = m.first, lastBefore = m.last;
         m.viewH = v;
         m.gap = n.gapY;
