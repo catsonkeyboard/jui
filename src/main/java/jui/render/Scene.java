@@ -11,11 +11,12 @@ import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 
 /**
  * What a frame draws, as instances for the shader: rect, radii, color,
- * border color and params, 20 floats each (see shader.metal). Boxes and
- * shadows are in points; glyphs are placed on the pixel grid as they go in.
+ * border color, params, and the innermost clip's rounded rect, 28 floats
+ * each (see shader.metal). Boxes and shadows are in points; glyphs are
+ * placed on the pixel grid as they go in.
  */
 public final class Scene {
-    static final int FLOATS = 20;
+    public static final int FLOATS = 28;
     public static final int BYTES = FLOATS * 4;
     private static final float KIND_BOX = 0;
     private static final float KIND_GLYPH = 2;
@@ -32,6 +33,7 @@ public final class Scene {
         this.depth = 0;
         this.clipX0 = this.clipY0 = Float.NEGATIVE_INFINITY;
         this.clipX1 = this.clipY1 = Float.POSITIVE_INFINITY;
+        Arrays.fill(round, 0);
         this.batchCount = 0;
         this.clipChanged = true;
         this.scale = scale;
@@ -39,16 +41,18 @@ public final class Scene {
         this.atlas = atlas;
     }
 
-    /**
-     * A copy of instance i's 20 floats: rect 0–3, radii 4–7, color 8–11,
-     * border 12–15, params 16–19 (kind at 18: 0 box, 1 shadow, 2 glyph).
-     * Boxes and shadows are in points, glyphs in pixels. For tests.
-     */
     /** The pixels a point of the frame being painted. */
     public float scale() {
         return scale;
     }
 
+    /**
+     * A copy of instance i's 28 floats: rect 0–3, radii 4–7, color 8–11,
+     * border 12–15, params 16–19 (kind at 18: 0 box, 1 shadow, 2 glyph),
+     * the innermost clip's rect 20–23 and its corners 24–27 (all 0 when it
+     * has none). Boxes, shadows and clips are in points, glyphs in pixels.
+     * For tests.
+     */
     public float[] instance(int i) {
         return java.util.Arrays.copyOfRange(data, i * FLOATS, (i + 1) * FLOATS);
     }
@@ -141,8 +145,8 @@ public final class Scene {
             boolean glyph = data[o + 18] == KIND_GLYPH; // already in pixels
             for (int k = 0; k < FLOATS; k++) {
                 float v = data[o + k];
-                // Lengths scale to pixels: rect, radii, border width and blur.
-                boolean length = !glyph && (k < 8 || k == 16 || k == 17);
+                // Lengths scale to pixels: rect, radii, border width and blur, and every kind's clip.
+                boolean length = !glyph && (k < 8 || k == 16 || k == 17) || k >= 20;
                 dst.setAtIndex(JAVA_FLOAT, o + k, length ? v * scale : v);
             }
             if (data[o + 18] == KIND_BOX) {
@@ -171,14 +175,21 @@ public final class Scene {
         if (clipChanged) {
             startBatch();
         }
-        return count++ * FLOATS;
+        int o = count++ * FLOATS;
+        System.arraycopy(round, 0, data, o + 20, 8);
+        return o;
     }
 
     // Clipping: a stack of rectangles, in points; instances drawn under one
     // clip form a batch, which the renderer draws with one scissor rectangle.
+    // The innermost clip may round its corners: each instance carries its
+    // rect and corners, and the shader cuts them (as MyGO's gpu.go).
 
+    private static final int LEVEL = 12; // the bounds and the rounded rect a push saves
     private float clipX0, clipY0, clipX1, clipY1;
-    private float[] stack = new float[16];
+    /** The innermost clip's rect and corners, in points; all 0 when it has square corners. */
+    private final float[] round = new float[8];
+    private float[] stack = new float[LEVEL * 4];
     private int depth;
     private boolean clipChanged;
     private int[] batchStarts = new int[8];
@@ -187,26 +198,52 @@ public final class Scene {
 
     /** Clips what is drawn next to the rectangle, in points, within the clip already set. */
     public void pushClip(float x, float y, float w, float h) {
-        if (depth + 4 > stack.length) {
+        pushClip(x, y, w, h, 0, 0, 0, 0);
+    }
+
+    /**
+     * Clips what is drawn next to the rectangle with rounded corners
+     * (top-left, top-right, bottom-right, bottom-left, at most half its
+     * shorter side), within the clip already set. Only the innermost clip
+     * rounds: the ones outside it cut square, as MyGO's.
+     */
+    public void pushClip(float x, float y, float w, float h, float tl, float tr, float br, float bl) {
+        if (depth + LEVEL > stack.length) {
             stack = Arrays.copyOf(stack, stack.length * 2);
         }
-        stack[depth++] = clipX0;
-        stack[depth++] = clipY0;
-        stack[depth++] = clipX1;
-        stack[depth++] = clipY1;
+        stack[depth] = clipX0;
+        stack[depth + 1] = clipY0;
+        stack[depth + 2] = clipX1;
+        stack[depth + 3] = clipY1;
+        System.arraycopy(round, 0, stack, depth + 4, 8);
+        depth += LEVEL;
         clipX0 = Math.max(clipX0, x);
         clipY0 = Math.max(clipY0, y);
         clipX1 = Math.min(clipX1, x + w);
         clipY1 = Math.min(clipY1, y + h);
+        if (tl > 0 || tr > 0 || br > 0 || bl > 0) {
+            round[0] = x;
+            round[1] = y;
+            round[2] = w;
+            round[3] = h;
+            round[4] = tl;
+            round[5] = tr;
+            round[6] = br;
+            round[7] = bl;
+        } else {
+            Arrays.fill(round, 0);
+        }
         clipChanged = true;
     }
 
     /** Back to the clip before the last push. */
     public void popClip() {
-        clipY1 = stack[--depth];
-        clipX1 = stack[--depth];
-        clipY0 = stack[--depth];
-        clipX0 = stack[--depth];
+        depth -= LEVEL;
+        clipX0 = stack[depth];
+        clipY0 = stack[depth + 1];
+        clipX1 = stack[depth + 2];
+        clipY1 = stack[depth + 3];
+        System.arraycopy(stack, depth + 4, round, 0, 8);
         clipChanged = true;
     }
 

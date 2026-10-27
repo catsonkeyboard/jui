@@ -111,4 +111,21 @@ public final class PaintTest {
         s.batchScissor(1, r);
         Check.equal(java.util.List.of(2, 2, 96, 46), java.util.List.of(r[0], r[1], r[2], r[3]));
     }
+
+    public void testAClippingBoxWithARadiusClipsItsChildrenToARoundedRectInsideItsBorder() {
+        e.buildAndLayout(c -> column(c).padding(10).alignItems(jui.ui.Align.START).children(() ->
+            box(c).size(100, 60).radius(10).border(2, Color.rgb(0xE5E7EB)).clip().children(() ->
+                box(c).fill().background(Color.rgb(0xFF0000)))), 200, 100);
+        Scene s = paint(2);
+        float[] child = null;
+        for (int i = 0; i < s.count(); i++) {
+            float[] f = s.instance(i);
+            if (f[0] == 12 && f[1] == 12 && f[2] == 96 && f[3] == 56) {
+                child = f;
+            }
+        }
+        Check.isTrue(child != null, "the child's box");
+        Check.equal(java.util.List.of(12f, 12f, 96f, 56f, 8f, 8f, 8f, 8f), java.util.List.of(child[20], child[21],
+                child[22], child[23], child[24], child[25], child[26], child[27]));
+    }
 }

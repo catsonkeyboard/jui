@@ -55,7 +55,10 @@ final class Paint {
             input(n, scene, theme, o);
         }
         if (n.clip) {
-            scene.pushClip(n.x + n.border, n.y + n.border, n.w - 2 * n.border, n.h - 2 * n.border);
+            // Inside the border, its corners rounded as the border's inner edge (as MyGO's clipRect).
+            float b = n.border;
+            scene.pushClip(n.x + b, n.y + b, n.w - 2 * b, n.h - 2 * b, inner(n.radiusTL, half, b),
+                    inner(n.radiusTR, half, b), inner(n.radiusBR, half, b), inner(n.radiusBL, half, b));
         }
         // The flow first, then absolute children over it, in the order built (as MyGO).
         for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
@@ -124,6 +127,11 @@ final class Paint {
             }
         }
         scene.popClip();
+    }
+
+    /** A corner's radius inside a border: the outer one, at most half the shorter side, less the border. */
+    static float inner(float radius, float half, float border) {
+        return Math.max(Math.min(radius, half) - border, 0);
     }
 
     private static final int KNOB_LIGHT = 0xFFFFFFFF, KNOB_DARK = 0xE0E1E1FF;

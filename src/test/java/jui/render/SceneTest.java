@@ -84,4 +84,33 @@ public final class SceneTest {
         Check.equal(java.util.List.of(-1, 20, 100, 60), java.util.List.of(r[0], r[1], r[2], r[3]));
         Check.isTrue(!s.batchClipped(1), "the other is not");
     }
+
+    public void testInstancesCarryTheInnermostClipsRoundedRect() {
+        Scene s = new Scene();
+        s.begin(2, null, null);
+        s.box(0, 0, 10, 10, 0, 0xFF0000FF);                     // no clip
+        s.pushClip(10, 20, 50, 30, 8, 8, 4, 4);
+        s.box(12, 22, 10, 10, 0, 0xFF0000FF);
+        s.pushClip(15, 25, 20, 10);                            // a rectangle inside: the rounding goes (as MyGO)
+        s.box(16, 26, 5, 5, 0, 0xFF0000FF);
+        s.popClip();
+        s.popClip();
+        float[] none = s.instance(0), rounded = s.instance(1), inner = s.instance(2);
+        Check.near(0, none[24] + none[25] + none[26] + none[27]);
+        Check.equal(java.util.List.of(10f, 20f, 50f, 30f, 8f, 8f, 4f, 4f), java.util.List.of(rounded[20], rounded[21],
+                rounded[22], rounded[23], rounded[24], rounded[25], rounded[26], rounded[27]));
+        Check.near(0, inner[24] + inner[25] + inner[26] + inner[27]);
+    }
+
+    public void testTheClipGoesToPixelsForEveryKind() {
+        Scene s = new Scene();
+        s.begin(2, null, null);
+        s.pushClip(10, 20, 50, 30, 8, 8, 8, 8);
+        s.box(12, 22, 10, 10, 0, 0xFF0000FF);
+        s.popClip();
+        java.lang.foreign.MemorySegment out = java.lang.foreign.Arena.ofAuto().allocate(Scene.BYTES);
+        s.writeTo(out, 1);
+        Check.near(20, out.getAtIndex(java.lang.foreign.ValueLayout.JAVA_FLOAT, 20));
+        Check.near(16, out.getAtIndex(java.lang.foreign.ValueLayout.JAVA_FLOAT, 24));
+    }
 }

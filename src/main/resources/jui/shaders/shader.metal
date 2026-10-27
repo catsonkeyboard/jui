@@ -10,13 +10,15 @@
 #include <metal_stdlib>
 using namespace metal;
 
-// One instance per box, as jui.render.Scene writes them (80 bytes).
+// One instance per box, as jui.render.Scene writes them (112 bytes).
 struct Inst {
-    float4 rect;   // x, y, width, height in pixels
-    float4 radii;  // top-left, top-right, bottom-right, bottom-left; a glyph's x, y in the atlas
-    float4 color;  // fill, straight sRGB
-    float4 border; // border color
-    float4 params; // border width, blur, kind (0 box, 1 shadow, 2 glyph), unused
+    float4 rect;      // x, y, width, height in pixels
+    float4 radii;     // top-left, top-right, bottom-right, bottom-left; a glyph's x, y in the atlas
+    float4 color;     // fill, straight sRGB
+    float4 border;    // border color
+    float4 params;    // border width, blur, kind (0 box, 1 shadow, 2 glyph), unused
+    float4 clip;      // the innermost clip's rect in pixels, when it rounds its corners
+    float4 clipRadii; // its corners; all 0 when it has square ones
 };
 
 struct VSOut {
@@ -51,21 +53,30 @@ float sdRoundRect(float2 p, float4 rect, float4 radii) {
     return length(max(a, float2(0.0f))) + min(max(a.x, a.y), 0.0f) - r;
 }
 
+// What of the pixel at p the innermost clip keeps: all of it unless it rounds its corners.
+float clipCoverage(float2 p, Inst i) {
+    if (all(i.clipRadii == float4(0.0f))) {
+        return 1.0f;
+    }
+    return clamp(0.5f - sdRoundRect(p, i.clip, i.clipRadii), 0.0f, 1.0f);
+}
+
 // Colors come out premultiplied, for the blend: one, one minus source alpha.
 fragment float4 fs(VSOut in [[stage_in]], const device Inst *insts [[buffer(0)]],
                    texture2d<float, access::read> atlas [[texture(0)]]) {
     Inst i = insts[in.inst];
+    float kept = clipCoverage(in.p, i);
     if (i.params.z > 1.5f) {
         // A glyph: its quad is on the pixel grid, so each pixel reads its texel.
         uint2 t = uint2(i.radii.xy + floor(in.p - i.rect.xy));
-        float a = atlas.read(t).r * i.color.a;
+        float a = atlas.read(t).r * i.color.a * kept;
         return float4(i.color.rgb * a, a);
     }
     float d = sdRoundRect(in.p, i.rect, i.radii);
     if (i.params.z > 0.5f) {
         // A soft shadow: coverage falls off across the blur radius.
         float s = max(i.params.y, 0.5f);
-        float a = i.color.a * (1.0f - smoothstep(-s, s, d));
+        float a = i.color.a * (1.0f - smoothstep(-s, s, d)) * kept;
         return float4(i.color.rgb * a, a);
     }
     float coverage = clamp(0.5f - d, 0.0f, 1.0f);
@@ -75,6 +86,6 @@ fragment float4 fs(VSOut in [[stage_in]], const device Inst *insts [[buffer(0)]]
         float inside = clamp(0.5f - (d + bw), 0.0f, 1.0f);
         c = mix(i.border, i.color, inside);
     }
-    float a = c.a * coverage;
+    float a = c.a * coverage * kept;
     return float4(c.rgb * a, a);
 }

@@ -230,4 +230,18 @@ public final class PointerTest {
         tt.frame();
         Check.near(120, got[1].width());                   // a box that changed gives its new bounds
     }
+
+    public void testAPressInAClippedCornerMissesTheChild() { // Review Focus 3
+        int[] clicks = {0};
+        Tester tt = Tester.of(c -> column(c).padding(10).children(() ->
+                box(c).size(100, 100).radius(30).clip().label("card").children(() -> {
+                    if (box(c).fill().label("inside").clicked()) clicks[0]++;
+                })), 300, 300);
+        Rect r = tt.find("card");
+        tt.press(r.x() + 2, r.y() + 2);                         // in the square corner, outside the rounding
+        tt.release(r.x() + 2, r.y() + 2);
+        Check.equal(0, clicks[0]);
+        tt.click("inside");                                      // its middle still clicks
+        Check.equal(1, clicks[0]);
+    }
 }

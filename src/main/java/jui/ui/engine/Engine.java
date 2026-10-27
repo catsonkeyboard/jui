@@ -420,7 +420,7 @@ public final class Engine {
     private void commit() {
         hits.clear();
         commitHits(0, -1, Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY,
-                Float.POSITIVE_INFINITY);
+                Float.POSITIVE_INFINITY, -1);
         for (int i = 0; i < pool.size(); i++) {
             Node n = pool.node(i);
             ElementState s = n.state;
@@ -479,7 +479,7 @@ public final class Engine {
      * flow, then absolute children), so that what paints later is on top.
      * An invisible node takes no hits, nor its children, and loses focus.
      */
-    private void commitHits(int index, int parentHit, float cx0, float cy0, float cx1, float cy1) {
+    private void commitHits(int index, int parentHit, float cx0, float cy0, float cx1, float cy1, int round) {
         Node n = pool.node(index);
         if (n.invisible) {
             if (input.focusedId != 0 && holds(index, input.focusedId)) {
@@ -491,21 +491,26 @@ public final class Engine {
         // A text input without a cursor of its own shows the I-beam.
         byte cursor = n.cursor != 0 ? n.cursor : n.kind == Node.INPUT ? (byte) (jui.ui.Cursor.TEXT.ordinal() + 1) : 0;
         hits.add(n.id, n.x, n.y, n.w, n.h, parentHit, n.disabled ? n.flags | HitList.DISABLED : n.flags, cursor,
-                cx0, cy0, cx1, cy1);
-        if (n.clip) { // what it holds takes the pointer only inside its padding box
-            cx0 = Math.max(cx0, n.x + n.border);
-            cy0 = Math.max(cy0, n.y + n.border);
-            cx1 = Math.min(cx1, n.x + n.w - n.border);
-            cy1 = Math.min(cy1, n.y + n.h - n.border);
+                cx0, cy0, cx1, cy1, round);
+        if (n.clip) { // what it holds takes the pointer only inside its padding box, its corners as paint rounds them
+            float b = n.border, half = Math.min(n.w, n.h) / 2;
+            cx0 = Math.max(cx0, n.x + b);
+            cy0 = Math.max(cy0, n.y + b);
+            cx1 = Math.min(cx1, n.x + n.w - b);
+            cy1 = Math.min(cy1, n.y + n.h - b);
+            float tl = Paint.inner(n.radiusTL, half, b), tr = Paint.inner(n.radiusTR, half, b);
+            float br = Paint.inner(n.radiusBR, half, b), bl = Paint.inner(n.radiusBL, half, b);
+            round = tl > 0 || tr > 0 || br > 0 || bl > 0
+                    ? hits.addRound(n.x + b, n.y + b, n.w - 2 * b, n.h - 2 * b, tl, tr, br, bl) : -1;
         }
         for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
             if (!pool.node(c).absolute) {
-                commitHits(c, h, cx0, cy0, cx1, cy1);
+                commitHits(c, h, cx0, cy0, cx1, cy1, round);
             }
         }
         for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
             if (pool.node(c).absolute) {
-                commitHits(c, h, cx0, cy0, cx1, cy1);
+                commitHits(c, h, cx0, cy0, cx1, cy1, round);
             }
         }
     }
