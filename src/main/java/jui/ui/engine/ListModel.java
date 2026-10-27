@@ -31,6 +31,8 @@ public final class ListModel {
      * FollowEnd and following).
      */
     boolean followEnd, following, started;
+    /** Whether the last layout showed the end: no rows, or the last row's bottom within the view (as MyGO's AtEnd). */
+    boolean endShown;
     /** A reveal moved the anchor in this frame: the next plan keeps it, rather than reading the offset again. */
     boolean revealed;
 
@@ -88,12 +90,17 @@ public final class ListModel {
     /** Follows the end: it starts there, and stays there as rows come, until the view scrolls up. */
     public void followEnd(boolean on) {
         followEnd = on;
-        following = on && (!started || atEnd);
+        following = on && (!started || endShown);
     }
 
-    /** Whether the last frame showed the list's end, its last row at the bottom. */
+    /**
+     * Whether the last frame showed the list's end: it has no rows, or its
+     * last row's bottom is in view, as when all its rows fit. A view that
+     * reads it gets another frame if it changes.
+     */
     public boolean atEnd() {
-        return atEnd;
+        rangeRead = true;
+        return endShown;
     }
 
     /** Asks for the end in the next frame: a list that follows its end follows it again. */
@@ -104,8 +111,7 @@ public final class ListModel {
 
     /** Keys the rows: keyOf(i) is row i's key, which its identity and the anchor follow. */
     public void keys(java.util.function.IntToLongFunction keyOf) {
-        this.keyOf = keyOf;
-        hasAnchorKey = false;
+        this.keyOf = keyOf; // set again on every build, it keeps the anchor's key: a key not found falls back to the index
     }
 
     public java.util.function.IntToLongFunction keyOf() {

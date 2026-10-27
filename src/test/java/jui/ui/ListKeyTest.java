@@ -49,4 +49,16 @@ public final class ListKeyTest {
         tt.key(Shortcut.of(Key.D));                          // its keys still reach it
         Check.equal(1, presses[0]);
     }
+
+    public void testKeysSetInTheViewKeepTheView() { // final review: keys(...) on every build
+        ListState st = new ListState();
+        Tester tt = Tester.of(c -> list(c, st.keys(i -> items.get(i)), items.size(),
+                i -> box(c).height(30).label("item" + items.get(i))).height(300), 300, 400);
+        st.scrollTo(50);
+        tt.frame();
+        Rect before = tt.find("item50");
+        for (long k = 1000; k < 1003; k++) items.add(0, k);
+        tt.frame();
+        Check.near(before.y(), tt.find("item50").y());
+    }
 }

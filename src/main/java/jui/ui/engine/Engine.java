@@ -158,7 +158,6 @@ public final class Engine {
 
     private void buildPass(View view, float width, float height) {
         pool.reset();
-        revealCount = 0; // each pass asks again for what it shows
         if (Dev.ENABLED) {
             nodesById.clear();
         }
@@ -643,8 +642,13 @@ public final class Engine {
                 double y = asked ? Math.max(0, Math.min(max, m.requestY)) : s.scrollY;
                 m.atEnd = max > 0.5 && y >= max - 0.5;
                 if (m.followEnd) {
-                    if (asked || y != m.wroteY) {
-                        m.following = m.atEnd; // scrolled: up stops it, back to the end starts it again
+                    if (asked) {
+                        m.following = m.atEnd; // scrollToEnd() starts it again
+                    } else if (y != m.wroteY) {
+                        // Scrolled: up stops it; back to the end the last frame showed starts it again,
+                        // though rows came since (as MyGO's sync, by the range committed).
+                        double shown = Math.max(0, s.contentH - s.h);
+                        m.following = shown > 0.5 && y >= shown - 0.5;
                     }
                     if (m.following && max > 0.5) {
                         m.atEnd = true; // it stays at the end as rows come or the last grows
@@ -748,6 +752,7 @@ public final class Engine {
             Dev.warn(UNBOUNDED_LIST);
         }
         int firstBefore = m.first, lastBefore = m.last;
+        boolean endBefore = m.endShown;
         m.viewH = v;
         m.gap = n.gapY;
         Node first = null, last = null;
@@ -783,6 +788,7 @@ public final class Engine {
         boolean again = false;
         if (first == null) {
             m.first = m.last = -1;
+            m.endShown = m.count == 0;
         } else {
             if (!anchored) {
                 m.anchor = m.builtLast;
@@ -823,6 +829,7 @@ public final class Engine {
                     k++;
                 }
             }
+            m.endShown = m.last == m.count - 1 && m.builtLast == m.count - 1 && bottom <= vb + 0.5f;
         }
         double max = Math.max(0, m.content() - v);
         if (m.count > 0 && max <= 0.5) {
@@ -858,7 +865,7 @@ public final class Engine {
         }
         m.requestY = Float.NaN;
         m.requestRow = -1;
-        if (m.rangeRead && (m.first != firstBefore || m.last != lastBefore)) {
+        if (m.rangeRead && (m.first != firstBefore || m.last != lastBefore || m.endShown != endBefore)) {
             requestFrame.run(); // the view read rows that have changed: show it what they are now (as MyGO)
         }
         m.rangeRead = false;
@@ -1003,12 +1010,22 @@ public final class Engine {
      */
     private static final int REVEAL_LAYOUT = 1, REVEAL_ROUND = 2;
 
-    /** Identities that asked this pass to be scrolled into view (Element.scrollIntoView), in order. */
+    /**
+     * Identities asked this frame to be scrolled into view
+     * (Element.scrollIntoView), in order, kept across passes: a request a
+     * click made is not made again by the pass built after it (as MyGO's
+     * revealIDs).
+     */
     private long[] revealIds = new long[4];
     private int revealCount;
 
     /** Scrolls the element of identity id into view once this frame is laid out. */
     public void requestReveal(long id) {
+        for (int i = 0; i < revealCount; i++) {
+            if (revealIds[i] == id) {
+                return; // a pass built again asks again
+            }
+        }
         if (revealCount == revealIds.length) {
             revealIds = java.util.Arrays.copyOf(revealIds, revealCount * 2);
         }

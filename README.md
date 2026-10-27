@@ -345,12 +345,12 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 
 **滚动的其他补充**
 - 带动画的 `scrollTo(y, Duration)`、`scrollTo(x, y, Duration)`：ease-out 曲线，`scrolling()` 表示进行中。滚轮、触控板、键盘、滚动条或立刻跳转的 `scrollTo` 会中断它。动画中途内容变少，偏移停在新的末端，不回弹。
-- `Element.scrollIntoView()`：在这一帧布局之后生效，不带动画，两个方向都按最少移动；一帧里多次调用按顺序处理。
+- `Element.scrollIntoView()`：在这一帧布局之后生效，不带动画，两个方向都按最少移动；一帧里多次调用按顺序处理；在点击之类的输入处理里调用也有效。
 
 **列表**
 - `ListState.keys(i -> key)`：在视野上方插入或删除数据时，视野停在同一项上；锚点那一项被删掉时，退回按行号。行的身份就是这个 key，行回调里不要再用 `c.key`。
-- 获得焦点的行滚出视野后仍然构建，焦点和它的快捷键都保留。从这样的行按 Tab，焦点落到视野里的第一行（同 M3）。
-- `followEnd(true)`：日志式的列表，第一帧显示末尾，追加行时贴着末尾；向上滚停止跟随，滚回末尾或调用 `scrollToEnd()` 恢复。`atEnd()` 表示上一帧是否在末尾。
+- 获得焦点的行滚出视野后仍然构建，焦点和它的快捷键都保留。从这样的行按 Tab，焦点落到窗口里第一个显示着的可聚焦元素（同 M3 对没有构建的行的处理），视野不跳。
+- `followEnd(true)`：日志式的列表，第一帧显示末尾，追加行时贴着末尾；向上滚停止跟随，滚回末尾（即使同时有新行进来）或调用 `scrollToEnd()` 恢复。`atEnd()` 表示上一帧是否看得到末尾：没有行、或者全部行放得下时也为真（同 MyGO）。
 
 **布局**
 - `alignContent(Justify.SPACE_BETWEEN | SPACE_AROUND | SPACE_EVENLY)`，`wrapReverse()`。
@@ -366,7 +366,7 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 ![滚动和列表的示例](docs/scroll-demo.png)
 
 - **示例**：上面是圆角、带边框的横向卡片条，卡片和条带一样高，经过两端时被圆角裁掉，两个按钮带动画地左右滚动；中间是隔行底色、跟随末尾的日志，可以追加 5 行、回到末尾；下面是几个复选框，看描边的勾号。
-- **测试**：`./build.sh test`，336 个测试全部通过。
+- **测试**：`./build.sh test`，340 个测试全部通过。
 - **分配**（`./build.sh alloc`，native image）：实例从 80 字节变成 112 字节以后，控件、列表行、输入框每个仍是 0 字节；模拟外壳整帧 1120 字节、卡片示例 200 字节，和以前一样，都来自应用代码里捕获变量的 lambda。
 - **滚动帧耗时**（`./build.sh listbench`）：p95 0.21 ms，最大 0.30 ms，仍在门槛内。
 - **签名检查**（`./build.sh ffi-check`）：通过。

@@ -268,4 +268,18 @@ public final class ScrollTest {
         tt.frame();
         Check.near(0, st.y());
     }
+
+    public void testScrollIntoViewFromAClickReveals() { // final review: a request made in a pass that is built again
+        ScrollState st = new ScrollState();
+        Tester tt = Tester.of(c -> column(c).children(() -> {
+            boolean go = button(c, "go").clicked();
+            scroll(c, st).size(200, 200).children(() -> {
+                box(c).height(1000);
+                Element t = box(c).height(30).label("target");
+                if (go) t.scrollIntoView();
+            });
+        }), 300, 400);
+        tt.click("go");
+        Check.near(830, st.y());                            // 1030 − 200: its bottom at the view's
+    }
 }
