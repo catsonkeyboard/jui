@@ -288,6 +288,7 @@ public final class Engine {
         }
         s.ref = ref;
         s.onPaste = null; // the hooks hold while the builds that set them go on (as MyGO's rebuild)
+        s.onTextKey = null;
         n.ownRing = true; // a text input shows focus with its border, not a ring (as MyGO)
     }
 
@@ -373,6 +374,15 @@ public final class Engine {
             return;
         }
         state(index).onPaste = fn;
+    }
+
+    /** Has fn see a key that types no text in the node's text input before the input takes it; true takes it. */
+    public void onTextKey(int index, java.util.function.Predicate<jui.ui.TextKey> fn) {
+        if (pool.node(index).kind != Node.INPUT) {
+            Dev.fail("onTextKey is for text inputs");
+            return;
+        }
+        state(index).onTextKey = fn;
     }
 
     /** Makes the node's text input a password input, in this frame. */

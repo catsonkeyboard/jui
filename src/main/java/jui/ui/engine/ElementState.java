@@ -38,6 +38,8 @@ public final class ElementState {
     public jui.ui.TextRef ref;
     /** A text input's hook for a paste, as its last build set it (Element.onPaste), or null. */
     public java.util.function.Predicate<String> onPaste;
+    /** A text input's hook for keys that type no text (Element.onTextKey), or null. */
+    public java.util.function.Predicate<jui.ui.TextKey> onTextKey;
     /**
      * A wheel's glide down, relative to wherever the content is: its
      * distance, what of it is applied, since when (ns), and whether it is
@@ -92,6 +94,7 @@ public final class ElementState {
         requestX = Float.NaN;
         ref = null;
         onPaste = null;
+        onTextKey = null;
         wheelDistance = wheelDone = wheelDistanceX = wheelDoneX = 0;
         wheelStart = wheelStartX = 0;
         wheelingX = wheelingY = false;

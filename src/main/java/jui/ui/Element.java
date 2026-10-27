@@ -130,6 +130,25 @@ public final class Element {
 
     /** What an empty text input shows, in the theme's muted text color. Only for text inputs. */
     /**
+     * Has fn see a key pressed in a text input before the input takes it, as
+     * it comes (as MyGO's OnTextKey): the keys that type no text — those
+     * with ⌘ or Ctrl, and Enter, Tab, Escape, Backspace, Delete, the arrows
+     * and the other keys that move the caret. fn reports whether it took the
+     * key; one taken does nothing else (no submit, Tab does not move the
+     * focus). While the input method composes, the keys are its own; a
+     * shortcut around the input takes a key first, unless the input edits
+     * with it. fn reads and replaces the text through its TextKey, as a chat
+     * box sends with Enter and clears. It holds for the input that comes
+     * until the next frame.
+     */
+    public Element onTextKey(java.util.function.Predicate<TextKey> fn) {
+        if (node() != null) {
+            c.engine().onTextKey(index, fn);
+        }
+        return this;
+    }
+
+    /**
      * Has fn see a paste into a text input (⌘V, Paste, Paste and Match
      * Style) before it goes in, as it comes (as MyGO's OnPaste): text is the
      * clipboard's text, "" when it holds none. fn reports whether it took

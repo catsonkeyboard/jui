@@ -230,6 +230,9 @@ final class Input {
     /** A key went down. Tab and the activation keys act at once; the rest wait for shortcuts. */
     void keyDown(jui.ui.Key key, int mods, boolean repeat) {
         this.mods = mods;
+        if (textKey(key, mods)) {
+            return;
+        }
         // A text input with focus takes the keys it wants before any shortcut (design §7.3, as MyGO).
         TextEdit edit = focusedEdit();
         if (edit != null && (edit.readOnly ? TextEdit.wantsReadOnly(key, mods) : TextEdit.wants(key, mods))) {
@@ -518,6 +521,98 @@ final class Input {
     }
 
     // Text input.
+
+    /**
+     * Gives a key that types no text to the focused input's onTextKey hook,
+     * before the input takes it (as MyGO's OnTextKey): unless the input is
+     * composing (its keys are the input method's), and unless a shortcut
+     * claims the key and the input does not edit with it. Reports whether
+     * the hook took it.
+     */
+    private boolean textKey(jui.ui.Key key, int mods) {
+        TextEdit e = focusedEdit();
+        if (e == null || e.composing() || typesText(key, mods)) {
+            return false;
+        }
+        ElementState s = engine.states().get(focusedId);
+        if (s == null || s.onTextKey == null) {
+            return false;
+        }
+        boolean wants = e.readOnly ? TextEdit.wantsReadOnly(key, mods) : TextEdit.wants(key, mods);
+        if (!wants && claimedBy(mods, key, true)) {
+            return false;
+        }
+        textKey.key = key;
+        textKey.mods = mods;
+        textKey.edit = e;
+        textKey.state = s;
+        textKey.live = true;
+        boolean taken;
+        try {
+            taken = s.onTextKey.test(textKey);
+        } finally {
+            textKey.live = false;
+            textKey.edit = null;
+            textKey.state = null;
+        }
+        if (taken) {
+            blinkStart = engine.clockNow();
+            engine.requestFrame();
+        }
+        return taken;
+    }
+
+    /** Whether a key types text: a letter, digit, punctuation or Space, with only Shift and Option held (as MyGO's typesText). */
+    static boolean typesText(jui.ui.Key key, int mods) {
+        if ((mods & ~(jui.ui.Mod.SHIFT | jui.ui.Mod.ALT)) != 0) {
+            return false;
+        }
+        int k = key.ordinal();
+        return k <= jui.ui.Key.DIGIT9.ordinal() || key == jui.ui.Key.SPACE || key == jui.ui.Key.UNKNOWN
+                || k >= jui.ui.Key.MINUS.ordinal() && k <= jui.ui.Key.BACKQUOTE.ordinal();
+    }
+
+    /** The one TextKey the hooks see, valid while one runs: no object a key. */
+    private final TextKeyEvent textKey = new TextKeyEvent();
+
+    private final class TextKeyEvent implements jui.ui.TextKey {
+        jui.ui.Key key;
+        int mods;
+        TextEdit edit;
+        ElementState state;
+        boolean live;
+
+        public jui.ui.Key key() {
+            return key;
+        }
+
+        public int mods() {
+            return mods;
+        }
+
+        public String text() {
+            return valid() ? edit.text() : "";
+        }
+
+        public void setText(String s) {
+            if (!valid()) {
+                return;
+            }
+            edit.setText(s, true); // joins the last undo step (as MyGO's TextKey.SetText)
+            if (state.ref != null) {
+                state.ref.set(edit.synced);
+            }
+            engine.requestFrame();
+        }
+
+        private boolean valid() {
+            if (!live) {
+                Dev.fail("a TextKey is valid only while its onTextKey runs");
+                return false;
+            }
+            return true;
+        }
+    }
 
     /** The editing of the text input that takes text now, or null: the focused one, unless it is read-only. */
     TextEdit activeEdit() {
