@@ -40,6 +40,12 @@ public final class Engine {
     /** Frames built so far, the one in progress included; and the pass of it being built. */
     private long frame;
     private int pass;
+    /**
+     * The pass being built, counted across the frame's rounds (pass starts
+     * over each round): what states are marked as seen in, so that a state
+     * built only in the first round is not taken for one of the last pass.
+     */
+    private int passId;
     /** Whether the pass being built reported input or ran a callback, so another pass must show it. */
     private boolean consumed;
     private int passes;
@@ -106,10 +112,12 @@ public final class Engine {
         input.advanceGlides(now);
         input.routeKey();
         windowH = height;
+        int nextPassId = 0;
         // A round builds, lays out and fixes up lists; a list that did not cover its view
         // in the first round gets a second, in the same frame (at most two rounds).
         for (int round = 0; ; round++) {
             for (pass = 0; pass < MAX_PASSES; pass++) {
+                passId = nextPassId++;
                 consumed = false;
                 input.beginPass();
                 buildPass(view, width, height);
@@ -334,7 +342,7 @@ public final class Engine {
     private void endPass() {
         for (int i = 0; i < pool.size(); i++) {
             ElementState s = pool.node(i).state;
-            if (s != null && s.seenFrame == frame && s.seenPass == pass) {
+            if (s != null && s.seenFrame == frame && s.seenPass == passId) {
                 s.clicks = s.rightClicks = s.doubleClicks = 0;
                 s.submits = 0;
                 s.pressPending = false;
@@ -434,7 +442,7 @@ public final class Engine {
                 }
             }
         }
-        states.prune(frame, pass);
+        states.prune(frame, passId);
         if (focusRequestThisFrame) {
             focusRequest = 0; // an autoFocus this frame did not apply: its element appeared disabled
             focusRequestThisFrame = false;
@@ -563,7 +571,7 @@ public final class Engine {
             n.state = states.create(n.id, frame);
         }
         n.state.seenFrame = frame;
-        n.state.seenPass = pass;
+        n.state.seenPass = passId;
         return n.state;
     }
 
@@ -1302,7 +1310,7 @@ public final class Engine {
         if (s != null) {
             n.state = s;
             s.seenFrame = frame;
-            s.seenPass = pass;
+            s.seenPass = passId;
         }
         if (Dev.ENABLED) {
             Integer other = nodesById.put(n.id, index);

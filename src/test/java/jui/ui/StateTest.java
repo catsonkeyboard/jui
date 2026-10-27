@@ -63,4 +63,26 @@ public final class StateTest {
         tt.frame();
         Check.equal(new Rect(10, 10, 100, 40), r[0]);
     }
+
+    public void testAStateSeenOnlyInAFramesFirstRoundGoes() { // M3 final review minor
+        ListState st = new ListState();
+        int[] builds = {0};
+        boolean[] again = {false}, fresh = {false};
+        // Rows of 10 under the 32 estimated: the first frame lays out a second round to cover the view.
+        Tester tt = Tester.of(c -> column(c).children(() -> {
+            int b = builds[0]++;
+            if (b == 0 || again[0]) {
+                Element x = box(c.key("x")).size(10, 10);
+                BoolRef old = localBool(x, "old", false);
+                fresh[0] = !old.get();
+                old.set(true);
+            }
+            list(c.key("list"), st, 100, i -> box(c).height(10).label("r" + i)).height(200);
+        }), 300, 300);
+        tt.frame();                                        // x built in round one only
+        Check.isTrue(builds[0] >= 2, "a second round");
+        again[0] = true;
+        tt.frame();                                        // x built again: a new element, so a new state
+        Check.isTrue(fresh[0], "x found the state of its build in the last frame's first round");
+    }
 }
