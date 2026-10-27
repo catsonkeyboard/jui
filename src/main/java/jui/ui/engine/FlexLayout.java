@@ -152,6 +152,7 @@ public final class FlexLayout {
             } else {
                 set(n, p.x + pl + crossPos, p.y + pt + mainPos, cs, size);
             }
+            relative(n);
             pos += size + (me == Ui.AUTO ? auto : me) + mainGap(p) + between;
             place(c);
         }
@@ -559,6 +560,7 @@ public final class FlexLayout {
             } else {
                 set(n, p.x + pl + crossAt, p.y + pt + mainPos, cs, sz);
             }
+            relative(n);
             pos += sz + (me == Ui.AUTO ? auto : me) + mainGap(p) + between;
         }
     }
@@ -739,6 +741,25 @@ public final class FlexLayout {
     }
 
     // Helpers.
+
+    /**
+     * Moves an element in the flow by its left (else minus its right) and
+     * top (else minus its bottom), as MyGO's relative: after its box is set
+     * and before its children are placed, so they move with it; its
+     * siblings, its parent's size and a scroll container's content stay.
+     */
+    private static void relative(Node n) {
+        if (!Float.isNaN(n.left)) {
+            n.x += n.left;
+        } else if (!Float.isNaN(n.right)) {
+            n.x -= n.right;
+        }
+        if (!Float.isNaN(n.top)) {
+            n.y += n.top;
+        } else if (!Float.isNaN(n.bottom)) {
+            n.y -= n.bottom;
+        }
+    }
 
     private static void set(Node n, float x, float y, float w, float h) {
         n.x = Float.isNaN(x) ? 0 : x;

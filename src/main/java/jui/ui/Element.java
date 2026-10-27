@@ -281,7 +281,13 @@ public final class Element {
         return this;
     }
 
-    /** The distance from the top of the parent's padding box, for an absolute element. */
+    /**
+     * For an absolute element, the distance from the top of the parent's
+     * padding box. For an element in the flow, how far down to move it from
+     * where the flow put it, as CSS's position: relative: its siblings and
+     * its parent stay. Top wins over bottom and left over right, which move
+     * it up and left. A list's rows do not move.
+     */
     public Element top(float v) {
         Node n = node();
         if (n != null) {
