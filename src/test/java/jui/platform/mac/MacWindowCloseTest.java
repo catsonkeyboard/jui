@@ -41,4 +41,19 @@ public final class MacWindowCloseTest {
             Check.equal(0L, alive);
         }
     }
+
+    public void testTheRefreshRateIsReadAgainWhenTheWindowChangesScreen() { // M3 final review minor
+        ObjC.send(ObjC.cls("NSApplication"), "sharedApplication");
+        MacWindow w = MacWindow.open("screen", 200, 150, 0xFFFFFF, null, (s, width, height) -> {});
+        try {
+            Check.isTrue(ObjC.respondsTo(w.delegate(), "windowDidChangeScreen:"), "the delegate hears of a new screen");
+            long screen = ObjC.send(w.window(), "screen");
+            Check.isTrue(screen != 0, "the window is on a screen");
+            w.refresh = 1;                                 // as read on another screen
+            ObjC.send(w.delegate(), "windowDidChangeScreen:", 0);
+            Check.equal(1_000_000_000L / Math.max(ObjC.send(screen, "maximumFramesPerSecond"), 30), w.refresh);
+        } finally {
+            w.close();
+        }
+    }
 }

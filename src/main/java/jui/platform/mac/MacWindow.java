@@ -139,7 +139,7 @@ public final class MacWindow {
     private boolean shown = true;
     /** When the last frame was drawn, and the display's refresh period, in nanoseconds. */
     private long lastFrameNanos;
-    private long refresh = 1_000_000_000L / 60;
+    long refresh = 1_000_000_000L / 60;
     private int background;
     /** A control-click: the primary button acts as the secondary until it is released (as MyGO). */
     private boolean ctrlClick;
@@ -205,11 +205,7 @@ public final class MacWindow {
         send(window, "center");
         send(window, "makeKeyAndOrderFront:", 0);
         send(window, "makeFirstResponder:", view);
-        long screen = send(window, "screen");
-        if (screen != 0) {
-            long fps = send(screen, "maximumFramesPerSecond");
-            refresh = 1_000_000_000L / Math.max(fps, 30);
-        }
+        readRefresh();
         send(view, "setNeedsDisplay:", 1);
     }
 
@@ -375,6 +371,15 @@ public final class MacWindow {
         if (owed && shown) {
             owed = false;
             requestFrame();
+        }
+    }
+
+    /** The refresh period of the window's screen: read as it opens, and again when it moves to another screen. */
+    private void readRefresh() {
+        long screen = send(window, "screen");
+        if (screen != 0) {
+            long fps = send(screen, "maximumFramesPerSecond");
+            refresh = 1_000_000_000L / Math.max(fps, 30);
         }
     }
 
@@ -744,6 +749,12 @@ public final class MacWindow {
         delegateClass = ObjCClass.define("JUIWindowDelegate", "NSObject")
                 .method1("windowDidBecomeKey:", (self, cmd, note) -> focusChanged(self, true))
                 .method1("windowDidResignKey:", (self, cmd, note) -> focusChanged(self, false))
+                .method1("windowDidChangeScreen:", (self, cmd, note) -> {
+                    MacWindow w = BY_DELEGATE.get(self);
+                    if (w != null) {
+                        w.readRefresh();
+                    }
+                })
                 .method1("windowDidChangeOcclusionState:", (self, cmd, note) -> {
                     MacWindow w = BY_DELEGATE.get(self);
                     if (w != null) {
