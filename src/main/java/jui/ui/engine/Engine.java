@@ -1158,8 +1158,11 @@ public final class Engine {
      * The rect of [start, end) of the shown text, in window DIPs, for the
      * input method's candidate window (as MyGO's BoundsForRange): the caret,
      * 1 wide, for an empty range, else the range's first grapheme cluster,
-     * whose end goes to out[4] when out has room. False without a text
-     * input, or when the rect is outside the input's padding box.
+     * whose end goes to out[4] when out has room. A rect scrolled out of the
+     * input's padding box (the start of a composition wider than the box) is
+     * kept in it, at its edge, so the candidate window stays by the input;
+     * MyGO gives none, and AppKit puts the window at the screen's corner.
+     * False without a text input.
      */
     public boolean textRect(int start, int end, float[] out) {
         TextEdit e = input.activeEdit();
@@ -1176,9 +1179,8 @@ public final class Engine {
             w = Math.max(1, l.caretX(actual) - l.caretX(a));
         }
         float y = e.lineTop, h = e.lineH;
-        if (x + w < e.clipX0 || x > e.clipX1 || y + h < e.clipY0 || y > e.clipY1) {
-            return false;
-        }
+        w = Math.min(w, Math.max(1, e.clipX1 - e.clipX0));
+        x = Math.max(e.clipX0, Math.min(x, e.clipX1 - w));
         out[0] = x;
         out[1] = y;
         out[2] = w;

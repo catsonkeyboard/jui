@@ -136,4 +136,19 @@ public final class TextInputPointerTest {
         Check.equal(Cursor.TEXT, tt.cursor());
         tt.release(in.x() + 20, in.y() + 200);
     }
+
+    public void testACompositionWiderThanTheBoxStillGivesARectInIt() { // M4 final review minor
+        TextRef q = new TextRef("");
+        Tester tt = Tester.of(c -> column(c).padding(10).children(() -> textInput(c, q).label("in").width(120)), 400, 200);
+        tt.click("in");
+        String pinyin = "zhongguorenmin".repeat(3);
+        tt.compose(pinyin, pinyin.length());              // its end in view, its start scrolled out
+        int[] m = new int[2];
+        Check.isTrue(tt.engine().textMarkedRange(m), "composing");
+        float[] r = new float[5];
+        Check.isTrue(tt.engine().textRect(m[0], m[0] + m[1], r), "a rect for the candidate window, not none");
+        Rect box = tt.find("in");
+        Check.isTrue(r[0] >= box.x() + 1 - 0.01f && r[0] + r[2] <= box.x() + box.width() - 1 + 0.01f,
+                "kept in the box, at its edge: " + r[0]);
+    }
 }
