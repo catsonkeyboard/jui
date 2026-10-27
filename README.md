@@ -331,13 +331,66 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - 右键菜单（M5 的 `contextMenu`）；
 - 设计 6.12 给编辑器预留的“元素接管文本输入”和富文本片段，留给编辑器的设计。
 
+## 滚动、列表和布局的后续（2026-10-27）
+
+按[后续计划](docs/plans/2026-10-27-scroll-list-layout-followups.md)补上了 M2、M3 推迟的 8 项，行为对照 MyGO（commit `8049993`）。
+
+**横向滚动**
+- `scrollHorizontal(c)`：横向滚动的行，子元素纵向居中；`scrollBoth(c)`：两个方向都滚动的列，子元素按内容宽度排，要拉伸的拉伸到最宽的那个。都有带 `ScrollState` 的版本。
+- `ScrollState` 加了 `x()`、`maxX()`、`scrollTo(x, y)`。
+- 滚轮和触控板：指针下最内层、在任一方向还能动的容器拿走整个滚动。纵向滚轮落在只横向滚动的容器上，交给外面的容器；按住 Shift 转滚轮是横向滚动。
+- 不带修饰键的 ←/→ 横向滚 40，排在输入框、滑块和快捷键之后。
+- 横向滚动条在底边，可以拖动，点轨道翻 0.9 个视口宽；两个方向的滚动条都显示时，各自让出右下角。
+- 按 Tab 滚进视野时，两个方向都按最少移动。
+
+**滚动的其他补充**
+- 带动画的 `scrollTo(y, Duration)`、`scrollTo(x, y, Duration)`：ease-out 曲线，`scrolling()` 表示进行中。滚轮、触控板、键盘、滚动条或立刻跳转的 `scrollTo` 会中断它。动画中途内容变少，偏移停在新的末端，不回弹。
+- `Element.scrollIntoView()`：在这一帧布局之后生效，不带动画，两个方向都按最少移动；一帧里多次调用按顺序处理。
+
+**列表**
+- `ListState.keys(i -> key)`：在视野上方插入或删除数据时，视野停在同一项上；锚点那一项被删掉时，退回按行号。行的身份就是这个 key，行回调里不要再用 `c.key`。
+- 获得焦点的行滚出视野后仍然构建，焦点和它的快捷键都保留。从这样的行按 Tab，焦点落到视野里的第一行（同 M3）。
+- `followEnd(true)`：日志式的列表，第一帧显示末尾，追加行时贴着末尾；向上滚停止跟随，滚回末尾或调用 `scrollToEnd()` 恢复。`atEnd()` 表示上一帧是否在末尾。
+
+**布局**
+- `alignContent(Justify.SPACE_BETWEEN | SPACE_AROUND | SPACE_EVENLY)`，`wrapReverse()`。
+- 流内元素的相对定位：`top`、`left`、`bottom`、`right` 把元素从布局给它的位置挪开，兄弟元素、父元素和滚动容器的内容尺寸不受影响。
+
+**绘制**
+- 圆角裁剪：`clip()` 的元素和滚动容器按边框内侧的圆角裁剪，点击圆角外的位置点不中里面的内容。只有最内层的裁剪是圆角（同 MyGO）；命中测试也只按最内层的圆角判断，MyGO 每一层都判断。
+- 描边：`Scene.stroke`（两段折线，圆头圆角）和 `Scene.line`。复选框的勾号改成描边，不再是 “✓” 字形。MyGO 是在 CPU 上把路径光栅化进图集。
+- 每个实例从 80 字节变成 112 字节，多了最内层裁剪的矩形和圆角。
+
+示例在 native image 下的画面如下（`./build.sh native-demo Scroll`）：
+
+![滚动和列表的示例](docs/scroll-demo.png)
+
+- **示例**：上面是圆角、带边框的横向卡片条，卡片和条带一样高，经过两端时被圆角裁掉，两个按钮带动画地左右滚动；中间是隔行底色、跟随末尾的日志，可以追加 5 行、回到末尾；下面是几个复选框，看描边的勾号。
+- **测试**：`./build.sh test`，336 个测试全部通过。
+- **分配**（`./build.sh alloc`，native image）：实例从 80 字节变成 112 字节以后，控件、列表行、输入框每个仍是 0 字节；模拟外壳整帧 1120 字节、卡片示例 200 字节，和以前一样，都来自应用代码里捕获变量的 lambda。
+- **滚动帧耗时**（`./build.sh listbench`）：p95 0.21 ms，最大 0.30 ms，仍在门槛内。
+- **签名检查**（`./build.sh ffi-check`）：通过。
+
+**还需要手动核对的**（`./build.sh native-demo Scroll`）
+- 圆角裁剪的边缘是否平滑，卡片在圆角处是否被裁掉；
+- 勾号的样子；
+- 触控板横向滑动、Shift+滚轮；
+- 横向滚动条：悬停时出现，拖动，点轨道翻页；
+- 带动画的滚动；
+- 日志跟随末尾：追加时贴底，向上翻看时不被拉走，滚回末尾又开始跟随。
+
+**和计划不同的地方**
+- 带动画的 `scrollTo` 只在开始时把目标夹到上一帧的范围里，之后每帧夹的是当前值，不再改目标，这样内容变少时不会回弹；`ScrollState` 还没绑定到容器时，带动画的 `scrollTo` 退化成跳转。
+- 一帧里多次 `scrollIntoView` 时，每次移动之后重新布局一次，下一次从移动后的位置算。
+- 列表的 `scrollTo(row)` 和滚进视野会停止跟随末尾，否则下一帧又跳回末尾。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
 
 ```bash
 ./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
-./build.sh demo            # 卡片示例，在 JVM 上运行；Counter、Todo（M2）、Files（M3，M4 加了搜索框）是其他示例的名字
+./build.sh demo            # 卡片示例，在 JVM 上运行；Counter、Todo（M2）、Files（M3，M4 加了搜索框）、Scroll（滚动和列表的后续）是其他示例的名字
 ./build.sh native-demo     # 同上，编译成 native image（build/<name>-demo）后运行，也接受示例名
 ./build.sh alloc           # 实测 UI API 每帧的分配（native image 和 JVM）
 ./build.sh listbench       # 1 万行列表的滚动帧耗时（native image，M3 的门槛）
@@ -365,8 +418,8 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 | `jui/text/TextLayout.java` | 排版结果：每个字形的字体、编号、位置 | `internal/text/layout.go` |
 | `jui/text/GlyphAtlas.java` | 字形图集：货架式打包、记录改动区域 | `internal/scene` 的图集 |
 | `jui/render/metal/MetalRenderer.java` | CAMetalLayer、预编译着色器库、图集纹理、实例化绘制 | `internal/gpu/metal/metal.go` |
-| `jui/render/Scene.java` | 一帧要画的方框、阴影和字形，每个 80 字节 | `internal/scene` |
-| `resources/jui/shaders/shader.metal` | 距离场画圆角矩形、边框和阴影，按像素读图集画字形 | `internal/gpu/metal/shader.metal` |
+| `jui/render/Scene.java` | 一帧要画的方框、阴影、字形和描边，每个 112 字节，带最内层裁剪的圆角矩形 | `internal/scene` |
+| `resources/jui/shaders/shader.metal` | 距离场画圆角矩形、边框、阴影和描边，按像素读图集画字形，按最内层裁剪的圆角裁掉 | `internal/gpu/metal/shader.metal` |
 | `jui/spike/Main.java` | 演示窗口、启动计时和文字统计 | — |
 | `jui/spike/AllocSpike.java` | 在 native image 上实测 UI API 每帧的分配 | — |
 | `baseline/spike.m` | 对照组：同样的窗口和方框用 Objective-C 写，按同样口径计时 | — |
@@ -390,6 +443,7 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 | `jui/examples/CardDemo.java` | M1 验收示例 | — |
 | `jui/examples/{CounterDemo,TodoDemo}.java` | M2 验收示例：计数器和待办清单 | `examples/counter-native` |
 | `jui/examples/FilesDemo.java` | M3 验收示例：1 万篇笔记的文件列表；M4 加了搜索框 | — |
+| `jui/examples/ScrollDemo.java` | 滚动和列表后续的示例：横向卡片条、跟随末尾的日志、描边的勾号 | — |
 | `jui/text/TextBounds.java` | 字素簇和词的边界 | `internal/text/word.go`、`ui/textbuffer.go` |
 | `jui/ui/engine/TextEdit.java` | 单行编辑：文字、选区、组字、按键、命令、撤销 | `ui/editor*.go` |
 | `jui/ui/engine/Host.java` | 引擎交给平台的事：剪贴板、指针形状、输入法 | `host` |
