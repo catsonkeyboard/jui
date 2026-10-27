@@ -678,7 +678,7 @@ final class Input {
     private boolean barPress(float x, float y) {
         float width = engine.theme().scrollbarWidth();
         for (int k = 0; k < hoverCount; k++) {
-            if ((hoverFlags[k] & Node.SCROLL) == 0) {
+            if ((hoverFlags[k] & Node.SCROLL_Y) == 0) {
                 continue;
             }
             ElementState s = engine.states().get(hoverIds[k]);
@@ -734,7 +734,7 @@ final class Input {
         int[] idx = scratch[0];
         for (int k = 0; k < n; k++) {
             int i = idx[k];
-            if ((hits.flags[i] & Node.SCROLL) == 0) {
+            if ((hits.flags[i] & Node.SCROLL_Y) == 0) {
                 continue;
             }
             ElementState s = engine.states().get(hits.ids[i]);
@@ -835,12 +835,12 @@ final class Input {
         }
         for (int k = 0; k < focusChainCount; k++) {
             int i = hits.indexOf(focusChain[k]);
-            if (i >= 0 && (hits.flags[i] & Node.SCROLL) != 0 && scrollContainer(hits.ids[i], key, mods)) {
+            if (i >= 0 && (hits.flags[i] & Node.SCROLL_Y) != 0 && scrollContainer(hits.ids[i], key, mods)) {
                 return true;
             }
         }
         for (int k = 0; k < hoverCount; k++) {
-            if ((hoverFlags[k] & Node.SCROLL) != 0 && scrollContainer(hoverIds[k], key, mods)) {
+            if ((hoverFlags[k] & Node.SCROLL_Y) != 0 && scrollContainer(hoverIds[k], key, mods)) {
                 return true;
             }
         }

@@ -31,6 +31,9 @@ public final class ElementState {
     /** A scroll container's offset, its content's height and its content box's height as committed; an offset asked for (NaN none). */
     public float scrollY, contentH, viewH;
     public float requestY = Float.NaN;
+    /** The same across, for a container that scrolls across. */
+    public float scrollX, contentW, viewW;
+    public float requestX = Float.NaN;
     /** A wheel's glide, relative to wherever the content is: its distance, what of it is applied, since when (ns), and whether it is under way. */
     float wheelDistance, wheelDone;
     long wheelStart;
@@ -66,6 +69,8 @@ public final class ElementState {
         disabledLast = false;
         scrollY = contentH = viewH = 0;
         requestY = Float.NaN;
+        scrollX = contentW = viewW = 0;
+        requestX = Float.NaN;
         wheelDistance = wheelDone = 0;
         wheelStart = 0;
         wheeling = false;

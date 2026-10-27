@@ -66,8 +66,22 @@ public final class FlexLayout {
         }
         boolean row = p.row;
         boolean scroll = (p.flags & Node.SCROLL) != 0;
+        boolean scrollsX = (p.flags & Node.SCROLL_X) != 0, scrollsY = (p.flags & Node.SCROLL_Y) != 0;
         float main = row ? innerW : innerH, cross = row ? innerH : innerW;
-        resolve(p, innerW, scroll ? Float.NaN : innerH); // a scroll container's content has no height limit
+        // Along the ways a scroll container scrolls, its content has no limit (as MyGO's computeBox).
+        resolve(p, scrollsX ? Float.NaN : innerW, scrollsY ? Float.NaN : innerH);
+        // Across a column that scrolls both ways, the children are as wide as the widest (MyGO's line cross).
+        boolean crossScrolls = scroll && (row ? scrollsY : scrollsX);
+        if (crossScrolls) {
+            float widest = 0;
+            for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
+                Node n = pool.node(c);
+                float cs = Float.isNaN(n.crossSize) ? clamp(contentHeight(c, n.flexTarget), n.minHeight, n.maxHeight)
+                        : n.crossSize;
+                widest = Math.max(widest, cs + (row ? m(n.marTop) + m(n.marBottom) : m(n.marLeft) + m(n.marRight)));
+            }
+            cross = widest;
+        }
 
         int count = 0, autos = 0;
         float used = 0;
@@ -80,14 +94,28 @@ public final class FlexLayout {
         }
         used += mainGap(p) * Math.max(0, count - 1);
         float free = main - used;
-        float shift = 0;
+        float shift = 0, crossShift = 0;
         if (scroll) {
-            // Its content is as high as its children; the offset stays within it (as MyGO's place).
-            p.contentH = used + insetY(p);
-            float max = Math.max(0, p.contentH - p.h);
-            float y = Float.isNaN(p.scrollRequest) ? p.scrollY : p.scrollRequest;
-            p.scrollY = Math.max(0, Math.min(max, y));
-            shift = p.scrollY;
+            // Its content is as large as its children; the offsets stay within it (as MyGO's place).
+            float usedW = row ? used : crossScrolls ? cross : 0, usedH = row ? (crossScrolls ? cross : 0) : used;
+            if (scrollsY) {
+                p.contentH = usedH + insetY(p);
+                float max = Math.max(0, p.contentH - p.h);
+                float y = Float.isNaN(p.scrollRequest) ? p.scrollY : p.scrollRequest;
+                p.scrollY = Math.max(0, Math.min(max, y));
+            } else {
+                p.scrollY = 0;
+            }
+            if (scrollsX) {
+                p.contentW = Math.max(usedW, innerW) + insetX(p);
+                float max = Math.max(0, p.contentW - p.w);
+                float x = Float.isNaN(p.scrollRequestX) ? p.scrollX : p.scrollRequestX;
+                p.scrollX = Math.max(0, Math.min(max, x));
+            } else {
+                p.scrollX = 0; // asked of one that scrolls only down: it stays at the left
+            }
+            shift = row ? p.scrollX : p.scrollY;
+            crossShift = row ? p.scrollY : p.scrollX;
             free = Math.max(0, free);
         }
         float auto = 0;
@@ -132,6 +160,10 @@ public final class FlexLayout {
             }
             float cms = row ? n.marTop : n.marLeft, cme = row ? n.marBottom : n.marRight;
             Align a = n.alignSelf != null ? n.alignSelf : p.alignItems;
+            if (crossScrolls && a == Align.STRETCH && cms != Ui.AUTO && cme != Ui.AUTO
+                    && Float.isNaN(row ? resolved(n.height, n.heightPercent, Float.NaN) : resolved(n.width, n.widthPercent, Float.NaN))) {
+                cs = row ? clamp(cross - cms - cme, n.minHeight, n.maxHeight) : clamp(cross - cms - cme, n.minWidth, n.maxWidth);
+            }
             float crossPos;
             if (cms == Ui.AUTO && cme == Ui.AUTO) {
                 crossPos = (cross - cs) / 2;
@@ -147,6 +179,7 @@ public final class FlexLayout {
                 };
             }
             float mainPos = (p.reverse ? main - pos - size : pos) - shift;
+            crossPos -= crossShift;
             if (row) {
                 set(n, p.x + pl + mainPos, p.y + pt + crossPos, size, cs);
             } else {

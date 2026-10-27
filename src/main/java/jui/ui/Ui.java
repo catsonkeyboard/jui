@@ -55,21 +55,50 @@ public final class Ui {
 
     /** A column that scrolls its content up and down, clipped to its padding box (as MyGO's Scroll). */
     public static Element scroll(Context c) {
-        Element e = open(c, Node.BOX, false, Align.STRETCH);
-        if (e.node() != null) {
-            c.engine().makeScroll(e.index);
-        }
-        return e;
+        return scroll(c, null, false, Align.STRETCH, false, true);
     }
 
     /** A scroll container whose offset state reads and moves. */
     public static Element scroll(Context c, ScrollState state) {
-        Element e = open(c, Node.BOX, false, Align.STRETCH);
+        return scroll(c, state, false, Align.STRETCH, false, true);
+    }
+
+    /**
+     * A row that scrolls across when its content is wider than it: its
+     * children centered down it, as row's (MyGO's ScrollHorizontal). A
+     * vertical wheel passes on to a container around it; Shift turns it.
+     */
+    public static Element scrollHorizontal(Context c) {
+        return scroll(c, null, true, Align.CENTER, true, false);
+    }
+
+    /** A horizontal scroll container whose offset state reads and moves. */
+    public static Element scrollHorizontal(Context c, ScrollState state) {
+        return scroll(c, state, true, Align.CENTER, true, false);
+    }
+
+    /**
+     * A column that scrolls both ways: its children as wide as their
+     * content, those that stretch as wide as the widest (MyGO's ScrollBoth).
+     */
+    public static Element scrollBoth(Context c) {
+        return scroll(c, null, false, Align.STRETCH, true, true);
+    }
+
+    /** A scroll container both ways whose offset state reads and moves. */
+    public static Element scrollBoth(Context c, ScrollState state) {
+        return scroll(c, state, false, Align.STRETCH, true, true);
+    }
+
+    private static Element scroll(Context c, ScrollState state, boolean row, Align align, boolean x, boolean y) {
+        Element e = open(c, Node.BOX, row, align);
         Node n = e.node();
         if (n != null) {
-            c.engine().state(e.index); // the container's state first, so a request bound now lands on it
-            state.bind(c.engine(), n.id);
-            c.engine().makeScroll(e.index);
+            if (state != null) {
+                c.engine().state(e.index); // the container's state first, so a request bound now lands on it
+                state.bind(c.engine(), n.id);
+            }
+            c.engine().makeScroll(e.index, x, y);
         }
         return e;
     }
@@ -87,7 +116,7 @@ public final class Ui {
             return e;
         }
         jui.ui.engine.Engine en = c.engine();
-        en.makeScroll(e.index);
+        en.makeScroll(e.index, false, true);
         ListState st = state != null ? state : local(e, "list", ListState::new).get();
         en.listPlan(e.index, st.model, count);
         int saved = en.enter(e.index);

@@ -16,6 +16,8 @@ public final class Node {
     // Flags: what input the element takes, set by the queries and controls that build it.
     public static final int CLICKABLE = 1, FOCUSABLE = 2, HOVER = 4, DRAG = 8, TOGGLE = 16, KEYS = 32, SCROLL = 64, LIST = 128,
             TEXT_INPUT = 256;
+    /** Which ways a scroll container (SCROLL) scrolls: across, down, or both. */
+    public static final int SCROLL_X = 512, SCROLL_Y = 1024;
 
     // Structure.
     public long id;
@@ -70,6 +72,8 @@ public final class Node {
     public boolean clip;
     /** A scroll container's offset (in from its state, out clamped), the offset asked for (NaN none), and its content's height. */
     public float scrollY, scrollRequest, contentH;
+    /** The same across, for one that scrolls across: 0 for one that does not. */
+    public float scrollX, scrollRequestX, contentW;
     /** A list's model, its anchor row among the rows built, and where that row's top goes from its content box's top. */
     public ListModel listModel;
     public int listAnchor;
@@ -166,6 +170,8 @@ public final class Node {
         absolute = invisible = clip = false;
         scrollY = contentH = 0;
         scrollRequest = Float.NaN;
+        scrollX = contentW = 0;
+        scrollRequestX = Float.NaN;
         bars = barDrag = false;
         listModel = null;
         listAnchor = 0;

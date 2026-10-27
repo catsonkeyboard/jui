@@ -439,6 +439,10 @@ public final class Engine {
                     s.contentH = n.contentH;
                     s.viewH = s.ch;
                     s.requestY = Float.NaN;
+                    s.scrollX = n.scrollX;
+                    s.contentW = n.contentW;
+                    s.viewW = s.cw;
+                    s.requestX = Float.NaN;
                 }
                 if (n.kind == Node.INPUT && s.edit != null && n.layout != null) {
                     inputGeometry(n, s);
@@ -809,11 +813,21 @@ public final class Engine {
 
     /** Asks the scroll container of identity id to scroll to y in the next frame. */
     public void requestScroll(long id, float y) {
+        requestScroll(id, Float.NaN, y);
+    }
+
+    /** Asks the scroll container of identity id to scroll to (x, y) in the next frame; NaN leaves that way be. */
+    public void requestScroll(long id, float x, float y) {
         ElementState s = states.get(id);
         if (s == null) {
             s = states.create(id, frame + 1);
         }
-        s.requestY = y;
+        if (!Float.isNaN(x)) {
+            s.requestX = x;
+        }
+        if (!Float.isNaN(y)) {
+            s.requestY = y;
+        }
         s.wheeling = false; // the app's scroll stops a wheel's glide
         requestFrame.run();
     }
@@ -853,7 +867,7 @@ public final class Engine {
         int moved = 0;
         for (int a = n.parent; a != Node.NONE; a = pool.node(a).parent) {
             Node c = pool.node(a);
-            if ((c.flags & Node.SCROLL) == 0) {
+            if ((c.flags & Node.SCROLL_Y) == 0) {
                 continue;
             }
             float vt = c.y + c.border, vb = c.y + c.h - c.border, delta = 0;
@@ -888,14 +902,19 @@ public final class Engine {
         return moved;
     }
 
-    /** Makes the node a vertical scroll container, taking its offset (and any asked for) from its state. */
-    public void makeScroll(int index) {
+    /**
+     * Makes the node a scroll container, across (x), down (y) or both,
+     * taking its offsets (and any asked for) from its state.
+     */
+    public void makeScroll(int index, boolean x, boolean y) {
         Node n = pool.node(index);
-        n.flags |= Node.SCROLL | Node.HOVER;
+        n.flags |= Node.SCROLL | Node.HOVER | (x ? Node.SCROLL_X : 0) | (y ? Node.SCROLL_Y : 0);
         n.clip = true;
         ElementState s = state(index);
         n.scrollY = s.scrollY;
         n.scrollRequest = s.requestY;
+        n.scrollX = s.scrollX;
+        n.scrollRequestX = s.requestX;
     }
 
     /**
