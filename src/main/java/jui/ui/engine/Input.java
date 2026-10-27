@@ -527,7 +527,14 @@ final class Input {
             return;
         }
         if (clientEdit != null && clientEdit.composing()) {
-            clientEdit.unmark(engine.clockNow());
+            // Focus going elsewhere commits the composition; the input itself disabled drops it, as a
+            // disabled parent does at build (as MyGO: disabled inputs drop their composition).
+            int i = textClient == focusedId ? hits.indexOf(textClient) : -1;
+            if (i >= 0 && (hits.flags[i] & HitList.DISABLED) != 0) {
+                clientEdit.setMarked("", 0, 0, -1, 0, engine.clockNow());
+            } else {
+                clientEdit.unmark(engine.clockNow());
+            }
             engine.host().discardMarkedText();
             engine.requestFrame();
         }

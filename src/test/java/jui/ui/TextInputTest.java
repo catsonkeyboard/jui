@@ -249,4 +249,21 @@ public final class TextInputTest {
         tt.frame();
         Check.equal("a\nb", two.get());
     }
+
+    public void testDisablingAnInputMidCompositionDropsItEitherWay() { // M4 final review minor
+        for (boolean own : new boolean[] {true, false}) {
+            TextRef q = new TextRef("ab");
+            boolean[] off = {false};
+            Tester tt = Tester.of(c -> column(c).disabled(!own && off[0]).children(() ->
+                    textInput(c, q).label("in").disabled(own && off[0])), 300, 200);
+            tt.click("in");
+            tt.key(Shortcut.of(Key.END));
+            tt.compose("ni", 2);
+            off[0] = true;
+            tt.frame();
+            tt.frame();
+            Check.equal("ab", q.get());                    // the uncommitted pinyin is dropped, not committed
+            Check.isTrue(tt.find("ab") != null, (own ? "its own" : "a parent's") + " disable: it shows the text alone");
+        }
+    }
 }
