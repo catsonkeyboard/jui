@@ -135,6 +135,7 @@ public final class Engine {
             if (consumed) {
                 requestFrame.run(); // still reporting after the last pass: show the rest next frame
             }
+            settleInputs();
             inheritTextStyle();
             layout.layout(0, width, height);
             boolean again = afterLayout();
@@ -283,37 +284,90 @@ public final class Engine {
                 host.discardMarkedText();
             }
         } else if (e.dirty) {
-            e.dirty = false;
-            e.synced = e.text();
-            e.syncedFrame = frame;
-            ref.set(e.synced);
-            markChanged(index);
+            writeBack(index, e, ref);
         }
-        if (off(n) && e.composing()) {
-            e.setMarked("", 0, 0, -1, 0, now);
-            host.discardMarkedText();
-        }
-        n.text = e.display();
+        s.ref = ref;
         n.ownRing = true; // a text input shows focus with its border, not a ring (as MyGO)
-        n.inputCaret = e.displayCaret();
-        if (e.composing()) {
-            n.inputSelA = n.inputSelB = n.inputCaret;
-            n.inputMarkA = e.caret();
-            n.inputMarkB = e.caret() + e.compose().length();
-        } else {
-            n.inputSelA = e.selStart();
-            n.inputSelB = e.selEnd();
-            n.inputMarkA = n.inputMarkB = -1;
-        }
-        n.inputFocused = focused(n.id);
-        if (n.inputFocused && !off(n)) { // a disabled input shows no caret: no blink frames for it
-            // The caret blinks from the last key, edit or focus change; after 30 s it rests, shown.
-            long phase = Math.max(0, now - input.blinkStart);
-            n.caretShown = phase >= BLINK_REST || (phase / BLINK) % 2 == 0;
-            if (phase < BLINK_REST) {
-                after(now + BLINK - phase % BLINK);
+    }
+
+    /** The user's edit, into the app's reference, reported as changed(). */
+    private void writeBack(int index, TextEdit e, jui.ui.TextRef ref) {
+        e.dirty = false;
+        e.synced = e.text();
+        e.syncedFrame = frame;
+        ref.set(e.synced);
+        markChanged(index);
+    }
+
+    /**
+     * Once the view is built, each text input as its options left it: the
+     * options go into its editing, for the input that comes until the next
+     * frame (as MyGO's rebuild), and what it shows is worked out from them,
+     * so options set after textInput count in this frame.
+     */
+    private void settleInputs() {
+        for (int i = 0; i < pool.size(); i++) {
+            Node n = pool.node(i);
+            if (n.kind != Node.INPUT || n.state == null || n.state.edit == null) {
+                continue;
+            }
+            TextEdit e = n.state.edit;
+            if (off(n) && e.composing()) {
+                e.setMarked("", 0, 0, -1, 0, now);
+                host.discardMarkedText();
+            }
+            n.text = e.display();
+            n.inputCaret = e.displayCaret();
+            if (e.composing()) {
+                n.inputSelA = n.inputSelB = n.inputCaret;
+                n.inputMarkA = e.caret();
+                n.inputMarkB = e.caret() + e.compose().length();
+            } else {
+                n.inputSelA = e.selStart();
+                n.inputSelB = e.selEnd();
+                n.inputMarkA = n.inputMarkB = -1;
+            }
+            n.inputFocused = focused(n.id);
+            n.caretShown = false;
+            if (n.inputFocused && !off(n)) { // a disabled input shows no caret: no blink frames for it
+                // The caret blinks from the last key, edit or focus change; after 30 s it rests, shown.
+                long phase = Math.max(0, now - input.blinkStart);
+                n.caretShown = phase >= BLINK_REST || (phase / BLINK) % 2 == 0;
+                if (phase < BLINK_REST) {
+                    after(now + BLINK - phase % BLINK);
+                }
             }
         }
+    }
+
+    /**
+     * Selects from start (the anchor) to end (the caret) in the node's text
+     * input, in UTF-16 indices, each held within the text and on a grapheme
+     * boundary; a composition is committed first, and the input method told.
+     */
+    public void setTextSelection(int index, int start, int end) {
+        ElementState s = state(index);
+        if (pool.node(index).kind != Node.INPUT || s.edit == null) {
+            Dev.fail("setTextSelection is for text inputs");
+            return;
+        }
+        boolean composing = s.edit.composing();
+        s.edit.select(start, end);
+        if (composing) {
+            host.discardMarkedText();
+        }
+        if (s.edit.dirty && s.ref != null) {
+            writeBack(index, s.edit, s.ref); // the committed composition is the app's text in this frame
+        }
+    }
+
+    /** The start (or, with end, the end) of the node's text input's selection; 0 without one. */
+    public int textSelection(int index, boolean end) {
+        ElementState s = state(index);
+        if (s.edit == null) {
+            return 0;
+        }
+        return end ? s.edit.selEnd() : s.edit.selStart();
     }
 
     /** The caret's blink, each way, and how long after the last change it blinks (as MyGO, 530 ms and 30 s). */

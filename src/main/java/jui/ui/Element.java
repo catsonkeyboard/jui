@@ -129,6 +129,31 @@ public final class Element {
     }
 
     /** What an empty text input shows, in the theme's muted text color. Only for text inputs. */
+    /**
+     * Selects from start (the anchor) to end (the caret) in a text input, in
+     * UTF-16 indices of its text, each held within it and on a grapheme
+     * boundary: start greater than end is a backward selection, equal ends
+     * put the caret there. It shows in this frame; it does not move the
+     * focus. Called on every frame, it keeps the user from moving the
+     * selection.
+     */
+    public Element setTextSelection(int start, int end) {
+        if (node() != null) {
+            c.engine().setTextSelection(index, start, end);
+        }
+        return this;
+    }
+
+    /** The start of a text input's selection, its smaller end, in UTF-16 indices; 0 for another element. */
+    public int textSelectionStart() {
+        return node() == null ? 0 : c.engine().textSelection(index, false);
+    }
+
+    /** The end of a text input's selection, its larger end. */
+    public int textSelectionEnd() {
+        return node() == null ? 0 : c.engine().textSelection(index, true);
+    }
+
     public Element placeholder(String text) {
         Node n = node();
         if (n != null) {

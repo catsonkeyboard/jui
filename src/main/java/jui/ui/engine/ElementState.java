@@ -34,6 +34,8 @@ public final class ElementState {
     /** The same across, for a container that scrolls across. */
     public float scrollX, contentW, viewW;
     public float requestX = Float.NaN;
+    /** A text input's reference, as its last build passed it: for what reaches it between frames. */
+    public jui.ui.TextRef ref;
     /**
      * A wheel's glide down, relative to wherever the content is: its
      * distance, what of it is applied, since when (ns), and whether it is
@@ -86,6 +88,7 @@ public final class ElementState {
         requestY = Float.NaN;
         scrollX = contentW = viewW = 0;
         requestX = Float.NaN;
+        ref = null;
         wheelDistance = wheelDone = wheelDistanceX = wheelDoneX = 0;
         wheelStart = wheelStartX = 0;
         wheelingX = wheelingY = false;
