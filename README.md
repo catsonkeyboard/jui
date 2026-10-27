@@ -411,7 +411,7 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 ![表单示例](docs/form-demo.png)
 
 - **示例**：只读的账号 ID；带“显示密码”开关的密码框（示例里预填了密码）；回车发送、拒绝超过 200 个字符的粘贴的消息框；不经过输入法的命令框。
-- **测试**：`./build.sh test`，372 个测试全部通过。
+- **测试**：`./build.sh test`，375 个测试全部通过。
 - **分配**（`./build.sh alloc`，native image）：20 个输入框里一半是密码框、四分之一只读，其中一个获得焦点且光标在闪烁，框架内部每个输入框仍是 0 字节。密码框的掩码只在文字变了时重建。
 - **滚动帧耗时**（`./build.sh listbench`）：p95 0.21 ms，最大 0.33 ms。
 - **签名检查**（`./build.sh ffi-check`）：通过。

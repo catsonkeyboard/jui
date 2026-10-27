@@ -89,4 +89,19 @@ public final class ReadOnlyTest {
         tt.command(EditCommand.PASTE);
         Check.isTrue(!pasted[0], "the menu's Paste does not go on to the shortcut");
     }
+
+    public void testShiftWithOptionOrCommandSelects() { // final review: Shift held, as MyGO
+        q.set("hello world");
+        Tester tt = tester();
+        tt.click("in");
+        tt.key(Shortcut.of(Mod.SHIFT, Key.END));
+        tt.key(Shortcut.of(Mod.SHIFT, Key.LEFT));
+        tt.key(Shortcut.of(Mod.SHIFT, Key.RIGHT));          // the caret at the end, nothing selected
+        tt.key(Shortcut.of(Mod.SHIFT | Mod.ALT, Key.LEFT));
+        tt.key(Shortcut.cmd(Key.C));
+        Check.equal("world", tt.clipboard());
+        tt.key(Shortcut.of(Mod.SHIFT | Mod.CMD, Key.LEFT));
+        tt.key(Shortcut.cmd(Key.C));
+        Check.equal("hello world", tt.clipboard());
+    }
 }

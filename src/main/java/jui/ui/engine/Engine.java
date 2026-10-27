@@ -329,6 +329,7 @@ public final class Engine {
             }
             if (e.dirty && n.state.ref != null) {
                 writeBack(i, e, n.state.ref); // what the options committed is the app's text in this frame
+                requestFrame.run(); // and changed() reports it in the next, the view being built already
             }
             // What shows, in its own indices: a password input's mask, a bullet a code point.
             n.text = e.password ? e.mask() : e.display();
@@ -371,8 +372,8 @@ public final class Engine {
         if (composing) {
             host.discardMarkedText();
         }
-        if (s.edit.dirty && s.ref != null) {
-            writeBack(index, s.edit, s.ref); // the committed composition is the app's text in this frame
+        if (s.edit.dirty) {
+            consumed = true; // another pass: its textInput writes the committed composition back, reported changed()
         }
     }
 

@@ -37,4 +37,17 @@ public final class InputMethodTest {
         tt.frame();
         Check.equal("ni", q.get());
     }
+
+    public void testWhatTurningItOffCommitsIsReportedChanged() { // final review
+        int[] changes = {0};
+        on[0] = true;
+        Tester tt = Tester.of(c -> { if (textInput(c, q).label("in").inputMethod(on[0]).changed()) changes[0]++; }, 300, 200);
+        tt.click("in");
+        tt.compose("ni", 2);
+        on[0] = false;
+        tt.frame();
+        Check.isTrue(tt.framePending(), "a frame to report it");
+        tt.settle();
+        Check.equal(1, changes[0]);
+    }
 }

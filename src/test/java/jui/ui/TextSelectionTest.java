@@ -72,4 +72,26 @@ public final class TextSelectionTest {
         Check.equal("ni", q.get());
         Check.equal("[0, 0]", java.util.Arrays.toString(tt.textSelection()));
     }
+
+    public void testACompositionTheSelectionCommitsIsReportedChangedOnce() { // final review
+        q.set("");
+        int[] changes = {0};
+        boolean[] select = {false};
+        Tester tt = Tester.of(c -> {
+            Element in = textInput(c, q).label("in");
+            if (in.changed()) changes[0]++;                  // read before the selection is set
+            if (select[0]) {
+                in.setTextSelection(0, 0);
+                select[0] = false;
+            }
+        }, 300, 200);
+        tt.click("in");
+        tt.compose("ni", 2);
+        select[0] = true;
+        tt.frame();
+        Check.equal("ni", q.get());
+        Check.equal(1, changes[0]);
+        tt.frame();
+        Check.equal(1, changes[0]);
+    }
 }

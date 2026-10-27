@@ -216,13 +216,14 @@ public final class TextEdit {
     /**
      * Whether a read-only input takes the key (as MyGO's editor.wants when
      * read-only): ⌘A and ⌘C, with only ⌘ held, and the moves that select,
-     * with only Shift held; the rest go to shortcuts and scrolling.
+     * with Shift held (with ⌥ by words, with ⌘ to the ends); the rest go to
+     * shortcuts and scrolling.
      */
     public static boolean wantsReadOnly(Key key, int mods) {
         if (mods == Mod.CMD) {
             return key == Key.A || key == Key.C;
         }
-        if (mods == Mod.SHIFT) {
+        if ((mods & Mod.SHIFT) != 0) {
             return switch (key) {
                 case LEFT, RIGHT, UP, DOWN, HOME, END -> true;
                 default -> false;
