@@ -112,6 +112,8 @@ public final class MacApp {
         addItem(edit, "Cut", "cut:", "x");
         addItem(edit, "Copy", "copy:", "c");
         addItem(edit, "Paste", "paste:", "v");
+        addItem(edit, "Paste and Match Style", "pasteAsPlainText:", "v", COMMAND | OPTION | SHIFT); // ⌥⇧⌘V (as MyGO)
+        addItem(edit, "Delete", "delete:", "");
         addItem(edit, "Select All", "selectAll:", "a");
         send(editItem, "setSubmenu:", edit);
         ObjC.release(edit);
@@ -119,10 +121,21 @@ public final class MacApp {
         send(app, "setMainMenu:", bar);
     }
 
+    /** NSEventModifierFlags for an item's key equivalent. */
+    private static final long SHIFT = 1L << 17, OPTION = 1L << 19, COMMAND = 1L << 20;
+
     /** An item for action, sent to the first responder, with ⌘ and key. */
     private static void addItem(long menu, String title, String action, String key) {
+        addItem(menu, title, action, key, COMMAND);
+    }
+
+    /** An item for action, sent to the first responder, with key and the modifier keys in mask. */
+    private static void addItem(long menu, String title, String action, String key, long mask) {
         long item = send(send(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
                 ObjC.nsString(title), ObjC.sel(action), ObjC.nsString(key));
+        if (mask != COMMAND) {
+            send(item, "setKeyEquivalentModifierMask:", mask);
+        }
         send(menu, "addItem:", item);
         ObjC.release(item);
     }

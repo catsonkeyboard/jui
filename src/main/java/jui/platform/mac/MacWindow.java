@@ -670,6 +670,8 @@ public final class MacWindow {
                 .method1("copy:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.COPY)))
                 .method1("paste:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.PASTE)))
                 .method1("selectAll:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.SELECT_ALL)))
+                .method1("pasteAsPlainText:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.PASTE_AND_MATCH_STYLE)))
+                .method1("delete:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.DELETE)))
                 .method1("keyDown:", (self, cmd, e) -> withView(self, w -> w.key(e)))
                 // NSTextInputClient, as MyGO's surface implements it.
                 .protocol("NSTextInputClient")

@@ -493,9 +493,14 @@ public final class TextEdit {
                 deleteRange(a, z, false, now);
                 return cut;
             }
-            case PASTE -> {
+            case PASTE, PASTE_AND_MATCH_STYLE -> {
                 if (clipboard != null && !clipboard.isEmpty()) {
                     insert(clipboard, now);
+                }
+            }
+            case DELETE -> {
+                if (a != z) {
+                    deleteRange(a, z, false, now);
                 }
             }
             case SELECT_ALL -> selectAll();

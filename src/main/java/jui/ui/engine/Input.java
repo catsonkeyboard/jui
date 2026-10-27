@@ -631,6 +631,8 @@ final class Input {
                 case COPY -> keyDown(jui.ui.Key.C, jui.ui.Mod.CMD, false);
                 case PASTE -> keyDown(jui.ui.Key.V, jui.ui.Mod.CMD, false);
                 case SELECT_ALL -> keyDown(jui.ui.Key.A, jui.ui.Mod.CMD, false);
+                case PASTE_AND_MATCH_STYLE -> keyDown(jui.ui.Key.V, jui.ui.Mod.CMD | jui.ui.Mod.ALT | jui.ui.Mod.SHIFT, false);
+                case DELETE -> { } // no key: nothing to pass on
             }
             return;
         }
@@ -648,7 +650,8 @@ final class Input {
             e.unmark(now);
             engine.host().discardMarkedText();
         }
-        String clipboard = c == jui.ui.EditCommand.PASTE ? engine.host().readClipboard() : null;
+        boolean paste = c == jui.ui.EditCommand.PASTE || c == jui.ui.EditCommand.PASTE_AND_MATCH_STYLE;
+        String clipboard = paste ? engine.host().readClipboard() : null;
         String out = e.command(c, clipboard, now);
         if (out != null) {
             engine.host().writeClipboard(out);

@@ -254,8 +254,8 @@ public final class MacWindowTextTest {
                 }
             }
             Check.isTrue(edit != 0, "an Edit menu");
-            String[] actions = {"undo:", "redo:", null, "cut:", "copy:", "paste:", "selectAll:"};
-            String[] keys = {"z", "Z", null, "x", "c", "v", "a"};
+            String[] actions = {"undo:", "redo:", null, "cut:", "copy:", "paste:", "pasteAsPlainText:", "delete:", "selectAll:"};
+            String[] keys = {"z", "Z", null, "x", "c", "v", "v", "", "a"};
             // A launched app gets AppKit's own items after these (AutoFill, Start Dictation, Emoji & Symbols).
             Check.isTrue(ObjC.send(edit, "numberOfItems") >= actions.length, "the standard items first");
             for (int k = 0; k < actions.length; k++) {
@@ -268,6 +268,8 @@ public final class MacWindowTextTest {
                 Check.equal(keys[k], ObjC.string(ObjC.send(item, "keyEquivalent")));
                 Check.equal(1L << 20, ObjC.send(item, "keyEquivalentModifierMask") & (1L << 20));
             }
+            // Paste and Match Style is ⌥⇧⌘V (as MyGO).
+            Check.equal((1L << 20) | (1L << 19) | (1L << 17), ObjC.send(ObjC.send(edit, "itemAtIndex:", 6L), "keyEquivalentModifierMask"));
             Check.isTrue(!ObjC.sendBool(edit, "autoenablesItems"), "items always enabled (as MyGO)");
         } finally {
             ObjC.poolPop(pool);
@@ -284,7 +286,10 @@ public final class MacWindowTextTest {
             ObjC.send(w.view(), "cut:", 0);
             ObjC.send(w.view(), "paste:", 0);
             ObjC.send(w.view(), "selectAll:", 0);
-            Check.equal(List.of("edit COPY", "edit UNDO", "edit REDO", "edit CUT", "edit PASTE", "edit SELECT_ALL"), r.events);
+            ObjC.send(w.view(), "pasteAsPlainText:", 0);
+            ObjC.send(w.view(), "delete:", 0);
+            Check.equal(List.of("edit COPY", "edit UNDO", "edit REDO", "edit CUT", "edit PASTE", "edit SELECT_ALL",
+                    "edit PASTE_AND_MATCH_STYLE", "edit DELETE"), r.events);
         } finally {
             w.close();
         }
