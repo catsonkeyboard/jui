@@ -528,14 +528,24 @@ public final class Element {
 
     // Queries: what happened since the last frame.
 
-    /** The element's box in the last frame, in DIPs from the window's top left; zero in its first frame. */
+    private static final Rect NO_BOUNDS = new Rect(0, 0, 0, 0);
+
+    /**
+     * The element's box in the last frame, in DIPs from the window's top
+     * left; zero in its first frame. The same Rect comes back while the box
+     * stays, so a frame that asks makes none.
+     */
     public Rect bounds() {
         Node n = node();
         if (n == null) {
-            return new Rect(0, 0, 0, 0);
+            return NO_BOUNDS;
         }
         jui.ui.engine.ElementState s = c.engine().state(index);
-        return new Rect(s.x, s.y, s.w, s.h);
+        Rect r = s.bounds;
+        if (r == null || r.x() != s.x || r.y() != s.y || r.width() != s.w || r.height() != s.h) {
+            r = s.bounds = new Rect(s.x, s.y, s.w, s.h);
+        }
+        return r;
     }
 
     /** Whether the pointer is over the element (held on it, while a button is down). */

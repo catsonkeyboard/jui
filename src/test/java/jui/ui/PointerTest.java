@@ -211,4 +211,23 @@ public final class PointerTest {
         Check.near(0, moved[0]);
         Check.near(0, moved[1]);
     }
+
+    public void testBoundsComesBackWithoutANewRectWhileTheBoxStays() { // M2 final review minor: a Rect a call
+        Rect[] got = new Rect[2];
+        float[] width = {100};
+        int[] k = {0};
+        Tester tt = Tester.of(c -> column(c).padding(10).children(() -> {
+            got[k[0]] = box(c).size(width[0], 40).label("b").bounds();
+        }), 300, 200);
+        tt.frame();
+        tt.frame();
+        k[0] = 1;
+        tt.frame();
+        Check.isTrue(got[0] == got[1], "the same Rect while the box stays");
+        Check.near(100, got[1].width());
+        width[0] = 120;
+        tt.frame();
+        tt.frame();
+        Check.near(120, got[1].width());                   // a box that changed gives its new bounds
+    }
 }
