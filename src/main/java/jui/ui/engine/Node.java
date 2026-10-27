@@ -78,6 +78,9 @@ public final class Node {
     public ListModel listModel;
     public int listAnchor;
     public float listAnchorY;
+    /** Where among a list's rows the one built out of view for the focus is (-1 for none), and where its top goes. */
+    public int listExtra;
+    public float listExtraY;
     /** Whether its scroll bar shows (hovered or dragged), and whether its thumb is being dragged. */
     /** Whether its scroll bars show, and whether the vertical or the horizontal thumb is dragged. */
     boolean bars, barDrag, barDragX;
@@ -177,6 +180,8 @@ public final class Node {
         listModel = null;
         listAnchor = 0;
         listAnchorY = 0;
+        listExtra = -1;
+        listExtraY = 0;
         top = right = bottom = left = Float.NaN;
         padTop = padRight = padBottom = padLeft = 0;
         marTop = marRight = marBottom = marLeft = 0;

@@ -10,6 +10,8 @@ import java.util.Arrays;
  */
 public final class ListModel {
     static final float FIRST_ESTIMATE = 32;
+    /** How far from where it was a key is looked for, each way (as MyGO's listSearch). */
+    static final int SEARCH = 1000;
 
     int count;
     private float[] heights = filled(new float[64]);
@@ -37,6 +39,20 @@ public final class ListModel {
 
     /** The rows the last frame showed, or -1 before the list first shows. */
     int first = -1, last = -1;
+
+    /** Each row's key (ListState.keys), or null: a row is known by its index. */
+    private java.util.function.IntToLongFunction keyOf;
+    /** The anchor row's key as last laid out, to find it again where rows came or went above it. */
+    long anchorKey;
+    boolean hasAnchorKey;
+
+    /** The rows the last frame built: their identities, their indices and, when keyed, their keys. */
+    long[] lastIds = new long[16];
+    int[] lastRows = new int[16];
+    long[] lastKeys = new long[16];
+    int lastCount;
+    /** A row built out of view because the focus is in it (as MyGO's focusedRow), or -1. */
+    int extraRow = -1;
     /** Whether the view read first or last since the list last laid out: if they change, it needs another frame. */
     boolean rangeRead;
 
@@ -61,6 +77,86 @@ public final class ListModel {
     /** Asks for row at the top of the view in the next frame. */
     public void requestRow(int row) {
         requestRow = row;
+    }
+
+    /** Keys the rows: keyOf(i) is row i's key, which its identity and the anchor follow. */
+    public void keys(java.util.function.IntToLongFunction keyOf) {
+        this.keyOf = keyOf;
+        hasAnchorKey = false;
+    }
+
+    public java.util.function.IntToLongFunction keyOf() {
+        return keyOf;
+    }
+
+    /** The row built out of view because the focus is in it, or -1. */
+    public int extraRow() {
+        return extraRow;
+    }
+
+    /** The row of n whose key is key, looking out from near, each way in turn, as far as SEARCH; -1 if none. */
+    int find(long key, int near, int n) {
+        for (int d = 0; d <= SEARCH; d++) {
+            int lo = near - d, hi = near + d;
+            if (lo < 0 && hi >= n) {
+                break;
+            }
+            if (lo >= 0 && lo < n && keyOf.applyAsLong(lo) == key) {
+                return lo;
+            }
+            if (d > 0 && hi >= 0 && hi < n && keyOf.applyAsLong(hi) == key) {
+                return hi;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Moves the heights known by delta rows, as rows came (delta above 0)
+     * or went above them: those that move past the end go, and the rows
+     * that open up are not known.
+     */
+    void shift(int delta) {
+        if (delta > 0) {
+            for (int i = count - 1; i >= 0; i--) {
+                heights[i] = i - delta >= 0 ? heights[i - delta] : Float.NaN;
+            }
+        } else if (delta < 0) {
+            for (int i = 0; i < count; i++) {
+                heights[i] = i - delta < count ? heights[i - delta] : Float.NaN;
+            }
+        }
+        known = 0;
+        knownSum = 0;
+        for (int i = 0; i < count; i++) {
+            if (!Float.isNaN(heights[i])) {
+                known++;
+                knownSum += heights[i];
+            }
+        }
+    }
+
+    /**
+     * Before a pass plans the rows: with keys, finds the anchor's key again
+     * and, where it has moved, moves the anchor and the heights known with
+     * it, so the view stays on the same item; else the anchor stays at its
+     * index (as MyGO's sync).
+     */
+    void follow(int n) {
+        if (keyOf == null || !hasAnchorKey || n == 0) {
+            return;
+        }
+        int j = find(anchorKey, anchor, n);
+        if (j >= 0 && j != anchor) {
+            resize(Math.max(n, count));
+            shift(j - anchor);
+            anchor = j;
+        }
+    }
+
+    /** Where a row's top goes from the content box's top, as the heights known or estimated put it. */
+    float rowTop(int row) {
+        return (float) (top(row) - top(anchor)) + anchorY;
     }
 
     float estimate() {

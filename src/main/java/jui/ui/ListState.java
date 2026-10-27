@@ -12,6 +12,17 @@ public final class ListState {
 
     public ListState() {}
 
+    /**
+     * Keys the rows: keyOf(i) is row i's key, unique among them (as MyGO's
+     * Key). The view stays on the same item as rows come and go above it,
+     * and the row's state follows its item: the row callback must not set a
+     * key of its own (c.key). Returns this state.
+     */
+    public ListState keys(java.util.function.IntToLongFunction keyOf) {
+        model.keys(keyOf);
+        return this;
+    }
+
     /** Shows row 0 at the top in the next frame. */
     public void scrollToTop() {
         model.requestRow(0);

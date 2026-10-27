@@ -432,6 +432,9 @@ final class Input {
                 break;
             }
         }
+        if (at >= 0 && !focusShown[at] && inList(focusedId)) {
+            at = -1; // a list's row kept built out of view for the focus: as if it were not built (plan M3 #9)
+        }
         int next;
         if (at >= 0) {
             next = (at + (forward ? 1 : focusCount - 1)) % focusCount;
@@ -461,6 +464,16 @@ final class Input {
         }
         updateTextInput();
         engine.requestFrame();
+    }
+
+    /** Whether the element of identity id is in a list's row, by the last frame. */
+    private boolean inList(long id) {
+        for (int i = hits.indexOf(id); i >= 0; i = hits.parent[i]) {
+            if ((hits.flags[i] & Node.LIST) != 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     void windowFocusChanged(boolean focused) {

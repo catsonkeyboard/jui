@@ -362,20 +362,27 @@ public final class FlexLayout {
      */
     private void placeList(Node p, float innerW, float pl, float pt) {
         float gap = mainGap(p), above = 0;
-        int k = 0;
+        int k = 0, pos = 0;
         for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
             Node n = pool.node(c);
             float w = columnChildWidth(p, c, innerW);
             float h = resolved(n.height, n.heightPercent, Float.NaN);
             n.crossSize = w;
             n.flexTarget = Float.isNaN(h) ? contentHeight(c, w) : clamp(h, n.minHeight, n.maxHeight);
-            if (k++ < p.listAnchor) {
+            if (pos++ != p.listExtra && k++ < p.listAnchor) {
                 above += m(n.marTop) + n.flexTarget + m(n.marBottom) + gap;
             }
         }
         float y = p.y + pt + p.listAnchorY - above;
+        pos = 0;
         for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
             Node n = pool.node(c);
+            if (pos++ == p.listExtra) {
+                // The row the focus is in, out of view: where the heights put it, apart from the others.
+                set(n, p.x + pl + m(n.marLeft), p.y + pt + p.listExtraY + m(n.marTop), n.crossSize, n.flexTarget);
+                place(c);
+                continue;
+            }
             y += m(n.marTop);
             set(n, p.x + pl + m(n.marLeft), y, n.crossSize, n.flexTarget);
             y += n.flexTarget + m(n.marBottom) + gap;

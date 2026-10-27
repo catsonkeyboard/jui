@@ -105,9 +105,11 @@ public final class Ui {
 
     /**
      * A list of count rows that builds only those in view: row builds row i,
-     * as one element. Rows may be of any height; a key set in row (c.key)
-     * gives the row its identity, else its index does. A null state keeps
-     * the list's state on the element.
+     * as one element. Rows may be of any height. A row's identity is its
+     * key when the state has keys (ListState.keys), else a key set in row
+     * (c.key), else its index. The row the focus is in stays built when it
+     * scrolls out of view. A null state keeps the list's state on the
+     * element.
      */
     public static Element list(Context c, ListState state, int count, java.util.function.IntConsumer row) {
         Element e = open(c, Node.BOX, false, Align.STRETCH);
@@ -118,22 +120,41 @@ public final class Ui {
         jui.ui.engine.Engine en = c.engine();
         en.makeScroll(e.index, false, true);
         ListState st = state != null ? state : local(e, "list", ListState::new).get();
-        en.listPlan(e.index, st.model, count);
+        jui.ui.engine.ListModel m = st.model;
+        en.listPlan(e.index, m, count);
         int saved = en.enter(e.index);
         try {
-            for (int i = st.model.builtFirst(); i <= st.model.builtLast(); i++) {
-                int before = n.childCount;
-                en.rowIndex(i);
-                row.accept(i);
-                en.rowDone();
-                if (n.childCount != before + 1) {
-                    jui.ui.engine.Dev.fail("a list row builds one element: row " + i + " built " + (n.childCount - before));
-                }
+            // In row order: the focus's row out of view goes before the rows in view or after them.
+            int extra = m.extraRow();
+            if (extra >= 0 && extra < m.builtFirst()) {
+                row(en, n, m, row, extra);
+            }
+            for (int i = m.builtFirst(); i <= m.builtLast(); i++) {
+                row(en, n, m, row, i);
+            }
+            if (extra > m.builtLast()) {
+                row(en, n, m, row, extra);
             }
         } finally {
             en.exit(saved);
         }
         return e;
+    }
+
+    private static void row(jui.ui.engine.Engine en, Node n, jui.ui.engine.ListModel m,
+                            java.util.function.IntConsumer row, int i) {
+        int before = n.childCount;
+        java.util.function.IntToLongFunction keyOf = m.keyOf();
+        if (keyOf != null) {
+            en.key(keyOf.applyAsLong(i)); // the row is its item: a key in row is one too many
+        } else {
+            en.rowIndex(i);
+        }
+        row.accept(i);
+        en.rowDone();
+        if (n.childCount != before + 1) {
+            jui.ui.engine.Dev.fail("a list row builds one element: row " + i + " built " + (n.childCount - before));
+        }
     }
 
     // Controls (MyGO's widgets.go and base.go). They build their parts with

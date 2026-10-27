@@ -617,6 +617,8 @@ public final class Engine {
         Node n = pool.node(index);
         n.flags |= Node.LIST;
         n.listModel = m;
+        int focused = focusedRow(n, m, count); // by the rows as they were, before the anchor follows its key
+        m.follow(count);
         m.resize(count);
         float v = m.viewH > 0 ? m.viewH : windowH;
         ElementState s = state(index);
@@ -655,6 +657,42 @@ public final class Engine {
         m.plan(v);
         n.listAnchor = m.anchor - m.builtFirst;
         n.listAnchorY = m.anchorY;
+        // The row the focus is in stays built out of view, in its place by the heights (as MyGO's focusedRow).
+        m.extraRow = focused >= 0 && (focused < m.builtFirst || focused > m.builtLast) ? focused : -1;
+        n.listExtra = m.extraRow < 0 ? -1 : m.extraRow < m.builtFirst ? 0 : m.builtLast - m.builtFirst + 1;
+        n.listExtraY = m.extraRow < 0 ? 0 : m.rowTop(m.extraRow);
+    }
+
+    /**
+     * The row of the list the focus is in, by the rows the last frame built,
+     * or -1: with keys, found by its key if rows moved (as MyGO's focusedRow).
+     */
+    private int focusedRow(Node n, ListModel m, int count) {
+        long f = input.focusedId;
+        if (f == 0 || m.lastCount == 0) {
+            return -1;
+        }
+        long rowId = 0;
+        for (int i = hits.indexOf(f); i >= 0; i = hits.parent[i]) {
+            int p = hits.parent[i];
+            if (p >= 0 && hits.ids[p] == n.id) {
+                rowId = hits.ids[i];
+                break;
+            }
+        }
+        if (rowId == 0) {
+            return -1;
+        }
+        for (int k = 0; k < m.lastCount; k++) {
+            if (m.lastIds[k] == rowId) {
+                int r = m.lastRows[k];
+                if (m.keyOf() != null && (r >= count || m.keyOf().applyAsLong(r) != m.lastKeys[k])) {
+                    r = m.find(m.lastKeys[k], r, count);
+                }
+                return r < count ? r : -1;
+            }
+        }
+        return -1;
     }
 
     /** The next element is list row i: its identity is its index, unless it is keyed. */
@@ -700,15 +738,24 @@ public final class Engine {
         m.viewH = v;
         m.gap = n.gapY;
         Node first = null, last = null;
-        int idx = m.builtFirst;
+        int idx = m.builtFirst, pos = 0;
         boolean anchored = false;
+        m.lastCount = 0;
         for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
             Node r = pool.node(c);
             if (r.absolute) {
                 continue;
             }
-            // A row takes its margins too: its height and its top are its margin box's.
-            m.setHeight(idx, outerBottom(r) - outerTop(r));
+            boolean extra = pos++ == n.listExtra;
+            int row = extra ? m.extraRow : idx;
+            if (row < m.count) {
+                // A row takes its margins too: its height and its top are its margin box's.
+                m.setHeight(row, outerBottom(r) - outerTop(r));
+                keepRow(m, r.id, row);
+            }
+            if (extra) {
+                continue; // out of view: not an anchor, nor what covers the view
+            }
             if (first == null) {
                 first = r;
             }
@@ -753,10 +800,10 @@ public final class Engine {
             }
             m.first = m.anchor;
             m.last = m.anchor;
-            int k = m.builtFirst;
+            int k = m.builtFirst, at = 0;
             for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
                 Node r = pool.node(c);
-                if (!r.absolute) {
+                if (!r.absolute && at++ != n.listExtra) {
                     if (r.y < vb - 0.001f && k >= m.anchor) {
                         m.last = k;
                     }
@@ -786,6 +833,10 @@ public final class Engine {
             }
             again = true;
         }
+        if (m.keyOf() != null && m.count > 0) {
+            m.anchorKey = m.keyOf().applyAsLong(m.anchor); // to find it again if rows come or go above it
+            m.hasAnchorKey = true;
+        }
         m.wroteY = y;
         n.scrollY = y;
         n.contentH = (float) m.content() + n.padTop + n.padBottom + 2 * n.border;
@@ -799,6 +850,20 @@ public final class Engine {
         }
         m.rangeRead = false;
         return again;
+    }
+
+    /** Notes a row the frame built: its identity, its index and its key, to find the focus's row next frame. */
+    private static void keepRow(ListModel m, long id, int row) {
+        int k = m.lastCount;
+        if (k == m.lastIds.length) {
+            m.lastIds = java.util.Arrays.copyOf(m.lastIds, k * 2);
+            m.lastRows = java.util.Arrays.copyOf(m.lastRows, k * 2);
+            m.lastKeys = java.util.Arrays.copyOf(m.lastKeys, k * 2);
+        }
+        m.lastIds[k] = id;
+        m.lastRows[k] = row;
+        m.lastKeys[k] = m.keyOf() != null ? m.keyOf().applyAsLong(row) : 0;
+        m.lastCount = k + 1;
     }
 
     private static float outerTop(Node r) {
