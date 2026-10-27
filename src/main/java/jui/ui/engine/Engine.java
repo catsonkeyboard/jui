@@ -305,7 +305,7 @@ public final class Engine {
             n.inputMarkA = n.inputMarkB = -1;
         }
         n.inputFocused = focused(n.id);
-        if (n.inputFocused) {
+        if (n.inputFocused && !off(n)) { // a disabled input shows no caret: no blink frames for it
             // The caret blinks from the last key, edit or focus change; after 30 s it rests, shown.
             long phase = Math.max(0, now - input.blinkStart);
             n.caretShown = phase >= BLINK_REST || (phase / BLINK) % 2 == 0;

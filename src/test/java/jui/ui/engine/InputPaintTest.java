@@ -122,4 +122,16 @@ public final class InputPaintTest {
         tt.frame();
         Check.near(line + 12 + 2, tt.find("中文").height(), 0.01);
     }
+
+    public void testADisabledInputAsksForNoBlinkFrames() { // M4 final review minor
+        TextRef q = new TextRef("ab");
+        boolean[] off = {false};
+        Tester tt = Tester.of(c -> textInput(c, q).label("in").disabled(off[0]), 300, 200);
+        tt.click("in");
+        Check.isTrue(tt.engine().nextWake() != Long.MAX_VALUE, "focused: its caret blinks");
+        off[0] = true;
+        tt.frame();
+        tt.frame();
+        Check.isTrue(tt.engine().nextWake() == Long.MAX_VALUE, "disabled, focus kept: no blink frames");
+    }
 }
