@@ -313,20 +313,22 @@ public final class Engine {
             }
             TextEdit e = n.state.edit;
             e.readOnly = n.readOnly;
+            e.password = n.password;
             if ((off(n) || e.readOnly) && e.composing()) {
                 // Disabled or read-only, it takes no text: the composition goes (as MyGO).
                 e.setMarked("", 0, 0, -1, 0, now);
                 host.discardMarkedText();
             }
-            n.text = e.display();
-            n.inputCaret = e.displayCaret();
+            // What shows, in its own indices: a password input's mask, a bullet a code point.
+            n.text = e.password ? e.mask() : e.display();
+            n.inputCaret = e.toShown(e.displayCaret());
             if (e.composing()) {
                 n.inputSelA = n.inputSelB = n.inputCaret;
-                n.inputMarkA = e.caret();
-                n.inputMarkB = e.caret() + e.compose().length();
+                n.inputMarkA = e.toShown(e.caret());
+                n.inputMarkB = e.toShown(e.caret() + e.compose().length());
             } else {
-                n.inputSelA = e.selStart();
-                n.inputSelB = e.selEnd();
+                n.inputSelA = e.toShown(e.selStart());
+                n.inputSelB = e.toShown(e.selEnd());
                 n.inputMarkA = n.inputMarkB = -1;
             }
             n.inputFocused = focused(n.id);
@@ -361,6 +363,16 @@ public final class Engine {
         if (s.edit.dirty && s.ref != null) {
             writeBack(index, s.edit, s.ref); // the committed composition is the app's text in this frame
         }
+    }
+
+    /** Makes the node's text input a password input, in this frame. */
+    public void password(int index) {
+        Node n = pool.node(index);
+        if (n.kind != Node.INPUT) {
+            Dev.fail("password is for text inputs");
+            return;
+        }
+        n.password = true;
     }
 
     /** Makes the node's text input read-only, in this frame (it holds for input until the next). */
@@ -606,7 +618,7 @@ public final class Engine {
         if (input.focusedId != n.id) {
             e.scrollX = 0;
         } else {
-            float x = l.caretX(e.displayCaret());
+            float x = l.caretX(Math.min(e.toShown(e.displayCaret()), l.length()));
             if (x - e.scrollX < 0) {
                 e.scrollX = x;
             } else if (x - e.scrollX > cw - 1) {
@@ -1448,6 +1460,11 @@ public final class Engine {
     /** The marked text in the shown text, as {start, length}; false when there is none. */
     public boolean textMarkedRange(int[] out) {
         TextEdit e = input.activeEdit();
+        if (e != null && e.password) {
+            out[0] = 0;
+            out[1] = e.compose().length();
+            return e.composing(); // a password input's document is its composition (as MyGO)
+        }
         return e != null && e.markedRange(out);
     }
 
@@ -1457,6 +1474,11 @@ public final class Engine {
         if (e == null) {
             return false;
         }
+        if (e.password) {
+            out[0] = e.composing() ? e.composeSelection() : 0;
+            out[1] = e.composing() ? e.composeSelectionLength() : 0;
+            return true;
+        }
         e.selectedRange(out);
         return true;
     }
@@ -1464,12 +1486,17 @@ public final class Engine {
     /** The shown text's length, or -1. */
     public int textLength() {
         TextEdit e = input.activeEdit();
-        return e == null ? -1 : e.length();
+        return e == null ? -1 : e.password ? e.compose().length() : e.length();
     }
 
     /** A part of the shown text, clamped, or null. */
     public String textIn(int start, int end) {
         TextEdit e = input.activeEdit();
+        if (e != null && e.password) {
+            String c = e.compose();
+            int a = Math.max(0, Math.min(start, c.length()));
+            return c.substring(a, Math.max(a, Math.min(end, c.length())));
+        }
         return e == null ? null : e.substring(start, end);
     }
 
@@ -1487,6 +1514,9 @@ public final class Engine {
         TextEdit e = input.activeEdit();
         if (e == null || e.layout == null) {
             return false;
+        }
+        if (e.password) {
+            start = end = e.toShown(e.displayCaret()); // a password input shows where only its caret is (as MyGO)
         }
         jui.text.TextLayout l = e.layout;
         int n = l.length();
@@ -1519,7 +1549,7 @@ public final class Engine {
     /** The index of the shown text nearest the point in window DIPs, or -1 without a text input. */
     public int textIndexAt(float x, float y) {
         TextEdit e = input.activeEdit();
-        if (e == null || e.layout == null) {
+        if (e == null || e.layout == null || e.password) {
             return -1;
         }
         return e.layout.indexAt(x - e.originX);

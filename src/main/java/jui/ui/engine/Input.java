@@ -112,7 +112,7 @@ final class Input {
                 s.dragY += dy;
                 TextEdit e = s.edit;
                 if (pressButton == 0 && (pressFlags & Node.TEXT_INPUT) != 0 && e != null && e.layout != null) {
-                    e.drag(e.layout.indexAt(x - e.originX)); // selects as the pointer moves (as MyGO's editor.drag)
+                    e.drag(e.fromShown(e.layout.indexAt(x - e.originX))); // selects as the pointer moves (as MyGO's editor.drag)
                 }
             }
             if ((pressFlags & (Node.HOVER | Node.DRAG)) != 0) {
@@ -179,7 +179,7 @@ final class Input {
                         e.unmark(engine.clockNow()); // the press commits it; then the input method forgets it
                         engine.host().discardMarkedText();
                     }
-                    e.press(e.layout.indexAt(x - e.originX), count, (mods & jui.ui.Mod.SHIFT) != 0);
+                    e.press(e.fromShown(e.layout.indexAt(x - e.originX)), count, (mods & jui.ui.Mod.SHIFT) != 0);
                     blinkStart = engine.clockNow();
                 }
             }
@@ -554,7 +554,7 @@ final class Input {
         if (client == textClient && e == clientEdit) {
             // The same input: the input method asks again where the caret is once it moved.
             if (e != null && e.layout != null) {
-                float x = e.originX + e.layout.caretX(Math.min(e.displayCaret(), e.layout.length()));
+                float x = e.originX + e.layout.caretX(Math.min(e.toShown(e.displayCaret()), e.layout.length()));
                 if (x != caretX || e.lineTop != caretY || e.lineH != caretH) {
                     caretX = x;
                     caretY = e.lineTop;
@@ -588,7 +588,7 @@ final class Input {
             return;
         }
         long now = engine.clockNow();
-        if (replStart >= 0) {
+        if (replStart >= 0 && !e.password) { // a password input's ranges are its composition's: none to replace
             e.replace(replStart, replStart + Math.max(0, replLength), s, now);
         } else {
             e.insert(s, now);
@@ -602,7 +602,7 @@ final class Input {
             return;
         }
         long now = engine.clockNow();
-        e.setMarked(s, selStart, selLength, replStart, replLength, now);
+        e.setMarked(s, selStart, selLength, e.password ? -1 : replStart, e.password ? 0 : replLength, now);
         edited(now);
     }
 

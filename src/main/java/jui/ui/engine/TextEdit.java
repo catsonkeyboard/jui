@@ -40,6 +40,10 @@ public final class TextEdit {
      * next frame: read-only takes no edits, only selection and copy.
      */
     public boolean readOnly;
+    /** A password input: it shows a bullet a code point, and Copy and Cut do nothing. */
+    public boolean password;
+    /** The mask last made, and the shown text it was made of, so a frame that changes nothing makes none. */
+    private String mask = "", maskOf = "";
     /** The TextRef's value as last synced; and the frame that last wrote the user's edit to it (-1 none). */
     public String synced;
     public long syncedFrame = -1;
@@ -129,6 +133,44 @@ public final class TextEdit {
             display = text.substring(0, caret) + compose + text.substring(caret);
         }
         return display;
+    }
+
+    /** The input method's selected range in its composition: its start, and its length. */
+    public int composeSelection() {
+        return composeSel;
+    }
+
+    public int composeSelectionLength() {
+        return composeSelLength;
+    }
+
+    /** A password input's shown text: a bullet (U+2022) for each code point of the text and its composition. */
+    public String mask() {
+        String d = display();
+        if (d != maskOf) {
+            mask = "\u2022".repeat(d.codePointCount(0, d.length()));
+            maskOf = d;
+        }
+        return mask;
+    }
+
+    /** An index of the shown text as it shows: in the mask for a password input. */
+    public int toShown(int i) {
+        if (!password) {
+            return i;
+        }
+        String d = display();
+        return d.codePointCount(0, Math.max(0, Math.min(i, d.length())));
+    }
+
+    /** An index of what shows, back in the shown text: a bullet's edge is its code point's, on a grapheme boundary. */
+    public int fromShown(int k) {
+        if (!password) {
+            return k;
+        }
+        String d = display();
+        int i = d.offsetByCodePoints(0, Math.max(0, Math.min(k, d.codePointCount(0, d.length()))));
+        return compose.isEmpty() ? snap(i) : i;
     }
 
     /** Where the caret shows in the shown text: in a composition, at the end of its selected range. */
@@ -432,6 +474,9 @@ public final class TextEdit {
     public String command(EditCommand c, String clipboard, long now) {
         if (readOnly && c != EditCommand.COPY && c != EditCommand.SELECT_ALL) {
             return null; // read-only: it selects and copies, nothing else
+        }
+        if (password && (c == EditCommand.COPY || c == EditCommand.CUT)) {
+            return null; // what a password input holds does not leave it (as MyGO)
         }
         commitComposition();
         compositionActive = false;

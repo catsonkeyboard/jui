@@ -130,6 +130,19 @@ public final class Element {
 
     /** What an empty text input shows, in the theme's muted text color. Only for text inputs. */
     /**
+     * Hides what a text input holds, in the frames that call it (as MyGO's
+     * Password): it shows a bullet for each character, Copy and Cut do
+     * nothing, and the input method sees only what it composes. An input
+     * that stops calling it shows its text again.
+     */
+    public Element password() {
+        if (node() != null) {
+            c.engine().password(index);
+        }
+        return this;
+    }
+
+    /**
      * Makes a text input show its text without letting the user change it
      * (as MyGO's ReadOnly): it takes the focus, and its text can be selected
      * and copied, from the keyboard too, without a caret; it takes no text
