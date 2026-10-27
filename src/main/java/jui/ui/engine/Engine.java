@@ -110,6 +110,7 @@ public final class Engine {
         now = clock.getAsLong();
         wake = Long.MAX_VALUE; // a frame that asks for no wake-up stops the timer (as MyGO)
         input.advanceGlides(now);
+        advanceAnimations(now);
         input.routeKey();
         windowH = height;
         int nextPassId = 0;
@@ -832,7 +833,80 @@ public final class Engine {
             s.requestY = y;
         }
         s.wheelingX = s.wheelingY = false; // the app's scroll stops a wheel's glides
+        s.animating = false; // and an animation
         requestFrame.run();
+    }
+
+    /** Scroll containers whose scrollTo animations are under way. */
+    private long[] animatingIds = new long[4];
+    private int animatingCount;
+
+    /**
+     * Asks the scroll container of identity id to scroll to (x, y) over
+     * durationNanos, eased out (as MyGO's scroll.go): from where it is, to
+     * the target held within the last frame's range; NaN leaves that way
+     * be. A duration of 0 jumps. Another call starts again from where it is.
+     */
+    public void animateScroll(long id, float x, float y, long durationNanos) {
+        if (durationNanos <= 0) {
+            requestScroll(id, x, y);
+            return;
+        }
+        ElementState s = states.get(id);
+        if (s == null) {
+            s = states.create(id, frame + 1);
+        }
+        boolean laid = s.w > 0 && s.h > 0; // its range is known; else each layout holds the offset in it
+        s.animFromX = s.scrollX;
+        s.animFromY = s.scrollY;
+        s.animToX = Float.isNaN(x) ? Float.NaN : laid ? Math.max(0, Math.min(Math.max(0, s.contentW - s.w), x)) : x;
+        s.animToY = Float.isNaN(y) ? Float.NaN : laid ? Math.max(0, Math.min(Math.max(0, s.contentH - s.h), y)) : y;
+        s.animStart = clock.getAsLong();
+        s.animDuration = durationNanos;
+        s.wheelingX = s.wheelingY = false; // it takes over from a wheel's glides
+        if (!s.animating) {
+            s.animating = true;
+            if (animatingCount == animatingIds.length) {
+                animatingIds = java.util.Arrays.copyOf(animatingIds, animatingCount * 2);
+            }
+            animatingIds[animatingCount++] = id;
+        }
+        requestFrame.run();
+    }
+
+    /**
+     * At a frame's start: each scrollTo animation asks its container for
+     * where its curve is now, which the layout holds within the content as
+     * it is, so content that shrinks meanwhile ends it at its new end.
+     */
+    private void advanceAnimations(long now) {
+        int kept = 0;
+        for (int i = 0; i < animatingCount; i++) {
+            ElementState s = states.get(animatingIds[i]);
+            if (s == null || !s.animating) {
+                continue;
+            }
+            double t = (double) (now - s.animStart) / s.animDuration;
+            float e;
+            if (t >= 1) {
+                e = 1;
+                s.animating = false;
+            } else {
+                double u = 1 - Math.max(0, t);
+                e = (float) (1 - u * u * u);
+            }
+            if (!Float.isNaN(s.animToX)) {
+                s.requestX = s.animFromX + (s.animToX - s.animFromX) * e;
+            }
+            if (!Float.isNaN(s.animToY)) {
+                s.requestY = s.animFromY + (s.animToY - s.animFromY) * e;
+            }
+            if (s.animating) {
+                animatingIds[kept++] = s.id;
+                requestFrame.run();
+            }
+        }
+        animatingCount = kept;
     }
 
     /** The clock now, in nanoseconds: for input between frames. */

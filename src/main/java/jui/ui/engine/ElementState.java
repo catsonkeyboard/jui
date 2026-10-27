@@ -45,6 +45,14 @@ public final class ElementState {
     float wheelDistanceX, wheelDoneX;
     long wheelStartX;
     boolean wheelingX;
+    /**
+     * A scrollTo animation: whether it is under way, where each way goes
+     * from and to (NaN for a way it leaves be), since when and for how long
+     * (ns).
+     */
+    public boolean animating;
+    float animFromX, animToX, animFromY, animToY;
+    long animStart, animDuration;
     /** Whether the last frame showed its scroll bar, so a press there takes it. */
     boolean barsShown;
     /** Whether the element was disabled in the last frame: an element around it may disable it after building it. */
@@ -81,6 +89,10 @@ public final class ElementState {
         wheelDistance = wheelDone = wheelDistanceX = wheelDoneX = 0;
         wheelStart = wheelStartX = 0;
         wheelingX = wheelingY = false;
+        animating = false;
+        animFromX = animFromY = 0;
+        animToX = animToY = Float.NaN;
+        animStart = animDuration = 0;
         barsShown = false;
         keyCount = 0;
         edit = null;

@@ -723,6 +723,7 @@ final class Input {
                 continue;
             }
             s.wheelingX = s.wheelingY = false;
+            s.animating = false;
             engine.requestFrame();
             return true;
         }
@@ -792,6 +793,7 @@ final class Input {
                 }
                 wheel(s, sx, sy);
             }
+            s.animating = false; // the user takes over from a scrollTo
             engine.requestFrame();
             return;
         }
@@ -989,6 +991,7 @@ final class Input {
             s.scrollY = Math.max(0, Math.min(max, s.scrollY + by));
             s.wheelingY = false;
         }
+        s.animating = false;
         engine.requestFrame();
         return true;
     }

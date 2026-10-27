@@ -60,6 +60,32 @@ public final class ScrollState {
         }
     }
 
+    /**
+     * Scrolls to y over d, eased out, from where it is: y() reads where it
+     * has got to, and scrolling() is true until it gets there. A wheel, the
+     * keys, the scroll bar or a scrollTo without a duration stops it; a
+     * duration of 0 jumps.
+     */
+    public void scrollTo(float y, java.time.Duration d) {
+        scrollTo(Float.NaN, y, d);
+    }
+
+    /** Scrolls to (x, y) over d, as {@link #scrollTo(float, java.time.Duration)}; NaN leaves that way be. */
+    public void scrollTo(float x, float y, java.time.Duration d) {
+        long ns = d.toNanos();
+        if (engine == null || ns <= 0) {
+            scrollTo(x, y); // not bound yet: there is nothing to animate from, it jumps once it is
+        } else {
+            engine.animateScroll(id, x, y, ns);
+        }
+    }
+
+    /** Whether a scrollTo with a duration is under way. */
+    public boolean scrolling() {
+        ElementState s = engine == null ? null : engine.stateOf(id);
+        return s != null && s.animating;
+    }
+
     public void scrollToTop() {
         scrollTo(0);
     }
