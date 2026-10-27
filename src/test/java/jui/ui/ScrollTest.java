@@ -216,4 +216,56 @@ public final class ScrollTest {
         hidden = false; tt.frame(); tt.frame();
         Check.near(120, st.y());
     }
+
+    public void testScrollIntoViewRevealsThroughNestedContainersInTheSameFrame() {
+        ScrollState outer = new ScrollState(), inner = new ScrollState();
+        boolean[] show = {false};
+        Tester tt = Tester.of(c -> scroll(c, outer).size(300, 200).label("outer").children(() -> {
+            box(c).height(300);
+            scroll(c, inner).size(300, 150).label("inner").children(() -> {
+                box(c).height(400);
+                if (show[0]) box(c).height(30).label("target").scrollIntoView();
+            });
+        }), 400, 400);
+        tt.frame();
+        show[0] = true;
+        tt.frame();                                             // the frame it appears in
+        Rect t = tt.find("target"), in = tt.find("inner");
+        Check.isTrue(t.y() >= in.y() - 0.01f && t.y() + t.height() <= in.y() + in.height() + 0.01f, "inside the inner view");
+        Check.isTrue(t.y() >= -0.01f && t.y() + t.height() <= 200.01f, "inside the outer view");
+    }
+
+    public void testScrollIntoViewStopsAWheelsGlide() {
+        ScrollState st = new ScrollState();
+        boolean[] reveal = {false};
+        Tester tt = Tester.of(c -> scroll(c, st).size(200, 200).label("s").children(() -> {
+            Element top = box(c).height(30).label("top");
+            if (reveal[0]) top.scrollIntoView();
+            box(c).height(2000);
+        }), 300, 300);
+        tt.wheel("s", 0, 400);                                  // a glide down
+        tt.advance(java.time.Duration.ofMillis(50));            // under way: "top" is gone above the view
+        reveal[0] = true;
+        tt.frame();
+        reveal[0] = false;
+        tt.advance(java.time.Duration.ofMillis(300));
+        Check.near(0, st.y());                                  // the glide did not carry it away again
+    }
+
+    public void testScrollIntoViewCallsInOneFrameGoInOrder() {
+        ScrollState st = new ScrollState();
+        boolean[] reveal = {false};
+        Tester tt = Tester.of(c -> scroll(c, st).size(200, 200).label("s").children(() -> {
+            Element a = box(c).height(30).label("a");
+            box(c).height(1000);
+            Element b = box(c).height(30).label("b");
+            if (reveal[0]) {
+                b.scrollIntoView();
+                a.scrollIntoView();                             // the last word: a shows
+            }
+        }), 300, 300);
+        reveal[0] = true;
+        tt.frame();
+        Check.near(0, st.y());
+    }
 }

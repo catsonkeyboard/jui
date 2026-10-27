@@ -60,6 +60,23 @@ public final class Element {
         return this;
     }
 
+    /**
+     * Scrolls the scroll containers around the element, innermost first, as
+     * little as shows it, both ways (its start when it is larger than the
+     * view), once this frame is laid out, without an animation; it stops the
+     * wheel glides and scrollTo animations of the containers it moves.
+     * Several calls in a frame go in order. Called on every frame, it keeps
+     * the user from scrolling the element away. A list's row must be built
+     * to be revealed: ListState.scrollTo(row) reaches the others.
+     */
+    public Element scrollIntoView() {
+        Node n = node();
+        if (n != null) {
+            c.engine().requestReveal(n.id);
+        }
+        return this;
+    }
+
     /** Takes focus as the element appears, as the first field of a dialog does. */
     public Element autoFocus() {
         if (node() != null) {

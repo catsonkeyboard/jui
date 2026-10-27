@@ -138,7 +138,7 @@ public final class Engine {
             inheritTextStyle();
             layout.layout(0, width, height);
             boolean again = afterLayout();
-            int revealed = reveal();
+            int revealed = reveal(width, height);
             if ((revealed & REVEAL_ROUND) != 0) {
                 again = true; // a list moved: another round builds and lays out what reveal asked for
             } else if ((revealed & REVEAL_LAYOUT) != 0) {
@@ -158,6 +158,7 @@ public final class Engine {
 
     private void buildPass(View view, float width, float height) {
         pool.reset();
+        revealCount = 0; // each pass asks again for what it shows
         if (Dev.ENABLED) {
             nodesById.clear();
         }
@@ -924,12 +925,43 @@ public final class Engine {
      */
     private static final int REVEAL_LAYOUT = 1, REVEAL_ROUND = 2;
 
-    private int reveal() {
-        long id = input.revealId;
-        input.revealId = 0;
-        if (id == 0) {
-            return 0;
+    /** Identities that asked this pass to be scrolled into view (Element.scrollIntoView), in order. */
+    private long[] revealIds = new long[4];
+    private int revealCount;
+
+    /** Scrolls the element of identity id into view once this frame is laid out. */
+    public void requestReveal(long id) {
+        if (revealCount == revealIds.length) {
+            revealIds = java.util.Arrays.copyOf(revealIds, revealCount * 2);
         }
+        revealIds[revealCount++] = id;
+    }
+
+    /**
+     * Reveals what Tab focused, then what asked this frame, in that order:
+     * after one moves a scroll container the layout runs again, so the next
+     * starts from where that one left things (as MyGO's revealAll).
+     */
+    private int reveal(float width, float height) {
+        long tab = input.revealId;
+        input.revealId = 0;
+        int n = revealCount, moved = 0;
+        for (int i = -1; i < n; i++) {
+            long id = i < 0 ? tab : revealIds[i];
+            if (id == 0) {
+                continue;
+            }
+            int m = reveal(id);
+            if ((m & REVEAL_LAYOUT) != 0 && i + 1 < n) {
+                layout.layout(0, width, height);
+            }
+            moved |= m;
+        }
+        revealCount = 0;
+        return moved;
+    }
+
+    private int reveal(long id) {
         int at = Node.NONE;
         for (int i = 0; i < pool.size(); i++) {
             if (pool.node(i).id == id) {
@@ -959,7 +991,8 @@ public final class Engine {
                     c.scrollRequestX = x;
                     if (c.state != null) {
                         c.state.requestX = x; // kept if another round builds the container again
-                        c.state.wheelingX = false;
+                        c.state.wheelingX = false; // what comes into view takes over from a wheel
+                        c.state.animating = false; // and from a scrollTo
                     }
                     moved |= REVEAL_LAYOUT;
                     left -= applied;
@@ -993,6 +1026,7 @@ public final class Engine {
                 }
                 if (c.state != null) {
                     c.state.wheelingY = false;
+                    c.state.animating = false;
                 }
                 top -= applied;
                 bottom -= applied;
