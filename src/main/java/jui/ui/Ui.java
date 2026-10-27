@@ -198,13 +198,7 @@ public final class Ui {
             b.ringOwner = row.index;
             if (ref.get()) {
                 b.background = t.accent().rgba();
-                box.center();
-                int inner = c.engine().enter(box.index);
-                try {
-                    text(c, "\u2713").fontSize(12).bold().textColor(t.accentText());
-                } finally {
-                    c.engine().exit(inner);
-                }
+                b.checkMark = true; // drawn as a stroke, not a glyph (as MyGO)
             } else {
                 b.background = t.background().rgba();
                 b.border = 1;

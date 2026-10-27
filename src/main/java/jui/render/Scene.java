@@ -20,6 +20,7 @@ public final class Scene {
     public static final int BYTES = FLOATS * 4;
     private static final float KIND_BOX = 0;
     private static final float KIND_GLYPH = 2;
+    private static final float KIND_STROKE = 3;
 
     private float[] data = new float[FLOATS * 64];
     private int count;
@@ -134,6 +135,30 @@ public final class Scene {
     }
 
     /**
+     * A stroke through three points, a to b to c, {@code width} points wide,
+     * with round caps and joins; it covers each pixel once, so a translucent
+     * one does not darken where its segments meet. Its rect is the points'
+     * bounds grown by half the width; a and b go in the radii, c in the
+     * border color, half the width in the border width.
+     */
+    public void stroke(float ax, float ay, float bx, float by, float cx, float cy, float width, int color) {
+        float hw = width / 2;
+        float x0 = Math.min(ax, Math.min(bx, cx)) - hw, y0 = Math.min(ay, Math.min(by, cy)) - hw;
+        float x1 = Math.max(ax, Math.max(bx, cx)) + hw, y1 = Math.max(ay, Math.max(by, cy)) + hw;
+        int o = next();
+        put(o, x0, y0, x1 - x0, y1 - y0);
+        put(o + 4, ax, ay, bx, by);
+        putColor(o + 8, color);
+        put(o + 12, cx, cy, 0, 0);
+        put(o + 16, hw, 0, KIND_STROKE, 0);
+    }
+
+    /** A line from (x0, y0) to (x1, y1), {@code width} points wide, with round caps. */
+    public void line(float x0, float y0, float x1, float y1, float width, int color) {
+        stroke(x0, y0, x1, y1, x1, y1, width, color);
+    }
+
+    /**
      * Writes up to {@code max} instances into {@code dst} in pixels, and
      * returns how many it wrote. Boxes' edges go to the nearest pixel, as
      * crisp lines need; a box keeps at least a pixel each way it has size.
@@ -143,10 +168,12 @@ public final class Scene {
         for (int i = 0; i < n; i++) {
             int o = i * FLOATS;
             boolean glyph = data[o + 18] == KIND_GLYPH; // already in pixels
+            boolean stroke = data[o + 18] == KIND_STROKE;
             for (int k = 0; k < FLOATS; k++) {
                 float v = data[o + k];
-                // Lengths scale to pixels: rect, radii, border width and blur, and every kind's clip.
-                boolean length = !glyph && (k < 8 || k == 16 || k == 17) || k >= 20;
+                // Lengths scale to pixels: rect, radii, border width and blur, a stroke's last point,
+                // and every kind's clip.
+                boolean length = !glyph && (k < 8 || k == 16 || k == 17) || stroke && (k == 12 || k == 13) || k >= 20;
                 dst.setAtIndex(JAVA_FLOAT, o + k, length ? v * scale : v);
             }
             if (data[o + 18] == KIND_BOX) {

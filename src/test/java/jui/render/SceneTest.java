@@ -113,4 +113,15 @@ public final class SceneTest {
         Check.near(20, out.getAtIndex(java.lang.foreign.ValueLayout.JAVA_FLOAT, 20));
         Check.near(16, out.getAtIndex(java.lang.foreign.ValueLayout.JAVA_FLOAT, 24));
     }
+
+    public void testAStrokeIsAnInstanceOfItsOwn() {
+        Scene s = new Scene();
+        s.begin(2, null, null);
+        s.stroke(10, 10, 20, 30, 40, 0, 2, 0xFFFFFFFF);
+        float[] in = s.instance(0);
+        Check.near(3, in[18]);                                  // kind 3
+        Check.equal(java.util.List.of(9f, -1f, 32f, 32f), java.util.List.of(in[0], in[1], in[2], in[3]));  // bounds, 1 out
+        Check.equal(java.util.List.of(10f, 10f, 20f, 30f, 40f, 0f), java.util.List.of(in[4], in[5], in[6], in[7], in[12], in[13]));
+        Check.near(1, in[16]);                                  // half the width
+    }
 }

@@ -84,6 +84,8 @@ public final class Node {
     public jui.ui.Justify alignContentSpread;
     /** Mirrors a wrapping container's cross axis: the first line at the cross end. */
     public boolean wrapReverse;
+    /** Paints a check box's mark over the background, as MyGO's checkPath. */
+    public boolean checkMark;
     public float padTop, padRight, padBottom, padLeft;
     public float marTop, marRight, marBottom, marLeft;
     /** The border's width, which also insets the content. */
@@ -158,7 +160,7 @@ public final class Node {
         shrink = 1;
         basis = Float.NaN;
         gapX = gapY = 0;
-        wrap = wrapReverse = false;
+        wrap = wrapReverse = checkMark = false;
         alignContent = Align.START;
         alignContentSpread = null;
         absolute = invisible = clip = false;

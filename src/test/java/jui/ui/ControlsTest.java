@@ -76,10 +76,40 @@ public final class ControlsTest {
         int[] changes = {0};
         Tester tt = Tester.of(c -> { if (checkbox(c, done, "完成").changed()) changes[0]++; }, 300, 200);
         tt.click("完成");
-        Check.isTrue(done.get() && tt.hasText("✓"), "checked, with its mark");
+        Check.isTrue(done.get() && checkMarks(tt) == 1, "checked, with its mark");
         tt.click("完成");
-        Check.isTrue(!done.get() && !tt.hasText("✓"), "unchecked");
+        Check.isTrue(!done.get() && checkMarks(tt) == 0, "unchecked");
         Check.equal(2, changes[0]);
+    }
+
+    /** The strokes the frame painted: a check box's mark is one. */
+    static int checkMarks(Tester tt) {
+        int n = 0;
+        for (int i = 0; i < tt.instances(); i++) if (tt.scene().instance(i)[18] == 3) n++;
+        return n;
+    }
+
+    public void testTheCheckMarkIsMyGOsPath() {
+        BoolRef on = new BoolRef(true);
+        Tester tt = Tester.of(c -> column(c).padding(10).children(() -> checkbox(c, on, "x")), 300, 200);
+        tt.frame();
+        float[] box = null, mark = null;
+        for (int i = 0; i < tt.instances(); i++) {
+            float[] in = tt.scene().instance(i);
+            if (in[18] == 0 && in[2] == 16 && in[3] == 16) box = in;
+            if (in[18] == 3) mark = in;
+        }
+        Check.isTrue(box != null && mark != null, "the box and its mark");
+        float x = box[0], y = box[1];
+        float[] want = {x + 3.52f, y + 8.32f, x + 6.72f, y + 11.36f, x + 12.48f, y + 4.96f};
+        float[] got = {mark[4], mark[5], mark[6], mark[7], mark[12], mark[13]};
+        for (int i = 0; i < 6; i++) Check.near(want[i], got[i], 0.01f);
+        Check.near(1, mark[16]);                                // half the width 2
+        int accentText = Theme.light().accentText().rgba();
+        Check.near(((accentText >>> 24) & 0xFF) / 255f, mark[8]);
+        Check.near(((accentText >>> 16) & 0xFF) / 255f, mark[9]);
+        Check.near(((accentText >>> 8) & 0xFF) / 255f, mark[10]);
+        Check.near((accentText & 0xFF) / 255f, mark[11]);
     }
 
     public void testOnChangeRunsAfterTheBuild() {

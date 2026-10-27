@@ -44,6 +44,12 @@ final class Paint {
             scene.box(n.x, n.y, n.w, n.h, Math.min(n.radiusTL, half), Math.min(n.radiusTR, half),
                     Math.min(n.radiusBR, half), Math.min(n.radiusBL, half), background, n.border, borderColor);
         }
+        if (n.checkMark) {
+            // MyGO's checkPath, in the box's own proportions.
+            float w = n.w, h = n.h;
+            scene.stroke(n.x + 0.22f * w, n.y + 0.52f * h, n.x + 0.42f * w, n.y + 0.71f * h,
+                    n.x + 0.78f * w, n.y + 0.31f * h, 2, fade(theme.accentText().rgba(), o));
+        }
         if (n.kind == Node.TEXT && n.layout != null) {
             // The text starts inside the padding and the border.
             scene.text(n.layout, n.x + n.padLeft + n.border, n.y + n.padTop + n.border, fade(n.resolvedColor, o));
