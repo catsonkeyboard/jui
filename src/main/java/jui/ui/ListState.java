@@ -23,6 +23,27 @@ public final class ListState {
         return this;
     }
 
+    /**
+     * Follows the list's end, as a log does (as MyGO's FollowEnd): it starts
+     * at the end and stays there as rows are added or the last grows.
+     * Scrolling up stops it; scrolling back to the end, or scrollToEnd(),
+     * starts it again. Returns this state.
+     */
+    public ListState followEnd(boolean on) {
+        model.followEnd(on);
+        return this;
+    }
+
+    /** Whether the last frame showed the end: the last row at the bottom of the view. */
+    public boolean atEnd() {
+        return model.atEnd();
+    }
+
+    /** Shows the end in the next frame; a list that follows its end follows it again. */
+    public void scrollToEnd() {
+        model.requestEnd();
+    }
+
     /** Shows row 0 at the top in the next frame. */
     public void scrollToTop() {
         model.requestRow(0);

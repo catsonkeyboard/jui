@@ -25,6 +25,12 @@ public final class ListModel {
 
     /** Whether the view stays at the list's end: its last row meets the bottom, frame after frame. */
     boolean atEnd;
+    /**
+     * Whether the list follows its end (ListState.followEnd), whether it is
+     * following now, and whether it has planned a pass yet (as MyGO's
+     * FollowEnd and following).
+     */
+    boolean followEnd, following, started;
     /** A reveal moved the anchor in this frame: the next plan keeps it, rather than reading the offset again. */
     boolean revealed;
 
@@ -77,6 +83,23 @@ public final class ListModel {
     /** Asks for row at the top of the view in the next frame. */
     public void requestRow(int row) {
         requestRow = row;
+    }
+
+    /** Follows the end: it starts there, and stays there as rows come, until the view scrolls up. */
+    public void followEnd(boolean on) {
+        followEnd = on;
+        following = on && (!started || atEnd);
+    }
+
+    /** Whether the last frame showed the list's end, its last row at the bottom. */
+    public boolean atEnd() {
+        return atEnd;
+    }
+
+    /** Asks for the end in the next frame: a list that follows its end follows it again. */
+    public void requestEnd() {
+        requestY = Float.MAX_VALUE;
+        requestRow = -1;
     }
 
     /** Keys the rows: keyOf(i) is row i's key, which its identity and the anchor follow. */

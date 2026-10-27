@@ -626,6 +626,10 @@ public final class Engine {
             s.scrollY = m.wroteY; // a list back after a frame away keeps its place: its state lives in the app
         }
         double max = Math.max(0, m.content() - v);
+        if (!m.started) {
+            m.started = true;
+            m.following = m.followEnd; // a list that follows its end starts there
+        }
         if (m.revealed) {
             m.revealed = false; // a reveal set the anchor: keep it
         } else if (count > 0) {
@@ -633,10 +637,19 @@ public final class Engine {
                 m.anchor = Math.min(m.requestRow, count - 1);
                 m.anchorY = 0;
                 m.atEnd = false;
+                m.following = false;
             } else {
                 boolean asked = !Float.isNaN(m.requestY);
                 double y = asked ? Math.max(0, Math.min(max, m.requestY)) : s.scrollY;
                 m.atEnd = max > 0.5 && y >= max - 0.5;
+                if (m.followEnd) {
+                    if (asked || y != m.wroteY) {
+                        m.following = m.atEnd; // scrolled: up stops it, back to the end starts it again
+                    }
+                    if (m.following && max > 0.5) {
+                        m.atEnd = true; // it stays at the end as rows come or the last grows
+                    }
+                }
                 if (m.atEnd) {
                     m.anchorEnd(v); // at the end: the last row meets the bottom (as MyGO)
                 } else if (asked) {
@@ -1080,6 +1093,7 @@ public final class Engine {
                 if (c.listModel != null) {
                     c.listModel.anchorY -= applied; // a list moves by its anchor, in another round
                     c.listModel.atEnd = false;
+                    c.listModel.following = false;
                     c.listModel.revealed = true;
                     moved |= REVEAL_ROUND;
                 } else {
