@@ -90,14 +90,17 @@ public final class TextEdit {
         return Math.max(anchor, caret);
     }
 
-    /** Selects from anchor to caret, both clamped and put on grapheme boundaries. */
+    /** Selects from anchor to caret, both clamped and put on grapheme boundaries; a composition is committed first. */
     public void select(int anchor, int caret) {
+        commitComposition();
         this.anchor = snap(anchor);
         this.caret = snap(caret);
         coalesce = false;
     }
 
+    /** Selects all the text; a composition is committed first. */
     public void selectAll() {
+        commitComposition();
         anchor = 0;
         caret = text.length();
         coalesce = false;

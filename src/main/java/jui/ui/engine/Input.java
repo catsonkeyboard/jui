@@ -442,6 +442,11 @@ final class Input {
         revealId = focusedId;
         ElementState s = engine.states().get(focusedId);
         if (s != null && s.edit != null) {
+            if (s.edit.composing()) {
+                // Tab back to the input composing (the only focusable one): commit it, then select.
+                s.edit.unmark(engine.clockNow());
+                engine.host().discardMarkedText();
+            }
             s.edit.selectAll(); // a text input Tab focuses selects its text (as MyGO)
         }
         updateTextInput();

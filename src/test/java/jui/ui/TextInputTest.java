@@ -266,4 +266,19 @@ public final class TextInputTest {
             Check.isTrue(tt.find("ab") != null, (own ? "its own" : "a parent's") + " disable: it shows the text alone");
         }
     }
+
+    public void testTabBackToTheSameComposingInputCommitsItAtTheCaret() { // M4 final review minor
+        TextRef q = new TextRef("abcdef");
+        Tester tt = Tester.of(c -> textInput(c, q).label("in"), 300, 200);  // the only focusable: Tab wraps to it
+        jui.ui.engine.Host.Memory host = (jui.ui.engine.Host.Memory) tt.engine().host();
+        tt.click("in");
+        tt.key(Shortcut.of(Key.HOME));
+        tt.key(Shortcut.of(Key.RIGHT));
+        tt.compose("ni", 2);
+        int discards = host.discards;
+        tt.key(Shortcut.of(Key.TAB));
+        Check.equal("anibcdef", q.get());                  // committed where it was composed
+        Check.equal("[0, 8]", java.util.Arrays.toString(tt.textSelection()));
+        Check.equal(discards + 1, host.discards);
+    }
 }
