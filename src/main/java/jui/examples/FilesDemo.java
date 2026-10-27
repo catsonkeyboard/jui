@@ -27,7 +27,7 @@ import static jui.ui.Ui.textInput;
 /**
  * A list of 10000 notes, as an Obsidian-like file list: only the rows in
  * view are built, some rows are taller (a summary line), a click selects a
- * note, and a search box filters the titles as you type (in Chinese too,
+ * note (or Tab to it, then Enter or Space), and a search box filters the titles as you type (in Chinese too,
  * through the input method). Titles come from a small vocabulary, so their
  * glyphs fit the atlas until it can grow (M6).
  *
@@ -139,7 +139,9 @@ public final class FilesDemo {
     }
 
     private void noteRow(Context c, Note n, Theme t) {
-        Element r = column(c.key(n.id)).padding(8, 16).gap(2);
+        // Focusable: Tab walks the notes, scrolling them into view; Enter or Space selects, as a click.
+        // Inset and rounded, as Obsidian's list: the focus ring, 3 out, then shows whole inside the list's clip.
+        Element r = column(c.key(n.id)).padding(8, 10).margin(0, 6).radius(6).gap(2).focusable();
         if (r.clicked()) {
             selected = n;
         }

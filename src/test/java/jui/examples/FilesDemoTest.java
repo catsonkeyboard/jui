@@ -1,6 +1,8 @@
 package jui.examples;
 
 import jui.testing.Check;
+import jui.ui.Key;
+import jui.ui.Shortcut;
 import jui.ui.Tester;
 import jui.ui.TextRef;
 
@@ -26,5 +28,22 @@ public final class FilesDemoTest {
         Check.isTrue(tt.hasText("10000 篇笔记"), "a composition does not filter");
         tt.type("会议");
         Check.isTrue(!tt.hasText("10000 篇笔记"), "the committed text does");
+    }
+
+    public void testTabWalksTheNotesScrollingThemIntoViewAndEnterOrSpaceSelects() {
+        FilesDemo s = new FilesDemo();
+        Tester tt = Tester.of(s::view, 360, 640);
+        tt.click("搜索笔记");
+        tt.key(Shortcut.of(Key.TAB));                       // from the search box into the first note
+        Check.isTrue(tt.focused(s.notes.get(0).title), "the first note has focus");
+        tt.key(Shortcut.of(Key.ENTER));
+        Check.equal(s.notes.get(0), s.selected);
+        for (int i = 0; i < 30; i++) {
+            tt.key(Shortcut.of(Key.TAB));
+        }
+        Check.isTrue(tt.focused(s.notes.get(30).title), "Tab walked down to note 31");
+        Check.isTrue(s.files.first() > 0, "the list scrolled to show it");
+        tt.key(Shortcut.of(Key.SPACE));
+        Check.equal(s.notes.get(30), s.selected);
     }
 }
