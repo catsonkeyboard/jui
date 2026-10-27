@@ -130,6 +130,21 @@ public final class Element {
 
     /** What an empty text input shows, in the theme's muted text color. Only for text inputs. */
     /**
+     * Has fn see a paste into a text input (⌘V, Paste, Paste and Match
+     * Style) before it goes in, as it comes (as MyGO's OnPaste): text is the
+     * clipboard's text, "" when it holds none. fn reports whether it took
+     * the paste; one taken changes nothing, the selection and the undo
+     * history included. A read-only input takes no paste, so never asks. It
+     * holds for the input that comes until the next frame.
+     */
+    public Element onPaste(java.util.function.Predicate<String> fn) {
+        if (node() != null) {
+            c.engine().onPaste(index, fn);
+        }
+        return this;
+    }
+
+    /**
      * Hides what a text input holds, in the frames that call it (as MyGO's
      * Password): it shows a bullet for each character, Copy and Cut do
      * nothing, and the input method sees only what it composes. An input

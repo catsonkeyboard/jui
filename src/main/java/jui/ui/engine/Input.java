@@ -652,6 +652,13 @@ final class Input {
         }
         boolean paste = c == jui.ui.EditCommand.PASTE || c == jui.ui.EditCommand.PASTE_AND_MATCH_STYLE;
         String clipboard = paste ? engine.host().readClipboard() : null;
+        if (paste) {
+            // The app sees the paste first: one it takes changes nothing (as MyGO's OnPaste).
+            ElementState s = engine.states().get(focusedId);
+            if (s != null && s.onPaste != null && s.onPaste.test(clipboard == null ? "" : clipboard)) {
+                return;
+            }
+        }
         String out = e.command(c, clipboard, now);
         if (out != null) {
             engine.host().writeClipboard(out);

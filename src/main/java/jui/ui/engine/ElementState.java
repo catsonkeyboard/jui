@@ -36,6 +36,8 @@ public final class ElementState {
     public float requestX = Float.NaN;
     /** A text input's reference, as its last build passed it: for what reaches it between frames. */
     public jui.ui.TextRef ref;
+    /** A text input's hook for a paste, as its last build set it (Element.onPaste), or null. */
+    public java.util.function.Predicate<String> onPaste;
     /**
      * A wheel's glide down, relative to wherever the content is: its
      * distance, what of it is applied, since when (ns), and whether it is
@@ -89,6 +91,7 @@ public final class ElementState {
         scrollX = contentW = viewW = 0;
         requestX = Float.NaN;
         ref = null;
+        onPaste = null;
         wheelDistance = wheelDone = wheelDistanceX = wheelDoneX = 0;
         wheelStart = wheelStartX = 0;
         wheelingX = wheelingY = false;

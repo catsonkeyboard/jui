@@ -287,6 +287,7 @@ public final class Engine {
             writeBack(index, e, ref);
         }
         s.ref = ref;
+        s.onPaste = null; // the hooks hold while the builds that set them go on (as MyGO's rebuild)
         n.ownRing = true; // a text input shows focus with its border, not a ring (as MyGO)
     }
 
@@ -363,6 +364,15 @@ public final class Engine {
         if (s.edit.dirty && s.ref != null) {
             writeBack(index, s.edit, s.ref); // the committed composition is the app's text in this frame
         }
+    }
+
+    /** Has fn see a paste into the node's text input before it goes in; true takes it. */
+    public void onPaste(int index, java.util.function.Predicate<String> fn) {
+        if (pool.node(index).kind != Node.INPUT) {
+            Dev.fail("onPaste is for text inputs");
+            return;
+        }
+        state(index).onPaste = fn;
     }
 
     /** Makes the node's text input a password input, in this frame. */
