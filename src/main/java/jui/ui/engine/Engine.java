@@ -312,7 +312,9 @@ public final class Engine {
                 continue;
             }
             TextEdit e = n.state.edit;
-            if (off(n) && e.composing()) {
+            e.readOnly = n.readOnly;
+            if ((off(n) || e.readOnly) && e.composing()) {
+                // Disabled or read-only, it takes no text: the composition goes (as MyGO).
                 e.setMarked("", 0, 0, -1, 0, now);
                 host.discardMarkedText();
             }
@@ -329,7 +331,7 @@ public final class Engine {
             }
             n.inputFocused = focused(n.id);
             n.caretShown = false;
-            if (n.inputFocused && !off(n)) { // a disabled input shows no caret: no blink frames for it
+            if (n.inputFocused && !off(n) && !e.readOnly) { // no caret when disabled or read-only: no blink frames
                 // The caret blinks from the last key, edit or focus change; after 30 s it rests, shown.
                 long phase = Math.max(0, now - input.blinkStart);
                 n.caretShown = phase >= BLINK_REST || (phase / BLINK) % 2 == 0;
@@ -359,6 +361,16 @@ public final class Engine {
         if (s.edit.dirty && s.ref != null) {
             writeBack(index, s.edit, s.ref); // the committed composition is the app's text in this frame
         }
+    }
+
+    /** Makes the node's text input read-only, in this frame (it holds for input until the next). */
+    public void readOnly(int index, boolean on) {
+        Node n = pool.node(index);
+        if (n.kind != Node.INPUT) {
+            Dev.fail("readOnly is for text inputs");
+            return;
+        }
+        n.readOnly = on;
     }
 
     /** The start (or, with end, the end) of the node's text input's selection; 0 without one. */
@@ -1687,6 +1699,12 @@ public final class Engine {
     }
 
     // Queries on the last frame, for tests and Tester.
+
+    /** The text the first node whose label or text is s shows (a text input's with its composition, or its mask), or null. */
+    public String shownText(String s) {
+        int i = find(s);
+        return i == Node.NONE ? null : pool.node(i).text;
+    }
 
     /** The identity of the first node whose label or text is s, or 0. */
     public long identity(String s) {

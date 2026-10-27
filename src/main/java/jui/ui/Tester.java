@@ -58,6 +58,13 @@ public final class Tester {
         return engine.texts();
     }
 
+    /** The text the element showing or labeled s shows: a text input's, with its composition, or its mask. */
+    public String shownText(String s) {
+        started();
+        find(s);
+        return engine.shownText(s);
+    }
+
     public boolean hasText(String s) {
         started();
         return engine.texts().contains(s);
@@ -144,6 +151,12 @@ public final class Tester {
         started();
         engine.textMark(text, caret, 0, -1, 0);
         settle();
+    }
+
+    /** Whether the text input with focus takes text input, as the input method sees it: not read-only, nor disabled. */
+    public boolean textInputActive() {
+        started();
+        return engine.textActive();
     }
 
     /** Runs a command of the Edit menu. */

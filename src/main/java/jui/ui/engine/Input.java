@@ -231,8 +231,8 @@ final class Input {
     void keyDown(jui.ui.Key key, int mods, boolean repeat) {
         this.mods = mods;
         // A text input with focus takes the keys it wants before any shortcut (design §7.3, as MyGO).
-        TextEdit edit = activeEdit();
-        if (edit != null && TextEdit.wants(key, mods)) {
+        TextEdit edit = focusedEdit();
+        if (edit != null && (edit.readOnly ? TextEdit.wantsReadOnly(key, mods) : TextEdit.wants(key, mods))) {
             long now = engine.clockNow();
             if (edit.composing()) {
                 edit.unmark(now); // macOS sends no keys while composing; other sources may
@@ -519,8 +519,18 @@ final class Input {
 
     // Text input.
 
-    /** The editing of the text input that takes text now, or null: it has focus, is enabled, and the window is focused. */
+    /** The editing of the text input that takes text now, or null: the focused one, unless it is read-only. */
     TextEdit activeEdit() {
+        TextEdit e = focusedEdit();
+        return e == null || e.readOnly ? null : e;
+    }
+
+    /**
+     * The editing of the text input with focus, read-only or not, or null: it
+     * has focus, is enabled, and the window is focused. Keys and the Edit
+     * menu's commands go to it.
+     */
+    TextEdit focusedEdit() {
         if (!windowFocused || focusedId == 0) {
             return null;
         }
@@ -558,7 +568,7 @@ final class Input {
             // Focus going elsewhere commits the composition; the input itself disabled drops it, as a
             // disabled parent does at build (as MyGO: disabled inputs drop their composition).
             int i = textClient == focusedId ? hits.indexOf(textClient) : -1;
-            if (i >= 0 && (hits.flags[i] & HitList.DISABLED) != 0) {
+            if (i >= 0 && ((hits.flags[i] & HitList.DISABLED) != 0 || clientEdit.readOnly)) {
                 clientEdit.setMarked("", 0, 0, -1, 0, engine.clockNow());
             } else {
                 clientEdit.unmark(engine.clockNow());
@@ -606,9 +616,13 @@ final class Input {
         edited(now);
     }
 
-    /** A command of the Edit menu: for the text input; without one, its key goes to shortcuts. */
+    /**
+     * A command of the Edit menu: for the text input with focus (a read-only
+     * one runs only Copy and Select All, and passes on none); without one,
+     * its key goes to shortcuts.
+     */
     void editCommand(jui.ui.EditCommand c) {
-        TextEdit e = activeEdit();
+        TextEdit e = focusedEdit();
         if (e == null) {
             switch (c) {
                 case UNDO -> keyDown(jui.ui.Key.Z, jui.ui.Mod.CMD, false);
@@ -627,6 +641,9 @@ final class Input {
 
     /** Runs a command, through the host's clipboard; the composition is committed first, and the input method forgets it. */
     private void runCommand(TextEdit e, jui.ui.EditCommand c, long now) {
+        if (e.readOnly && c != jui.ui.EditCommand.COPY && c != jui.ui.EditCommand.SELECT_ALL) {
+            return;
+        }
         if (e.composing()) {
             e.unmark(now);
             engine.host().discardMarkedText();

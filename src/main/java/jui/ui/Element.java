@@ -130,6 +130,20 @@ public final class Element {
 
     /** What an empty text input shows, in the theme's muted text color. Only for text inputs. */
     /**
+     * Makes a text input show its text without letting the user change it
+     * (as MyGO's ReadOnly): it takes the focus, and its text can be selected
+     * and copied, from the keyboard too, without a caret; it takes no text
+     * input, and the Edit menu's other commands do nothing to it. It holds
+     * for the input that comes until the next frame.
+     */
+    public Element readOnly(boolean on) {
+        if (node() != null) {
+            c.engine().readOnly(index, on);
+        }
+        return this;
+    }
+
+    /**
      * Selects from start (the anchor) to end (the caret) in a text input, in
      * UTF-16 indices of its text, each held within it and on a grapheme
      * boundary: start greater than end is a backward selection, equal ends

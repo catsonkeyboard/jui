@@ -35,6 +35,11 @@ public final class TextEdit {
 
     /** The user changed the committed text since it was last synced with the TextRef. */
     public boolean dirty;
+    /**
+     * The options its last build gave the input, for what comes until the
+     * next frame: read-only takes no edits, only selection and copy.
+     */
+    public boolean readOnly;
     /** The TextRef's value as last synced; and the frame that last wrote the user's edit to it (-1 none). */
     public String synced;
     public long syncedFrame = -1;
@@ -162,6 +167,24 @@ public final class TextEdit {
         }
         // Printable keys type text, which comes as text input.
         return m == 0 || m == Mod.ALT;
+    }
+
+    /**
+     * Whether a read-only input takes the key (as MyGO's editor.wants when
+     * read-only): ⌘A and ⌘C, with only ⌘ held, and the moves that select,
+     * with only Shift held; the rest go to shortcuts and scrolling.
+     */
+    public static boolean wantsReadOnly(Key key, int mods) {
+        if (mods == Mod.CMD) {
+            return key == Key.A || key == Key.C;
+        }
+        if (mods == Mod.SHIFT) {
+            return switch (key) {
+                case LEFT, RIGHT, UP, DOWN, HOME, END -> true;
+                default -> false;
+            };
+        }
+        return false;
     }
 
     /** The Edit command of a key, or null. */
@@ -407,6 +430,9 @@ public final class TextEdit {
      * selection), the others null. PASTE takes the clipboard's text.
      */
     public String command(EditCommand c, String clipboard, long now) {
+        if (readOnly && c != EditCommand.COPY && c != EditCommand.SELECT_ALL) {
+            return null; // read-only: it selects and copies, nothing else
+        }
         commitComposition();
         compositionActive = false;
         int a = selStart(), z = selEnd();
