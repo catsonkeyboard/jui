@@ -213,7 +213,7 @@ public final class Scene {
     /** Starts a batch for the current clip, unless the last batch has the same scissor. */
     private void startBatch() {
         clipChanged = false;
-        int x = -1, y = 0, w = 0, h = 0;
+        int x = 0, y = 0, w = -1, h = 0; // no clip: width -1, which no clip has (any edge may be -1)
         if (clipX0 != Float.NEGATIVE_INFINITY || clipY0 != Float.NEGATIVE_INFINITY
                 || clipX1 != Float.POSITIVE_INFINITY || clipY1 != Float.POSITIVE_INFINITY) {
             // Each edge to the nearest pixel, as MyGO's snap; an empty clip is 0 wide or high.
@@ -263,7 +263,7 @@ public final class Scene {
     }
 
     public boolean batchClipped(int i) {
-        return scissors[i * 4] != -1;
+        return scissors[i * 4 + 2] != -1;
     }
 
     /** The batch's scissor rectangle in pixels, {x, y, width, height}; only for a clipped batch. */

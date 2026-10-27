@@ -69,4 +69,19 @@ public final class SceneTest {
         Check.isTrue(!s.batchClipped(3), "unclipped after the pops");
         Check.equal(1, s.batchStart(1)); Check.equal(2, s.batchEnd(1));
     }
+
+    public void testAClipWhoseLeftEdgeSnapsToMinusOneStillClips() { // M3 final review minor
+        Scene s = new Scene();
+        s.begin(2, null, null);
+        s.pushClip(-0.5f, 10, 50, 30);                    // left edge -0.5 pt: pixel -1 at scale 2
+        s.box(0, 0, 10, 10, 0, 0xFF0000FF);
+        s.popClip();
+        s.box(0, 0, 10, 10, 0, 0xFF0000FF);               // and one unclipped after it
+        Check.equal(2, s.batches());
+        Check.isTrue(s.batchClipped(0), "the clipped box's batch is clipped");
+        int[] r = new int[4];
+        s.batchScissor(0, r);
+        Check.equal(java.util.List.of(-1, 20, 100, 60), java.util.List.of(r[0], r[1], r[2], r[3]));
+        Check.isTrue(!s.batchClipped(1), "the other is not");
+    }
 }
