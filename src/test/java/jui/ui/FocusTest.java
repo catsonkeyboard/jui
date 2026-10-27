@@ -134,4 +134,37 @@ public final class FocusTest {
         tt.engine().windowFocusChanged(true); tt.frame();
         Check.isTrue(tt.focused("a"), "back");
     }
+
+    public void testAnAutoFocusOnAFieldThatAppearsDisabledDoesNotWait() { // M2 final review minor
+        boolean[] shown = {false}, off = {true};
+        Tester tt = Tester.of(c -> column(c).children(() -> {
+            button(c, "other");
+            if (shown[0]) {
+                box(c).size(80, 20).focusable().label("field").autoFocus().disabled(off[0]);
+            }
+        }), 300, 200);
+        tt.frame();
+        shown[0] = true;
+        tt.frame();                                        // appears disabled: no focus
+        tt.click("other");                                 // the user goes on elsewhere
+        off[0] = false;
+        tt.frame();
+        tt.frame();
+        Check.isTrue(!tt.focused("field"), "the field took focus when it was enabled, much later");
+        Check.isTrue(tt.focused("other"), "focus stays where the user put it");
+    }
+
+    public void testAHandleRequestStillWaitsForItsElement() {
+        Handle h = new Handle();
+        boolean[] off = {true};
+        Tester tt = Tester.of(c -> box(c).size(80, 20).focusable().label("field").bind(h).disabled(off[0]), 300, 200);
+        tt.frame();
+        h.focus();
+        tt.frame();
+        Check.isTrue(!tt.focused("field"), "disabled");
+        off[0] = false;
+        tt.frame();
+        tt.frame();
+        Check.isTrue(tt.focused("field"), "a handle's request waits until the element is enabled");
+    }
 }

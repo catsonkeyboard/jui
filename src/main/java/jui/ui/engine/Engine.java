@@ -43,8 +43,14 @@ public final class Engine {
     /** Whether the pass being built reported input or ran a callback, so another pass must show it. */
     private boolean consumed;
     private int passes;
-    /** A focus asked for (by a Handle or autoFocus), applied after a pass that builds it enabled. */
+    /**
+     * A focus asked for (by a Handle or autoFocus), applied after a pass that
+     * builds it enabled. A Handle's waits for that; autoFocus's lasts the
+     * frame the element appears in (as MyGO's AutoFocus), so a field that
+     * appears disabled does not take focus whenever it is enabled.
+     */
     private long focusRequest;
+    private boolean focusRequestThisFrame;
 
     // The build in progress.
     private boolean building;
@@ -244,6 +250,7 @@ public final class Engine {
     /** Asks for focus on identity id: see {@link #applyFocusRequest}. */
     public void requestFocus(long id) {
         focusRequest = id;
+        focusRequestThisFrame = false;
     }
 
     /**
@@ -428,6 +435,10 @@ public final class Engine {
             }
         }
         states.prune(frame, pass);
+        if (focusRequestThisFrame) {
+            focusRequest = 0; // an autoFocus this frame did not apply: its element appeared disabled
+            focusRequestThisFrame = false;
+        }
         input.forgetGone();
         input.commitFocus();
         input.commitShortcuts();
@@ -993,6 +1004,7 @@ public final class Engine {
     public void autoFocus(int index) {
         if (state(index).born == frame) {
             focusRequest = pool.node(index).id;
+            focusRequestThisFrame = true;
         }
     }
 
