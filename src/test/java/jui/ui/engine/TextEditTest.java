@@ -272,4 +272,19 @@ public final class TextEditTest {
         Check.equal(0, e.selStart());
         Check.equal(11, e.selEnd());
     }
+
+    public void testACancelledCompositionLeavesNoUndoStep() { // M4 final review minor
+        TextEdit e = new TextEdit("");
+        e.insert("ab", 0);                                 // a step: "" to "ab"
+        e.setMarked("x", 1, 0, -1, 0, S);                  // a composition opens a step
+        e.setMarked("", 0, 0, -1, 0, S);                   // and is cancelled, having changed nothing
+        e.command(EditCommand.UNDO, null, 2 * S);
+        Check.equal("", e.text());                         // the first undo undoes the typing
+        e = at("cafe", 3, 4);
+        e.setMarked("é", 1, 0, -1, 0, 0);                  // it deleted the selection
+        e.setMarked("", 0, 0, -1, 0, 0);
+        Check.equal("caf", e.text());
+        e.command(EditCommand.UNDO, null, S);
+        Check.equal("cafe", e.text());                     // that step stays
+    }
 }

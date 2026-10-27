@@ -330,6 +330,12 @@ public final class TextEdit {
         if (s.isEmpty()) {
             composeSel = composeSelLength = 0;
             closeStep();
+            // Cancelled: a step that changed nothing (it deleted no selection) goes, so ⌘Z next does something.
+            Step last = undo.peekLast();
+            if (compositionActive && last != null && last.beforeText.equals(last.afterText)) {
+                undo.pollLast();
+            }
+            compositionActive = false;
             return;
         }
         int from = Math.max(0, Math.min(selStart, s.length()));
