@@ -80,6 +80,10 @@ public final class Node {
     /** Wraps children onto lines, placed by alignContent (START unless set, as MyGO). */
     public boolean wrap;
     public Align alignContent;
+    /** Spreads a wrapping container's lines as justify spreads children: SPACE_* (null: by alignContent). */
+    public jui.ui.Justify alignContentSpread;
+    /** Mirrors a wrapping container's cross axis: the first line at the cross end. */
+    public boolean wrapReverse;
     public float padTop, padRight, padBottom, padLeft;
     public float marTop, marRight, marBottom, marLeft;
     /** The border's width, which also insets the content. */
@@ -154,8 +158,9 @@ public final class Node {
         shrink = 1;
         basis = Float.NaN;
         gapX = gapY = 0;
-        wrap = false;
+        wrap = wrapReverse = false;
         alignContent = Align.START;
+        alignContentSpread = null;
         absolute = invisible = clip = false;
         scrollY = contentH = 0;
         scrollRequest = Float.NaN;

@@ -346,6 +346,39 @@ public final class Element {
         Node n = node();
         if (n != null) {
             n.alignContent = a;
+            n.alignContentSpread = null;
+        }
+        return this;
+    }
+
+    /**
+     * Spreads a wrapping container's lines across as {@link #justify} spreads
+     * children: SPACE_BETWEEN, SPACE_AROUND or SPACE_EVENLY; START, CENTER
+     * and END are as {@link #alignContent(Align)}. Lines that do not fit
+     * start at the start; a single line is centered, or at the start for
+     * SPACE_BETWEEN.
+     */
+    public Element alignContent(Justify j) {
+        Node n = node();
+        if (n != null) {
+            switch (j) {
+                case START -> alignContent(Align.START);
+                case CENTER -> alignContent(Align.CENTER);
+                case END -> alignContent(Align.END);
+                default -> n.alignContentSpread = j;
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Wraps the children, the lines going from the cross end: in a row, the
+     * first line at the bottom, as CSS's flex-wrap: wrap-reverse.
+     */
+    public Element wrapReverse() {
+        Node n = node();
+        if (n != null) {
+            n.wrap = n.wrapReverse = true;
         }
         return this;
     }

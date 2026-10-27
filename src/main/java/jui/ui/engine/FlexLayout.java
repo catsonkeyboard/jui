@@ -451,18 +451,35 @@ public final class FlexLayout {
         for (int i = 0; i < lines; i++) {
             used += lineCross[i];
         }
-        float free = cross - used, offset = 0, extra = 0;
-        switch (p.alignContent) {
-            case CENTER -> offset = free / 2;
-            case END -> offset = free;
-            case STRETCH -> extra = free > 0 ? free / lines : 0;
-            default -> { }
+        float free = cross - used, offset = 0, extra = 0, between = 0;
+        if (p.alignContentSpread != null) {
+            // MyGO's justifyOffsets: lines that do not fit start at the start.
+            if (free > 0) {
+                switch (p.alignContentSpread) {
+                    case SPACE_BETWEEN -> between = lines > 1 ? free / (lines - 1) : 0;
+                    case SPACE_AROUND -> {
+                        between = free / lines;
+                        offset = between / 2;
+                    }
+                    default -> { // SPACE_EVENLY
+                        between = free / (lines + 1);
+                        offset = between;
+                    }
+                }
+            }
+        } else {
+            switch (p.alignContent) {
+                case CENTER -> offset = free / 2;
+                case END -> offset = free;
+                case STRETCH -> extra = free > 0 ? free / lines : 0;
+                default -> { }
+            }
         }
         float crossPos = offset;
         for (int i = 0; i < lines; i++) {
             float size = lineCross[i] + extra;
             placeLine(p, lineFirst[i], lineEnd[i], main, crossPos, size, pl, pt, innerW, innerH);
-            crossPos += size + gapC;
+            crossPos += size + gapC + between;
         }
         for (int c = firstFlow(p); c != Node.NONE; c = nextFlow(c)) {
             place(c);
@@ -532,10 +549,15 @@ public final class FlexLayout {
                 };
             }
             float mainPos = p.reverse ? main - pos - sz : pos;
+            float crossAt = crossPos + cp;
+            if (p.wrapReverse) {
+                // MyGO's flipCross: mirrored across the content box, so the margins swap sides too.
+                crossAt = (row ? innerH : innerW) - crossAt - cs;
+            }
             if (row) {
-                set(n, p.x + pl + mainPos, p.y + pt + crossPos + cp, sz, cs);
+                set(n, p.x + pl + mainPos, p.y + pt + crossAt, sz, cs);
             } else {
-                set(n, p.x + pl + crossPos + cp, p.y + pt + mainPos, cs, sz);
+                set(n, p.x + pl + crossAt, p.y + pt + mainPos, cs, sz);
             }
             pos += sz + (me == Ui.AUTO ? auto : me) + mainGap(p) + between;
         }
