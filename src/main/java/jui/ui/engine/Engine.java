@@ -282,7 +282,7 @@ public final class Engine {
             host.discardMarkedText();
         }
         n.text = e.display();
-        n.noFocusRing = true; // a text input shows focus with its border, not a ring (as MyGO)
+        n.ownRing = true; // a text input shows focus with its border, not a ring (as MyGO)
         n.inputCaret = e.displayCaret();
         if (e.composing()) {
             n.inputSelA = n.inputSelB = n.inputCaret;

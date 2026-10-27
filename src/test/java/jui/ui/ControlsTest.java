@@ -204,4 +204,35 @@ public final class ControlsTest {
         Check.near(25, v.get());
         tt.release(r.x() + 10 + 150, y);
     }
+
+    /** Focus rings painted: boxes 2 wide in the theme's focus ring color, with no fill. */
+    static int rings(Tester tt) {
+        int ring = Theme.light().focusRing().rgba(), n = 0;
+        for (int i = 0; i < tt.instances(); i++) {
+            float[] in = tt.scene().instance(i);
+            int border = Math.round(in[12] * 255) << 24 | Math.round(in[13] * 255) << 16 | Math.round(in[14] * 255) << 8
+                    | Math.round(in[15] * 255);
+            if (in[18] == 0 && Math.abs(in[16] - 2) < 0.01 && border == ring) n++;
+        }
+        return n;
+    }
+
+    public void testFocusRingFalseHidesTheRingOnAControlsPart() { // M2 final review minor
+        BoolRef check = new BoolRef(false), on = new BoolRef(false);
+        DoubleRef v = new DoubleRef(50);
+        boolean[] show = {true};
+        Tester tt = Tester.of(c -> column(c).padding(10).gap(10).children(() -> {
+            slider(c, v, 0, 100).label("s").focusRing(show[0]);
+            checkbox(c, check, "c").focusRing(show[0]);
+            toggle(c, on, "t").focusRing(show[0]);
+        }), 300, 200);
+        for (int k = 0; k < 3; k++) {
+            show[0] = true;
+            tt.key(Shortcut.of(Key.TAB));
+            Check.equal(1, rings(tt));                    // by default each shows its ring, on its part
+            show[0] = false;
+            tt.frame();
+            Check.equal(0, rings(tt));
+        }
+    }
 }

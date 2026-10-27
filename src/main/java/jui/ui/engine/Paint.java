@@ -83,7 +83,10 @@ final class Paint {
                     fade(theme.scrollbar().rgba(), o));
         }
         // The focus ring goes over the children: 3 DIPs out, 2 wide (as MyGO's paint.go).
-        if (n.ring || ringId != 0 && n.id == ringId && !n.noFocusRing) {
+        boolean ring = ringId != 0 && (n.ringOwner != Node.NONE
+                ? pool.node(n.ringOwner).id == ringId && !pool.node(n.ringOwner).noFocusRing
+                : n.id == ringId && !n.noFocusRing && !n.ownRing);
+        if (ring) {
             scene.box(n.x - 3, n.y - 3, n.w + 6, n.h + 6, Math.min(n.radiusTL, half) + 3,
                     Math.min(n.radiusTR, half) + 3, Math.min(n.radiusBR, half) + 3, Math.min(n.radiusBL, half) + 3,
                     0, 2, fade(theme.focusRing().rgba(), o));
@@ -145,7 +148,7 @@ final class Paint {
         scene.shadow(kx, ky + 0.5f, kw, kh, r, fade(KNOB_EDGE, o), 1);
         scene.shadow(kx, ky + 1.5f, kw, kh, r, fade(KNOB_LIFT, o), 7);
         scene.box(kx, ky, kw, kh, r, fade(theme.isDark() ? KNOB_DARK : KNOB_LIGHT, o));
-        if (ringId != 0 && n.id == ringId) {
+        if (ringId != 0 && n.id == ringId && !n.noFocusRing) {
             scene.box(kx - 3, ky - 3, kw + 6, kh + 6, r + 3, 0, 2, fade(theme.focusRing().rgba(), o));
         }
     }

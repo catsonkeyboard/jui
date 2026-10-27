@@ -188,13 +188,14 @@ public final class Ui {
         if (row.node() == null) {
             return row;
         }
-        row.gap(8).focusRing(false);
-        boolean ring = row.focusVisible(), hot = row.hovered();
+        row.gap(8);
+        row.node().ownRing = true; // the ring goes on the box
+        boolean hot = row.hovered();
         int saved = c.engine().enter(row.index);
         try {
             Element box = box(c).size(16, 16).radius(4).shrink(0);
             Node b = box.node();
-            b.ring = ring;
+            b.ringOwner = row.index;
             if (ref.get()) {
                 b.background = t.accent().rgba();
                 box.center();
@@ -223,15 +224,15 @@ public final class Ui {
         if (row.node() == null) {
             return row;
         }
-        row.gap(8).focusRing(false);
-        boolean ring = row.focusVisible();
+        row.gap(8);
+        row.node().ownRing = true; // the ring goes on the track
         // The knob slides, and the track's color follows it (as MyGO's Switch, 140 ms).
         float pos = row.animate("knob", ref.get() ? 1 : 0, SWITCH_SLIDE);
         int saved = c.engine().enter(row.index);
         try {
             Element track = row(c).size(36, 20).radius(10).padding(2).shrink(0);
             Node k = track.node();
-            k.ring = ring;
+            k.ringOwner = row.index;
             k.background = mix(mix(t.border(), t.text(), 0.15f), t.accent().rgba(), pos);
             int inner = c.engine().enter(track.index);
             try {
@@ -259,7 +260,7 @@ public final class Ui {
             return e;
         }
         n.flags |= Node.FOCUSABLE | Node.DRAG | Node.HOVER | Node.KEYS;
-        n.noFocusRing = true;
+        n.ownRing = true; // the ring goes on the knob (Paint.slider)
         jui.ui.engine.Engine en = c.engine();
         jui.ui.engine.ElementState s = en.state(e.index);
         double v = value.get(), range = hi - lo;

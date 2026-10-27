@@ -31,10 +31,19 @@ public final class Node {
     public boolean disabled;
     /** The element's own opacity, 0 to 1; paint multiplies the ancestors'. */
     public float opacity;
-    /** No focus ring when this element has focus (a control draws its own on a part of it). */
+    /** No focus ring when this element has focus: the app's focusRing(false). */
     public boolean noFocusRing;
-    /** Draws the focus ring around this node: the part of a control that shows its focus. */
-    public boolean ring;
+    /**
+     * The control shows its focus itself, on a part (see ringOwner) or not
+     * at all (a text input's border): no ring around the whole element.
+     */
+    public boolean ownRing;
+    /**
+     * For the part of a control that shows the control's focus: the
+     * control's node. The ring goes around this part while the control has
+     * focus from the keyboard, unless the app turned it off (focusRing(false)).
+     */
+    public int ringOwner;
     /** Backgrounds while hovered and while pressed (0 for none), and whether it is, as of the commit. */
     public int bgHover, bgPressed;
     boolean hot, down;
@@ -131,7 +140,8 @@ public final class Node {
         disabled = false;
         opacity = 1;
         noFocusRing = false;
-        ring = false;
+        ownRing = false;
+        ringOwner = NONE;
         bgHover = bgPressed = 0;
         hot = down = false;
         fraction = 0;
