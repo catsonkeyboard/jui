@@ -966,16 +966,21 @@ public final class Engine {
         return n.disabled || n.state != null && n.state.disabledLast;
     }
 
+    /** How far the pointer moved across while held on the node, since the last pass; 0 while it is disabled, as clicks. */
     public float dragX(int index) {
-        pool.node(index).flags |= Node.DRAG;
-        float d = state(index).dragX;
+        Node n = pool.node(index);
+        n.flags |= Node.DRAG;
+        ElementState s = state(index);
+        float d = off(n) ? 0 : s.dragX;
         consumed |= d != 0;
         return d;
     }
 
     public float dragY(int index) {
-        pool.node(index).flags |= Node.DRAG;
-        float d = state(index).dragY;
+        Node n = pool.node(index);
+        n.flags |= Node.DRAG;
+        ElementState s = state(index);
+        float d = off(n) ? 0 : s.dragY;
         consumed |= d != 0;
         return d;
     }

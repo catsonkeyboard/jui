@@ -196,4 +196,19 @@ public final class PointerTest {
         tt.release(x, y);
         Check.equal(0, clicks[0]);
     }
+
+    public void testADisabledElementReportsNoDrag() { // M2 final review minor
+        float[] moved = {0, 0};
+        Tester tt = Tester.of(c -> column(c).padding(10).children(() -> {
+            Element d = box(c).size(100, 40).label("d").disabled(true);
+            moved[0] += d.dragX();
+            moved[1] += d.dragY();
+        }), 300, 200);
+        Rect r = tt.find("d");
+        tt.press(r.x() + 10, r.y() + 10);
+        tt.move(r.x() + 40, r.y() + 25);
+        tt.release(r.x() + 40, r.y() + 25);
+        Check.near(0, moved[0]);
+        Check.near(0, moved[1]);
+    }
 }
