@@ -275,13 +275,16 @@ public final class Engine {
             e = s.edit = new TextEdit(value);
         } else if (!value.equals(e.synced)) {
             boolean composing = e.composing();
-            e.setText(value); // the app's value, over any edit since (as MyGO)
+            // The app's value, over any edit since (as MyGO); in the frame the user's edit reached
+            // the app, it is the app's answer to it and joins its undo step.
+            e.setText(value, e.syncedFrame == frame);
             if (composing) {
                 host.discardMarkedText();
             }
         } else if (e.dirty) {
             e.dirty = false;
             e.synced = e.text();
+            e.syncedFrame = frame;
             ref.set(e.synced);
             markChanged(index);
         }

@@ -281,4 +281,35 @@ public final class TextInputTest {
         Check.equal("[0, 8]", java.util.Arrays.toString(tt.textSelection()));
         Check.equal(discards + 1, host.discards);
     }
+
+    public void testUndoAfterTheAppClearsASubmittedEntryBringsNothingBack() { // M4 final review minor
+        TextRef q = new TextRef("");
+        Tester tt = Tester.of(c -> {
+            if (textInput(c, q).placeholder("新待办").submitted()) {
+                q.set("");
+            }
+        }, 300, 200);
+        tt.click("新待办");
+        tt.type("买");
+        tt.advance(java.time.Duration.ofSeconds(2));       // a pause: what comes next is an undo step of its own
+        tt.type("菜");
+        tt.key(Shortcut.of(Key.ENTER));
+        Check.equal("", q.get());
+        tt.key(Shortcut.cmd(Key.Z));
+        Check.equal("", q.get());                          // not "买", the first of the entry's steps
+    }
+
+    public void testAnAppThatRewritesWhatWasTypedFoldsIntoItsUndoStep() {
+        TextRef q = new TextRef("");
+        Tester tt = Tester.of(c -> {
+            if (textInput(c, q).placeholder("p").changed()) {
+                q.set(q.get().toUpperCase());              // a filter: in the frame the edit reached it
+            }
+        }, 300, 200);
+        tt.click("p");
+        tt.type("ab");
+        Check.equal("AB", q.get());
+        tt.key(Shortcut.cmd(Key.Z));
+        Check.equal("", q.get());                          // one step: the typing and the app's rewrite of it
+    }
 }

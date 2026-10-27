@@ -35,8 +35,9 @@ public final class TextEdit {
 
     /** The user changed the committed text since it was last synced with the TextRef. */
     public boolean dirty;
-    /** The TextRef's value as last synced. */
+    /** The TextRef's value as last synced; and the frame that last wrote the user's edit to it (-1 none). */
     public String synced;
+    public long syncedFrame = -1;
 
     // Undo: whole texts and selections before and after each step.
     private static final class Step {
@@ -481,6 +482,20 @@ public final class TextEdit {
      * gave it, line breaks and all, so it is not taken for a new change.
      */
     public void setText(String s) {
+        setText(s, true);
+    }
+
+    /**
+     * The app changed the value. folded: the change answers the user's
+     * edit (a filter rewriting what was typed), so it joins the edit's undo
+     * step, as MyGO's setText; otherwise (clearing after a submit, a value
+     * from elsewhere) the history goes, as nothing the user did is to undo.
+     */
+    public void setText(String s, boolean folded) {
+        if (!folded) {
+            undo.clear();
+            redo.clear();
+        }
         text = singleLine(s); // a line break the app gives shows as a space: the input is one line
         synced = s == null ? "" : s;
         stops = TextBounds.graphemes(text);
