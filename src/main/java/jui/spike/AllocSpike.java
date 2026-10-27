@@ -199,7 +199,13 @@ public final class AllocSpike {
 
     private static void inputs(Context c) {
         for (int i = 0; i < INPUTS; i++) {
-            textInput(c.key(300 + i), FIELDS[i]);
+            jui.ui.Element in = textInput(c.key(300 + i), FIELDS[i]);
+            if (i % 2 == 1) {
+                in.password(); // its mask is made once, not each frame
+            }
+            if (i % 4 == 3) {
+                in.readOnly(true);
+            }
         }
     }
 

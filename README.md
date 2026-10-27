@@ -384,13 +384,52 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - 一帧里多次 `scrollIntoView` 时，每次移动之后重新布局一次，下一次从移动后的位置算。
 - 列表的 `scrollTo(row)` 和滚进视野会停止跟随末尾，否则下一帧又跳回末尾。
 
+## 输入框的选项和 Edit 菜单（2026-10-27）
+
+按[计划](docs/plans/2026-10-27-text-input-options.md)补上了 M4 推迟的输入框选项和两个菜单项，行为对照 MyGO（commit `8049993`）。
+
+**输入框的选项**（都链在 `textInput(c, ref)` 后面，在调用它的那一帧生效，对到下一帧之前的输入一直有效）
+- `readOnly(boolean)`：只读。能获得焦点，Tab 进入时全选；能用鼠标和 Shift+方向键选择，⌘A、⌘C 照常；不显示光标，不接收文字和输入法；Edit 菜单里只有拷贝和全选起作用，其余命令什么都不做，也不转给快捷键。
+- `password()`：密码框。每个字符显示一个“•”；拷贝和剪切无效；粘贴、撤销照常；拼音组字照常，输入法只看得到组字本身。不再调用就重新显示文字。
+- `onPaste(text -> boolean)`：粘贴（⌘V、粘贴、粘贴并匹配样式）插入之前先问应用，返回 `true` 表示应用接手，输入框什么都不变（选区和撤销历史也不变）。
+- `onTextKey(k -> boolean)`：回车、Tab、Esc、方向键、带 ⌘ 或 Ctrl 的键这些不打出文字的键，输入框处理之前先问应用；`TextKey` 能读写输入框的文字。可以用来做“回车发送”。输入框外层快捷键认领的键（比如 Esc）先给快捷键；组字时按键归输入法。
+- `setTextSelection(start, end)`、`textSelectionStart()`、`textSelectionEnd()`：设置和读取选区，下标按 UTF-16 计。
+- `inputMethod(false)`：关闭输入法。按键直接打出键盘布局给的字符，不组字，适合代码编辑器的普通模式。组字时关闭，已组的字保留。
+
+**Edit 菜单**加了“Paste and Match Style”（⌥⇧⌘V，在输入框里等于粘贴）和“Delete”（删掉选中的文字）。
+
+**实现上的一处调整**：输入框显示的文字、光标和选区原来在 `textInput` 一调用就定下，现在等整帧构建完再统一计算，所以链在后面的选项在同一帧生效。
+
+**和 MyGO 不同的地方**
+- 选区的下标按 UTF-16 计（Java 字符串的下标），MyGO 按码点计。
+- `onPaste` 在粘贴发生时立刻调用；MyGO 等到下一帧处理输入时才调用。
+- 正在组字时设置选区，先提交组字；MyGO 把光标移到组字下面。
+- 密码框里方向键仍按字素簇移动；MyGO 按码点。
+
+示例在 native image 下的画面如下（`./build.sh native-demo Form`）：
+
+![表单示例](docs/form-demo.png)
+
+- **示例**：只读的账号 ID；带“显示密码”开关的密码框（示例里预填了密码）；回车发送、拒绝超过 200 个字符的粘贴的消息框；不经过输入法的命令框。
+- **测试**：`./build.sh test`，372 个测试全部通过。
+- **分配**（`./build.sh alloc`，native image）：20 个输入框里一半是密码框、四分之一只读，其中一个获得焦点且光标在闪烁，框架内部每个输入框仍是 0 字节。密码框的掩码只在文字变了时重建。
+- **滚动帧耗时**（`./build.sh listbench`）：p95 0.21 ms，最大 0.33 ms。
+- **签名检查**（`./build.sh ffi-check`）：通过。
+
+**还需要手动核对的**（`./build.sh native-demo Form`）
+- 只读输入框：能选中、⌘C，菜单里的粘贴无效；
+- 密码框：显示圆点，拼音组字，⌘C 无效，“显示密码”切换；
+- 消息框：回车发送并清空，Shift+回车不发送；粘贴超过 200 个字符时被拒绝并提示；
+- 命令框：开着中文输入法也直接打出字母；
+- Edit 菜单的 Paste and Match Style（⌥⇧⌘V）和 Delete。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
 
 ```bash
 ./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
-./build.sh demo            # 卡片示例，在 JVM 上运行；Counter、Todo（M2）、Files（M3，M4 加了搜索框）、Scroll（滚动和列表的后续）是其他示例的名字
+./build.sh demo            # 卡片示例，在 JVM 上运行；Counter、Todo（M2）、Files（M3，M4 加了搜索框）、Scroll（滚动和列表的后续）、Form（输入框的选项）是其他示例的名字
 ./build.sh native-demo     # 同上，编译成 native image（build/<name>-demo）后运行，也接受示例名
 ./build.sh alloc           # 实测 UI API 每帧的分配（native image 和 JVM）
 ./build.sh listbench       # 1 万行列表的滚动帧耗时（native image，M3 的门槛）
@@ -444,10 +483,11 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 | `jui/examples/{CounterDemo,TodoDemo}.java` | M2 验收示例：计数器和待办清单 | `examples/counter-native` |
 | `jui/examples/FilesDemo.java` | M3 验收示例：1 万篇笔记的文件列表；M4 加了搜索框 | — |
 | `jui/examples/ScrollDemo.java` | 滚动和列表后续的示例：横向卡片条、跟随末尾的日志、描边的勾号 | — |
+| `jui/examples/FormDemo.java` | 输入框选项的示例：只读、密码、回车发送、拒绝长粘贴、关闭输入法 | — |
 | `jui/text/TextBounds.java` | 字素簇和词的边界 | `internal/text/word.go`、`ui/textbuffer.go` |
 | `jui/ui/engine/TextEdit.java` | 单行编辑：文字、选区、组字、按键、命令、撤销 | `ui/editor*.go` |
 | `jui/ui/engine/Host.java` | 引擎交给平台的事：剪贴板、指针形状、输入法 | `host` |
-| `jui/ui/{TextRef,Cursor,EditCommand}.java` | 文本引用对象、指针形状、编辑菜单的命令 | 同上 |
+| `jui/ui/{TextRef,Cursor,EditCommand,TextKey}.java` | 文本引用对象、指针形状、编辑菜单的命令、`onTextKey` 看到的按键 | 同上 |
 | `jui/platform/mac/{MacPasteboard,MacCursors}.java` | 剪贴板的纯文本；指针形状对应的 `NSCursor` | `internal/darwin/system.go`、`surface.go` |
 | `jui/spike/FfiCheck.java` | 在 native image 里调用每种结构体形状的 Objective-C 方法 | — |
 | `src/test/java/jui/testing/` | 零依赖的断言和测试运行器 | — |
