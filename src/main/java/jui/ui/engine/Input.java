@@ -592,6 +592,20 @@ final class Input {
         engine.requestFrame();
     }
 
+    /**
+     * After the prune: a press, or a scroll bar's drag, on an element the
+     * frame did not build is let go (as MyGO's prune), so the element back
+     * under the same identity is not clicked on release, nor painted held.
+     */
+    void forgetGone() {
+        if (pressedId != 0 && engine.states().get(pressedId) == null) {
+            pressedId = 0;
+        }
+        if (dragId != 0 && engine.states().get(dragId) == null) {
+            dragId = 0;
+        }
+    }
+
     /** Commits the focus order and the focus chain from the hit list just committed. */
     void commitFocus() {
         focusCount = 0;

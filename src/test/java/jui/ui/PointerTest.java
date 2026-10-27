@@ -177,4 +177,23 @@ public final class PointerTest {
         tt.press(50, 25); tt.release(50, 25);
         Check.equal(1, n[0]);
     }
+
+    public void testAPressOnAnElementThatGoesAndComesBackClicksNothing() { // M2 final review minor
+        boolean[] shown = {true};
+        int[] clicks = {0};
+        Tester tt = Tester.of(c -> column(c).padding(10).children(() -> {
+            if (shown[0] && button(c, "b").clicked()) {
+                clicks[0]++;
+            }
+        }), 300, 200);
+        Rect r = tt.find("b");
+        float x = r.x() + r.width() / 2, y = r.y() + r.height() / 2;
+        tt.press(x, y);
+        shown[0] = false;
+        tt.frame();                                        // gone: its state is pruned
+        shown[0] = true;
+        tt.frame();                                        // back, under the same identity
+        tt.release(x, y);
+        Check.equal(0, clicks[0]);
+    }
 }

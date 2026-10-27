@@ -428,6 +428,7 @@ public final class Engine {
             }
         }
         states.prune(frame, pass);
+        input.forgetGone();
         input.commitFocus();
         input.commitShortcuts();
         input.rehover();
