@@ -79,7 +79,8 @@ public final class Node {
     public int listAnchor;
     public float listAnchorY;
     /** Whether its scroll bar shows (hovered or dragged), and whether its thumb is being dragged. */
-    boolean bars, barDrag;
+    /** Whether its scroll bars show, and whether the vertical or the horizontal thumb is dragged. */
+    boolean bars, barDrag, barDragX;
     public float top, right, bottom, left;
     /** Wraps children onto lines, placed by alignContent (START unless set, as MyGO). */
     public boolean wrap;
@@ -172,7 +173,7 @@ public final class Node {
         scrollRequest = Float.NaN;
         scrollX = contentW = 0;
         scrollRequestX = Float.NaN;
-        bars = barDrag = false;
+        bars = barDrag = barDragX = false;
         listModel = null;
         listAnchor = 0;
         listAnchorY = 0;

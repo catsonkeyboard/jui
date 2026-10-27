@@ -33,9 +33,14 @@ final class Input {
 
     private int[][] scratch = {new int[16]};
 
-    /** A scroll bar's thumb being dragged: its container (0 for none), the offset, reach and pointer y it started from, and its travel. */
+    /**
+     * A scroll bar's thumb being dragged: its container (0 for none), whether
+     * it is the horizontal one, the offset, reach and pointer position along
+     * the bar it started from, and its travel.
+     */
     long dragId;
-    private float dragFrom, dragReach, dragStartY, dragTravel;
+    boolean dragHorizontal;
+    private float dragFrom, dragReach, dragStart, dragTravel;
 
     // Focus: the focused identity (0 for none), whether its ring shows, and the window's key state.
     long focusedId;
@@ -88,9 +93,14 @@ final class Input {
             // The thumb follows the pointer as a share of the travel (as MyGO's dragTo).
             ElementState s = engine.states().get(dragId);
             if (s != null) {
-                float reach = Math.max(0, s.contentH - s.h);
-                float f = (dragReach > 0 ? dragFrom / dragReach : 0) + (y - dragStartY) / Math.max(1, dragTravel);
-                s.scrollY = Math.max(0, Math.min(1, f)) * reach;
+                float at = dragHorizontal ? x : y;
+                float f = (dragReach > 0 ? dragFrom / dragReach : 0) + (at - dragStart) / Math.max(1, dragTravel);
+                f = Math.max(0, Math.min(1, f));
+                if (dragHorizontal) {
+                    s.scrollX = f * Math.max(0, s.contentW - s.w);
+                } else {
+                    s.scrollY = f * Math.max(0, s.contentH - s.h);
+                }
                 engine.requestFrame();
             }
             return;
@@ -678,33 +688,54 @@ final class Input {
     private boolean barPress(float x, float y) {
         float width = engine.theme().scrollbarWidth();
         for (int k = 0; k < hoverCount; k++) {
-            if ((hoverFlags[k] & Node.SCROLL_Y) == 0) {
+            if ((hoverFlags[k] & Node.SCROLL) == 0) {
                 continue;
             }
             ElementState s = engine.states().get(hoverIds[k]);
             if (s == null || !s.barsShown) {
                 continue;
             }
-            float right = s.x + s.w;
-            if (x < right - width - 6 || x >= right || y < s.y || y >= s.y + s.h) {
+            boolean v = ScrollBar.vertical(hoverFlags[k], s.h, s.contentH);
+            boolean h = ScrollBar.horizontal(hoverFlags[k], s.w, s.contentW);
+            float corner = ScrollBar.corner(v, h, width);
+            float right = s.x + s.w, bottom = s.y + s.h;
+            if (v && x >= right - width - 6 && x < right && y >= s.y && y < s.y + Math.max(0, s.h - corner)) {
+                float track = Math.max(0, s.h - corner);
+                float length = ScrollBar.thumbLength(track, s.h, s.contentH);
+                float top = ScrollBar.thumbStart(s.y, track, s.h, s.contentH, s.scrollY);
+                if (y >= top && y < top + length) {
+                    startDrag(s, false, y, s.scrollY, s.contentH - s.h, track - 4 - length);
+                } else {
+                    float max = Math.max(0, s.contentH - s.h);
+                    s.scrollY = Math.max(0, Math.min(max, s.scrollY + (y < top ? -0.9f : 0.9f) * s.h));
+                }
+            } else if (h && y >= bottom - width - 6 && y < bottom && x >= s.x && x < s.x + Math.max(0, s.w - corner)) {
+                float track = Math.max(0, s.w - corner);
+                float length = ScrollBar.thumbLength(track, s.w, s.contentW);
+                float left = ScrollBar.thumbStart(s.x, track, s.w, s.contentW, s.scrollX);
+                if (x >= left && x < left + length) {
+                    startDrag(s, true, x, s.scrollX, s.contentW - s.w, track - 4 - length);
+                } else {
+                    float max = Math.max(0, s.contentW - s.w);
+                    s.scrollX = Math.max(0, Math.min(max, s.scrollX + (x < left ? -0.9f : 0.9f) * s.w));
+                }
+            } else {
                 continue;
             }
-            float length = ScrollBar.thumbLength(s.h, s.contentH), top = ScrollBar.thumbTop(s.y, s.h, s.contentH, s.scrollY);
-            s.wheeling = false;
-            if (y >= top && y < top + length) {
-                dragId = s.id;
-                dragFrom = s.scrollY;
-                dragReach = Math.max(0, s.contentH - s.h);
-                dragStartY = y;
-                dragTravel = Math.max(0, s.h - 4 - length);
-            } else {
-                float max = Math.max(0, s.contentH - s.h);
-                s.scrollY = Math.max(0, Math.min(max, s.scrollY + (y < top ? -0.9f : 0.9f) * s.h));
-            }
+            s.wheelingX = s.wheelingY = false;
             engine.requestFrame();
             return true;
         }
         return false;
+    }
+
+    private void startDrag(ElementState s, boolean horizontal, float at, float from, float reach, float travel) {
+        dragId = s.id;
+        dragHorizontal = horizontal;
+        dragFrom = from;
+        dragReach = Math.max(0, reach);
+        dragStart = at;
+        dragTravel = Math.max(0, travel);
     }
 
     boolean hovering(long id) {
@@ -720,52 +751,112 @@ final class Input {
     long revealId;
 
     /**
-     * A scroll event at (x, y): the innermost scroll container under the
-     * point that can still move that way takes it all. A precise one moves
-     * at once; a wheel's adds to the container's glide, counting what is
-     * still on its way.
+     * A scroll event at (x, y) by (dx, dy), as MyGO's input.go: Shift turns
+     * a wheel that only goes down across. The innermost scroll container
+     * under the point that can still move either way it scrolls takes all
+     * of it, each way it scrolls; what is left over is dropped, so a wheel
+     * down over a container that only scrolls across goes on to the one
+     * around it. A precise one moves at once; a wheel's adds to the
+     * container's glides, counting what is still on its way.
      */
-    void scroll(float x, float y, float dy, boolean precise, int mods) {
+    void scroll(float x, float y, float dx, float dy, boolean precise, int mods) {
         this.mods = mods;
-        if (dy == 0) {
+        if ((mods & jui.ui.Mod.SHIFT) != 0 && dx == 0) {
+            dx = dy;
+            dy = 0;
+        }
+        if (dx == 0 && dy == 0) {
             return;
         }
         int n = hits.chain(x, y, scratch);
         int[] idx = scratch[0];
         for (int k = 0; k < n; k++) {
             int i = idx[k];
-            if ((hits.flags[i] & Node.SCROLL_Y) == 0) {
+            int flags = hits.flags[i];
+            if ((flags & Node.SCROLL) == 0) {
                 continue;
             }
             ElementState s = engine.states().get(hits.ids[i]);
             if (s == null) {
                 continue;
             }
-            float max = Math.max(0, s.contentH - s.h);
-            float left = s.wheeling ? s.wheelDistance - s.wheelDone : 0; // still on its way
-            float at = precise ? s.scrollY : s.scrollY + left;
-            if (dy > 0 ? at >= max : at <= 0) {
-                continue;
-            }
+            float sx = (flags & Node.SCROLL_X) != 0 ? dx : 0, sy = (flags & Node.SCROLL_Y) != 0 ? dy : 0;
             if (precise) {
-                s.scrollY = Math.max(0, Math.min(max, s.scrollY + dy));
-                s.wheeling = false;
-            } else {
-                // A new curve over what is left and the notch, applied as steps to wherever
-                // the content is, so a list's re-estimated offsets never make it jump.
-                s.wheelDistance = left + dy;
-                s.wheelDone = 0;
-                s.wheelStart = engine.clockNow();
-                if (!s.wheeling) {
-                    s.wheeling = true;
-                    if (glidingCount == gliding.length) {
-                        gliding = Arrays.copyOf(gliding, glidingCount * 2);
-                    }
-                    gliding[glidingCount++] = s.id;
+                if (!scrollBy(s, sx, sy)) {
+                    continue;
                 }
+                s.wheelingX = s.wheelingY = false;
+            } else {
+                if (!wheelMoves(s, sx, sy)) {
+                    continue;
+                }
+                wheel(s, sx, sy);
             }
             engine.requestFrame();
             return;
+        }
+    }
+
+    /** Moves the container by (dx, dy) at once, within its content; reports whether it moved. */
+    private static boolean scrollBy(ElementState s, float dx, float dy) {
+        float x = Math.max(0, Math.min(Math.max(0, s.contentW - s.w), s.scrollX + dx));
+        float y = Math.max(0, Math.min(Math.max(0, s.contentH - s.h), s.scrollY + dy));
+        if (dx == 0) {
+            x = s.scrollX;
+        }
+        if (dy == 0) {
+            y = s.scrollY;
+        }
+        if (x == s.scrollX && y == s.scrollY) {
+            return false;
+        }
+        s.scrollX = x;
+        s.scrollY = y;
+        return true;
+    }
+
+    /** Whether a notch of (dx, dy) moves the container past where its glides are taking it (as MyGO's wheelMoves). */
+    private static boolean wheelMoves(ElementState s, float dx, float dy) {
+        if (dy != 0) {
+            float max = Math.max(0, s.contentH - s.h);
+            float at = Math.max(0, Math.min(max, s.scrollY + (s.wheelingY ? s.wheelDistance - s.wheelDone : 0)));
+            if (Math.max(0, Math.min(max, at + dy)) != at) {
+                return true;
+            }
+        }
+        if (dx != 0) {
+            float max = Math.max(0, s.contentW - s.w);
+            float at = Math.max(0, Math.min(max, s.scrollX + (s.wheelingX ? s.wheelDistanceX - s.wheelDoneX : 0)));
+            return Math.max(0, Math.min(max, at + dx)) != at;
+        }
+        return false;
+    }
+
+    /**
+     * Adds a notch to the container's glides: a new curve each way it goes,
+     * over what is left and the notch, applied as steps to wherever the
+     * content is, so a list's re-estimated offsets never make it jump.
+     */
+    private void wheel(ElementState s, float dx, float dy) {
+        long now = engine.clockNow();
+        boolean was = s.wheelingX || s.wheelingY;
+        if (dy != 0) {
+            s.wheelDistance = (s.wheelingY ? s.wheelDistance - s.wheelDone : 0) + dy;
+            s.wheelDone = 0;
+            s.wheelStart = now;
+            s.wheelingY = true;
+        }
+        if (dx != 0) {
+            s.wheelDistanceX = (s.wheelingX ? s.wheelDistanceX - s.wheelDoneX : 0) + dx;
+            s.wheelDoneX = 0;
+            s.wheelStartX = now;
+            s.wheelingX = true;
+        }
+        if (!was) {
+            if (glidingCount == gliding.length) {
+                gliding = Arrays.copyOf(gliding, glidingCount * 2);
+            }
+            gliding[glidingCount++] = s.id;
         }
     }
 
@@ -774,32 +865,51 @@ final class Input {
         int kept = 0;
         for (int g = 0; g < glidingCount; g++) {
             ElementState s = engine.states().get(gliding[g]);
-            if (s == null || !s.wheeling) {
+            if (s == null || !s.wheelingX && !s.wheelingY) {
                 continue;
             }
-            double t = (double) (now - s.wheelStart) / GLIDE;
-            float v;
-            if (t >= 1) {
-                v = s.wheelDistance;
-                s.wheeling = false;
-            } else {
-                double u = 1 - Math.max(0, t);
-                v = (float) (s.wheelDistance * (1 - u * u * u));
+            if (s.wheelingY) {
+                float v = glide(s.wheelDistance, now - s.wheelStart);
+                if (v == s.wheelDistance) {
+                    s.wheelingY = false;
+                }
+                float step = v - s.wheelDone;
+                s.wheelDone = v;
+                float next = Math.max(0, Math.min(Math.max(0, s.contentH - s.h), s.scrollY + step));
+                if (next == s.scrollY && step != 0) {
+                    s.wheelingY = false; // it cannot move any further
+                }
+                s.scrollY = next;
             }
-            float step = v - s.wheelDone;
-            s.wheelDone = v;
-            float max = Math.max(0, s.contentH - s.h);
-            float next = Math.max(0, Math.min(max, s.scrollY + step));
-            if (next == s.scrollY && step != 0) {
-                s.wheeling = false; // it cannot move any further
+            if (s.wheelingX) {
+                float v = glide(s.wheelDistanceX, now - s.wheelStartX);
+                if (v == s.wheelDistanceX) {
+                    s.wheelingX = false;
+                }
+                float step = v - s.wheelDoneX;
+                s.wheelDoneX = v;
+                float next = Math.max(0, Math.min(Math.max(0, s.contentW - s.w), s.scrollX + step));
+                if (next == s.scrollX && step != 0) {
+                    s.wheelingX = false;
+                }
+                s.scrollX = next;
             }
-            s.scrollY = next;
-            if (s.wheeling) {
+            if (s.wheelingX || s.wheelingY) {
                 gliding[kept++] = s.id;
                 engine.requestFrame();
             }
         }
         glidingCount = kept;
+    }
+
+    /** How far a glide of distance has gone after elapsed ns: eased out over 150 ms, all of it after. */
+    private static float glide(float distance, long elapsed) {
+        double t = (double) elapsed / GLIDE;
+        if (t >= 1) {
+            return distance;
+        }
+        double u = 1 - Math.max(0, t);
+        return (float) (distance * (1 - u * u * u));
     }
 
     /** How far a key scrolls a container h high, or 0 for a key that does not scroll (as MyGO's scrollKey). */
@@ -825,39 +935,60 @@ final class Input {
         return 0;
     }
 
+    /** How far a key scrolls across: ← and → by 40, unmodified (as MyGO's scrollKey); 0 for others. */
+    private static float scrollKeyX(jui.ui.Key key, int mods) {
+        if (mods != 0) {
+            return 0;
+        }
+        return key == jui.ui.Key.LEFT ? -40 : key == jui.ui.Key.RIGHT ? 40 : 0;
+    }
+
     /**
      * Scrolls by the key the innermost container of the focus chain that can
      * move that way, else of the pointer's chain; reports whether one did.
+     * ← and → go to containers that scroll across, the others to those that
+     * scroll down.
      */
     private boolean scrollByKey(jui.ui.Key key, int mods) {
-        if (scrollKey(key, mods, 100) == 0) {
+        boolean across = scrollKeyX(key, mods) != 0;
+        if (!across && scrollKey(key, mods, 100) == 0) {
             return false;
         }
+        int way = across ? Node.SCROLL_X : Node.SCROLL_Y;
         for (int k = 0; k < focusChainCount; k++) {
             int i = hits.indexOf(focusChain[k]);
-            if (i >= 0 && (hits.flags[i] & Node.SCROLL_Y) != 0 && scrollContainer(hits.ids[i], key, mods)) {
+            if (i >= 0 && (hits.flags[i] & way) != 0 && scrollContainer(hits.ids[i], key, mods, across)) {
                 return true;
             }
         }
         for (int k = 0; k < hoverCount; k++) {
-            if ((hoverFlags[k] & Node.SCROLL_Y) != 0 && scrollContainer(hoverIds[k], key, mods)) {
+            if ((hoverFlags[k] & way) != 0 && scrollContainer(hoverIds[k], key, mods, across)) {
                 return true;
             }
         }
         return false;
     }
 
-    private boolean scrollContainer(long id, jui.ui.Key key, int mods) {
+    private boolean scrollContainer(long id, jui.ui.Key key, int mods, boolean across) {
         ElementState s = engine.states().get(id);
         if (s == null) {
             return false;
         }
-        float by = scrollKey(key, mods, s.h), max = Math.max(0, s.contentH - s.h);
-        if (by > 0 ? s.scrollY >= max : s.scrollY <= 0) {
-            return false;
+        if (across) {
+            float by = scrollKeyX(key, mods), max = Math.max(0, s.contentW - s.w);
+            if (by > 0 ? s.scrollX >= max : s.scrollX <= 0) {
+                return false;
+            }
+            s.scrollX = Math.max(0, Math.min(max, s.scrollX + by));
+            s.wheelingX = false;
+        } else {
+            float by = scrollKey(key, mods, s.h), max = Math.max(0, s.contentH - s.h);
+            if (by > 0 ? s.scrollY >= max : s.scrollY <= 0) {
+                return false;
+            }
+            s.scrollY = Math.max(0, Math.min(max, s.scrollY + by));
+            s.wheelingY = false;
         }
-        s.scrollY = Math.max(0, Math.min(max, s.scrollY + by));
-        s.wheeling = false;
         engine.requestFrame();
         return true;
     }

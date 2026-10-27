@@ -34,10 +34,17 @@ public final class ElementState {
     /** The same across, for a container that scrolls across. */
     public float scrollX, contentW, viewW;
     public float requestX = Float.NaN;
-    /** A wheel's glide, relative to wherever the content is: its distance, what of it is applied, since when (ns), and whether it is under way. */
+    /**
+     * A wheel's glide down, relative to wherever the content is: its
+     * distance, what of it is applied, since when (ns), and whether it is
+     * under way; and the same across. Each way glides on its own curve.
+     */
     float wheelDistance, wheelDone;
     long wheelStart;
-    boolean wheeling;
+    boolean wheelingY;
+    float wheelDistanceX, wheelDoneX;
+    long wheelStartX;
+    boolean wheelingX;
     /** Whether the last frame showed its scroll bar, so a press there takes it. */
     boolean barsShown;
     /** Whether the element was disabled in the last frame: an element around it may disable it after building it. */
@@ -71,9 +78,9 @@ public final class ElementState {
         requestY = Float.NaN;
         scrollX = contentW = viewW = 0;
         requestX = Float.NaN;
-        wheelDistance = wheelDone = 0;
-        wheelStart = 0;
-        wheeling = false;
+        wheelDistance = wheelDone = wheelDistanceX = wheelDoneX = 0;
+        wheelStart = wheelStartX = 0;
+        wheelingX = wheelingY = false;
         barsShown = false;
         keyCount = 0;
         edit = null;

@@ -469,8 +469,11 @@ public final class Engine {
             }
             if ((n.flags & Node.SCROLL) != 0) {
                 // Its bar shows while the pointer is over it or its thumb is dragged, if it has room to scroll.
-                n.barDrag = input.dragId == n.id;
-                n.bars = (n.barDrag || input.hovering(n.id)) && n.contentH > n.h + 0.5f;
+                boolean dragged = input.dragId == n.id;
+                n.barDrag = dragged && !input.dragHorizontal;
+                n.barDragX = dragged && input.dragHorizontal;
+                n.bars = (dragged || input.hovering(n.id))
+                        && (ScrollBar.vertical(n.flags, n.h, n.contentH) || ScrollBar.horizontal(n.flags, n.w, n.contentW));
                 if (n.state != null) {
                     n.state.barsShown = n.bars;
                 }
@@ -828,7 +831,7 @@ public final class Engine {
         if (!Float.isNaN(y)) {
             s.requestY = y;
         }
-        s.wheeling = false; // the app's scroll stops a wheel's glide
+        s.wheelingX = s.wheelingY = false; // the app's scroll stops a wheel's glides
         requestFrame.run();
     }
 
@@ -840,7 +843,8 @@ public final class Engine {
     /**
      * Scrolls the element Tab focused into view: each scroll container
      * around it, innermost first, moves as little as shows it within its
-     * border, its top first when it is taller (as MyGO's reveal). Returns
+     * border each way it scrolls, its top (its left) first when it is taller
+     * (wider) (as MyGO's reveal). Returns
      * REVEAL_LAYOUT when a scroll container moved (lay out again) and
      * REVEAL_ROUND when a list did (another round).
      */
@@ -863,10 +867,31 @@ public final class Engine {
             return 0;
         }
         Node n = pool.node(at);
-        float top = n.y, bottom = n.y + n.h;
+        float top = n.y, bottom = n.y + n.h, left = n.x, right = n.x + n.w;
         int moved = 0;
         for (int a = n.parent; a != Node.NONE; a = pool.node(a).parent) {
             Node c = pool.node(a);
+            if ((c.flags & Node.SCROLL_X) != 0 && c.listModel == null) {
+                float vl = c.x + c.border, vr = c.x + c.w - c.border, delta = 0;
+                if (left < vl) {
+                    delta = left - vl;
+                } else if (right > vr) {
+                    delta = Math.min(right - vr, left - vl);
+                }
+                float max = Math.max(0, c.contentW - c.w);
+                float x = Math.max(0, Math.min(max, c.scrollX + delta));
+                float applied = x - c.scrollX;
+                if (applied != 0) {
+                    c.scrollRequestX = x;
+                    if (c.state != null) {
+                        c.state.requestX = x; // kept if another round builds the container again
+                        c.state.wheelingX = false;
+                    }
+                    moved |= REVEAL_LAYOUT;
+                    left -= applied;
+                    right -= applied;
+                }
+            }
             if ((c.flags & Node.SCROLL_Y) == 0) {
                 continue;
             }
@@ -893,7 +918,7 @@ public final class Engine {
                     moved |= REVEAL_LAYOUT;
                 }
                 if (c.state != null) {
-                    c.state.wheeling = false;
+                    c.state.wheelingY = false;
                 }
                 top -= applied;
                 bottom -= applied;
@@ -923,7 +948,7 @@ public final class Engine {
      * all of it; what is left over is dropped (as MyGO's input.go).
      */
     public void scroll(float x, float y, float dx, float dy, boolean precise, int mods) {
-        input.scroll(x, y, dy, precise, mods);
+        input.scroll(x, y, dx, dy, precise, mods);
     }
 
     // Pointer input: on the main thread, between frames.

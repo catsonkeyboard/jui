@@ -85,11 +85,23 @@ final class Paint {
             }
         }
         if (n.bars) {
-            // The scroll bar's thumb, over the content (as MyGO's paint.go); a dragged one is 2 wider.
-            float w = theme.scrollbarWidth() + (n.barDrag ? 2 : 0);
-            float length = ScrollBar.thumbLength(n.h, n.contentH), top = ScrollBar.thumbTop(n.y, n.h, n.contentH, n.scrollY);
-            scene.box(n.x + n.w - theme.scrollbarWidth() - 3 - (n.barDrag ? 1 : 0), top, w, length, w / 2,
-                    fade(theme.scrollbar().rgba(), o));
+            // The scroll bars' thumbs, over the content (as MyGO's paint.go); a dragged one is 2 wider.
+            float width = theme.scrollbarWidth();
+            boolean v = ScrollBar.vertical(n.flags, n.h, n.contentH), h = ScrollBar.horizontal(n.flags, n.w, n.contentW);
+            float corner = ScrollBar.corner(v, h, width);
+            int color = fade(theme.scrollbar().rgba(), o);
+            if (v) {
+                float w = width + (n.barDrag ? 2 : 0), track = Math.max(0, n.h - corner);
+                float length = ScrollBar.thumbLength(track, n.h, n.contentH);
+                float top = ScrollBar.thumbStart(n.y, track, n.h, n.contentH, n.scrollY);
+                scene.box(n.x + n.w - width - 3 - (n.barDrag ? 1 : 0), top, w, length, w / 2, color);
+            }
+            if (h) {
+                float w = width + (n.barDragX ? 2 : 0), track = Math.max(0, n.w - corner);
+                float length = ScrollBar.thumbLength(track, n.w, n.contentW);
+                float left = ScrollBar.thumbStart(n.x, track, n.w, n.contentW, n.scrollX);
+                scene.box(left, n.y + n.h - width - 3 - (n.barDragX ? 1 : 0), length, w, w / 2, color);
+            }
         }
         // The focus ring goes over the children: 3 DIPs out, 2 wide (as MyGO's paint.go).
         boolean ring = ringId != 0 && (n.ringOwner != Node.NONE
