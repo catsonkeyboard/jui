@@ -286,4 +286,17 @@ public final class ListTest {
         Check.equal(10, state.first());
         Check.near(0, tt.find("row10").y());
     }
+
+    public void testTabFromARowScrolledOutOfViewGoesToTheFirstRowInView() { // M3 final review minor
+        Tester tt = Tester.of(c -> list(c, state, 1000, i -> box(c).height(30).label("row" + i).focusable()).height(200).label("list"), 300, 400);
+        tt.key(Shortcut.of(Key.TAB));
+        Check.isTrue(tt.focused("row0"), "row 0 has focus");
+        tt.scroll("list", 0, 600);                          // row 0 out of view, no longer built; row 20 at the top
+        Check.equal(20, state.first());
+        tt.key(Shortcut.of(Key.TAB));
+        Check.isTrue(tt.focused("row20"), "the first row in view, not a row built above it");
+        Check.equal(20, state.first());                     // and the view stays where it was
+        tt.key(Shortcut.of(Mod.SHIFT, Key.TAB));
+        Check.isTrue(tt.focused("row19"), "Shift+Tab from there walks up as usual");
+    }
 }

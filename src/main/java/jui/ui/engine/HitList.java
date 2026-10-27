@@ -63,6 +63,11 @@ final class HitList {
                 && px >= clipX0[i] && px < clipX1[i] && py >= clipY0[i] && py < clipY1[i];
     }
 
+    /** Whether entry i's box shows: it meets its ancestors' clips. */
+    boolean shown(int i) {
+        return x[i] < clipX1[i] && x[i] + w[i] > clipX0[i] && y[i] < clipY1[i] && y[i] + h[i] > clipY0[i];
+    }
+
     /** The index of identity id, or -1. */
     int indexOf(long id) {
         for (int i = 0; i < size; i++) {

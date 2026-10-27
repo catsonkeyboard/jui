@@ -43,6 +43,8 @@ final class Input {
     boolean windowFocused = true;
     /** Committed by the last frame: focusable, enabled identities in order, and the focus chain. */
     long[] focusOrder = new long[16];
+    /** Whether each of them shows: its box meets its ancestors' clips (a list's rows built out of view do not). */
+    boolean[] focusShown = new boolean[16];
     int focusCount;
     long[] focusChain = new long[16];
     int focusChainCount;
@@ -420,7 +422,21 @@ final class Input {
                 break;
             }
         }
-        int next = at < 0 ? (forward ? 0 : focusCount - 1) : (at + (forward ? 1 : focusCount - 1)) % focusCount;
+        int next;
+        if (at >= 0) {
+            next = (at + (forward ? 1 : focusCount - 1)) % focusCount;
+        } else {
+            // Focus is on nothing built (a row scrolled out of view, an element gone): start from the
+            // first element that shows, or the last going back, not one built out of view (plan M3 #9).
+            next = forward ? 0 : focusCount - 1;
+            for (int k = 0; k < focusCount; k++) {
+                int i = forward ? k : focusCount - 1 - k;
+                if (focusShown[i]) {
+                    next = i;
+                    break;
+                }
+            }
+        }
         focusedId = focusOrder[next];
         focusVisible = true;
         revealId = focusedId;
@@ -616,7 +632,9 @@ final class Input {
             if ((f & Node.FOCUSABLE) != 0 && (f & HitList.DISABLED) == 0) {
                 if (focusCount == focusOrder.length) {
                     focusOrder = Arrays.copyOf(focusOrder, focusCount * 2);
+                    focusShown = Arrays.copyOf(focusShown, focusCount * 2);
                 }
+                focusShown[focusCount] = hits.shown(i);
                 focusOrder[focusCount++] = hits.ids[i];
             }
             if (focusedId != 0 && hits.ids[i] == focusedId) {
