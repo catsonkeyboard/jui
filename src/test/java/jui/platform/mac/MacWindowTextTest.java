@@ -39,12 +39,14 @@ public final class MacWindowTextTest {
         int index = 5;
         int adjustedStart = -1;
         boolean ime = true;
+        boolean takeKey;
 
         public void pointerMove(double x, double y, int mods) {}
         public void pointerDown(double x, double y, int button, int clicks, int mods) {}
         public void pointerUp(double x, double y, int button, int mods) {}
         public void pointerLeave() {}
         public void keyDown(Key key, int mods, boolean repeat) { events.add("key " + key + " " + mods + " " + repeat); }
+        public boolean dispatchKeyDown(Key key, int mods, boolean repeat) { keyDown(key, mods, repeat); return takeKey; }
         public void modifiersChanged(int mods) {}
         public void windowFocusChanged(boolean focused) {}
         public void appearanceChanged(boolean dark) {}
@@ -132,6 +134,25 @@ public final class MacWindowTextTest {
         } finally {
             w.close();
         }
+    }
+
+    public void testTakenKeysSuppressBothNativeTextPaths() throws Throwable {
+        Recorder recorder = new Recorder();
+        MacWindow window = open(recorder);
+        try {
+            window.interpretHook = event -> recorder.events.add("ime");
+            recorder.takeKey = true;
+            keyDown(window, "j", 38, 0);
+            recorder.ime = false;
+            keyDown(window, "j", 38, 0);
+            recorder.takeKey = false;
+            keyDown(window, "j", 38, 0);
+            Check.equal(List.of("key J 0 false", "key J 0 false", "key J 0 false", "insert j -1 0"), recorder.events);
+            recorder.events.clear();
+            recorder.ime = true;
+            keyDown(window, "j", 38, 0);
+            Check.equal(List.of("key J 0 false", "ime"), recorder.events);
+        } finally { window.close(); }
     }
 
     public void testCmdKeysSkipTheInputMethod() throws Throwable {

@@ -39,6 +39,17 @@ public final class Element {
 
     // Behavior.
 
+    public Element handleInput(InputHandler handler) {
+        Node node = node();
+        if (node != null) {
+            if (node.kind == Node.INPUT) { Dev.fail("built-in inputs use onTextKey/onPaste"); return this; }
+            node.inputHandler = handler;
+            if (handler == null) node.flags &= ~Node.RAW_INPUT;
+            else { node.flags |= Node.RAW_INPUT; c.engine().state(index); }
+        }
+        return this;
+    }
+
     public Element draw(Painter.Draw draw) {
         Node node = node();
         if (node != null) {

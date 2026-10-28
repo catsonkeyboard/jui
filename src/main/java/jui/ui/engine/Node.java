@@ -19,6 +19,8 @@ public final class Node {
     /** Which ways a scroll container (SCROLL) scrolls: across, down, or both. */
     public static final int SCROLL_X = 512, SCROLL_Y = 1024;
     public static final int CONTEXT_MENU = 2048;
+    public static final int RAW_INPUT = 4096;
+    public jui.ui.InputHandler inputHandler;
     public java.util.function.Consumer<jui.ui.Menu> contextMenu;
     public jui.ui.Painter.Draw draw;
 
@@ -160,6 +162,7 @@ public final class Node {
         flags = 0;
         contextMenu = null;
         draw = null;
+        inputHandler = null;
         disabled = false;
         opacity = 1;
         noFocusRing = false;

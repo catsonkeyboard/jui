@@ -19,6 +19,7 @@ public final class NodePool {
         for (int index = 0; index < used; index++) {
             node(index).contextMenu = null;
             node(index).draw = null;
+            node(index).inputHandler = null;
         }
         int keep = (used + CHUNK - 1) / CHUNK + 1;
         for (int i = keep; i < chunkCount; i++) {

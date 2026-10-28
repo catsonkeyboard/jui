@@ -94,7 +94,9 @@ public final class Painter {
             bounds = node.state.drawBounds = new Rect(0, 0, node.w, node.h);
         }
         try {
-            node.draw.draw(painter, bounds);
+            engine.beginCallback();
+            try { node.draw.draw(painter, bounds); }
+            finally { engine.endCallback(); }
         } finally {
             while (painter.depth > 0) painter.popClip();
             scene.popClip();

@@ -44,6 +44,8 @@ public final class MacWindow {
         void pointerLeave();
 
         void keyDown(jui.ui.Key key, int mods, boolean repeat);
+        default boolean dispatchKeyDown(jui.ui.Key key, int mods, boolean repeat) { keyDown(key, mods, repeat); return false; }
+        default void keyUp(jui.ui.Key key, int mods) {}
 
         void modifiersChanged(int mods);
 
@@ -524,7 +526,7 @@ public final class MacWindow {
         boolean text = input.textActive() && (mods & (jui.ui.Mod.CMD | jui.ui.Mod.CTRL)) == 0;
         boolean composing = text && input.textComposing();
         if (!composing) {
-            input.keyDown(key, mods, repeat);
+            if (input.dispatchKeyDown(key, mods, repeat)) return;
         }
         if (text && !input.textInputMethod()) {
             // Without the input method a key types the characters it makes, as a code editor's normal mode.
@@ -733,6 +735,13 @@ public final class MacWindow {
                 .method1("pasteAsPlainText:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.PASTE_AND_MATCH_STYLE)))
                 .method1("delete:", (self, cmd, sender) -> withView(self, w -> w.edit(jui.ui.EditCommand.DELETE)))
                 .method1("keyDown:", (self, cmd, e) -> withView(self, w -> w.key(e)))
+                .method1("keyUp:", (self, cmd, event) -> withView(self, window -> {
+                    if (window.input != null) {
+                        long chars = send(event, "charactersIgnoringModifiers");
+                        window.input.keyUp(MacKeys.key((int) send(event, "keyCode"), chars == 0 ? "" : ObjC.string(chars)),
+                                MacKeys.mods(send(event, "modifierFlags")));
+                    }
+                }))
                 // NSTextInputClient, as MyGO's surface implements it.
                 .protocol("NSTextInputClient")
                 .boolMethod("hasMarkedText", (self, cmd) -> {

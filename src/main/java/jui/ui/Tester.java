@@ -13,6 +13,7 @@ import jui.ui.engine.Engine;
  * but no GPU. Elements are found by their text or label.
  */
 public final class Tester {
+    public void close() { engine.close(); }
     private final View view;
     private float width, height;
     private final TextEngine text = new TextEngine("zh-Hans");

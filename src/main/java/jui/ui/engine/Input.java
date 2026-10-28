@@ -8,6 +8,12 @@ import java.util.Arrays;
  * committed, then ask for a frame.
  */
 final class Input {
+    private ElementState rawCapture;
+    private long rawBorn;
+    private jui.ui.InputHandler captureHandler;
+    private int captureButton;
+    private boolean captureFocus;
+    private float captureX, captureY, captureWidth, captureHeight;
     private static final int RECEIVES = Node.CLICKABLE | Node.FOCUSABLE | Node.DRAG;
 
     private final Engine engine;
@@ -91,6 +97,11 @@ final class Input {
     void pointerMove(float x, float y, int mods) {
         float dx = x - pointerX, dy = y - pointerY;
         place(x, y, mods);
+        if (captured(jui.ui.InputEvent.Kind.POINTER_MOVE, x, y, captureButton, mods)) return;
+        if (pressedId == 0 && dragId == 0) {
+            rehover();
+            rawPointer(jui.ui.InputEvent.Kind.POINTER_MOVE, x, y, -1, 0, mods, 0, 0, false);
+        }
         if (dragId != 0) {
             // The thumb follows the pointer as a share of the travel (as MyGO's dragTo).
             ElementState s = engine.states().get(dragId);
@@ -127,11 +138,13 @@ final class Input {
     }
 
     void pointerDown(float x, float y, int button, int clickCount, int mods) {
+        if (rawCapture != null) cancelRaw();
         place(x, y, mods);
         if (pressedId == 0) {
             rehover();
         }
-        if (button == 1 && menuPress(x, y)) return;
+        if (button == 1 && (rawPointer(jui.ui.InputEvent.Kind.POINTER_DOWN, x, y, button, clickCount, mods, 0, 0, false)
+                || menuPress(x, y))) return;
         if (button == 0 && barPress(x, y)) {
             return;
         }
@@ -150,6 +163,7 @@ final class Input {
             }
             updateTextInput();
         }
+        if (button != 1 && rawPointer(jui.ui.InputEvent.Kind.POINTER_DOWN, x, y, button, clickCount, mods, 0, 0, false)) return;
         int target = -1;
         for (int k = 0; k < hoverCount; k++) {
             if ((hoverFlags[k] & RECEIVES) != 0) {
@@ -193,6 +207,8 @@ final class Input {
 
     void pointerUp(float x, float y, int button, int mods) {
         place(x, y, mods);
+        if (captured(jui.ui.InputEvent.Kind.POINTER_UP, x, y, button, mods)) return;
+        rawPointer(jui.ui.InputEvent.Kind.POINTER_UP, x, y, button, 0, mods, 0, 0, false);
         if (dragId != 0 && button == 0) {
             dragId = 0;
             rehover();
@@ -295,6 +311,99 @@ final class Input {
         queueMods[queueCount] = mods;
         queueCount++;
         engine.requestFrame();
+    }
+
+    boolean dispatchKeyDown(jui.ui.Key key, int mods, boolean repeat) {
+        this.mods = mods;
+        if (focusedEdit() == null) {
+            if (rawClaimed(mods, key)) { keyDown(key, mods, repeat); return true; }
+            if (rawFocus(jui.ui.InputEvent.Kind.KEY_DOWN, key, mods, repeat, null)) return true;
+        }
+        keyDown(key, mods, repeat);
+        return false;
+    }
+
+    private boolean rawClaimed(int mods, jui.ui.Key key) {
+        for (int index = hits.indexOf(focusedId); index >= 0; index = hits.parent[index]) {
+            if (registered(hits.ids[index], mods, key)) return true;
+        }
+        return registered(0, mods, key);
+    }
+
+    boolean rawFocus(jui.ui.InputEvent.Kind kind, jui.ui.Key key, int mods, boolean repeat, jui.ui.EditCommand command) {
+        if (!windowFocused || engine.isClosed()) return false;
+        for (int index = hits.indexOf(focusedId); index >= 0; index = hits.parent[index]) {
+            ElementState state = engine.states().get(hits.ids[index]);
+            if (state != null && !state.disabledLast && state.inputHandler != null
+                    && raw(state, state.inputHandler, kind, key, mods, repeat, -1, 0, state.x, state.y, 0, 0, false, command)) return true;
+        }
+        return false;
+    }
+
+    private boolean raw(ElementState state, jui.ui.InputHandler handler, jui.ui.InputEvent.Kind kind, jui.ui.Key key,
+                        int mods, boolean repeat, int button, int clicks, float x, float y, float dx, float dy,
+                        boolean precise, jui.ui.EditCommand command) {
+        try {
+            return jui.ui.InputEvent.dispatch(engine, handler, kind, key, mods, repeat, button, clicks,
+                    x - state.x, y - state.y, dx, dy, precise, command, engine.clockNow(), state.w, state.h);
+        } finally { updateTextInput(); }
+    }
+
+    private boolean rawPointer(jui.ui.InputEvent.Kind kind, float x, float y, int button, int clicks, int mods,
+                               float dx, float dy, boolean precise) {
+        if (engine.isClosed()) return false;
+        for (int index = 0; index < hoverCount; index++) {
+            ElementState state = engine.states().get(hoverIds[index]);
+            if (state == null || state.disabledLast || state.inputHandler == null) continue;
+            int count = kind == jui.ui.InputEvent.Kind.POINTER_DOWN
+                    ? (state.id != lastPressId || clicks <= clickBase ? 1 : clicks - clickBase) : clicks;
+            if (!raw(state, state.inputHandler, kind, jui.ui.Key.UNKNOWN, mods, false, button, count, x, y, dx, dy, precise, null)) continue;
+            if (kind == jui.ui.InputEvent.Kind.POINTER_DOWN) {
+                clearMenuPress();
+                lastPressId = state.id;
+                clickBase = clicks - count;
+                rawCapture = state;
+                rawBorn = state.born;
+                captureHandler = state.inputHandler;
+                captureButton = button;
+                captureFocus = focusedId == state.id;
+                saveCaptureGeometry(state);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private void saveCaptureGeometry(ElementState state) {
+        captureX = state.x; captureY = state.y; captureWidth = state.w; captureHeight = state.h;
+    }
+
+    private void validateCapture() {
+        if (rawCapture != null && (rawCapture.born != rawBorn || rawCapture.disabledLast || rawCapture.inputHandler == null
+                || engine.states().get(rawCapture.id) != rawCapture || captureFocus && focusedId != rawCapture.id)) cancelRaw();
+    }
+
+    private boolean captured(jui.ui.InputEvent.Kind kind, float x, float y, int button, int mods) {
+        validateCapture();
+        if (rawCapture == null || button != captureButton) return false;
+        ElementState state = rawCapture;
+        captureHandler = state.inputHandler;
+        saveCaptureGeometry(state);
+        jui.ui.InputHandler handler = captureHandler;
+        if (kind == jui.ui.InputEvent.Kind.POINTER_UP) { rawCapture = null; captureHandler = null; }
+        try { raw(state, handler, kind, jui.ui.Key.UNKNOWN, mods, false, button, 0, x, y, 0, 0, false, null); }
+        catch (RuntimeException | Error failure) { cancelRaw(); throw failure; }
+        return true;
+    }
+
+    void cancelRaw() {
+        if (rawCapture == null) return;
+        jui.ui.InputHandler handler = captureHandler;
+        rawCapture = null;
+        captureHandler = null;
+        jui.ui.InputEvent.dispatch(engine, handler, jui.ui.InputEvent.Kind.POINTER_CANCEL, jui.ui.Key.UNKNOWN,
+                mods, false, captureButton, 0, pointerX - captureX, pointerY - captureY, 0, 0, false, null,
+                engine.clockNow(), captureWidth, captureHeight);
     }
 
     private static boolean sliderKey(jui.ui.Key key) {
@@ -536,6 +645,7 @@ final class Input {
 
     void windowFocusChanged(boolean focused) {
         windowFocused = focused;
+        if (!focused) cancelRaw();
         updateTextInput();
         engine.requestFrame();
     }
@@ -774,6 +884,9 @@ final class Input {
     void editCommand(jui.ui.EditCommand c) {
         TextEdit e = focusedEdit();
         if (e == null) {
+            if (rawFocus(jui.ui.InputEvent.Kind.COMMAND, jui.ui.Key.UNKNOWN, mods, false, c)) return;
+            if (c == jui.ui.EditCommand.PASTE_AND_MATCH_STYLE
+                    && rawFocus(jui.ui.InputEvent.Kind.COMMAND, jui.ui.Key.UNKNOWN, mods, false, jui.ui.EditCommand.PASTE)) return;
             switch (c) {
                 case UNDO -> keyDown(jui.ui.Key.Z, jui.ui.Mod.CMD, false);
                 case REDO -> keyDown(jui.ui.Key.Z, jui.ui.Mod.CMD | jui.ui.Mod.SHIFT, false);
@@ -838,6 +951,7 @@ final class Input {
      * under the same identity is not clicked on release, nor painted held.
      */
     void forgetGone() {
+        validateCapture();
         if (pressedId != 0 && engine.states().get(pressedId) == null) {
             pressedId = 0;
         }
@@ -965,6 +1079,13 @@ final class Input {
      */
     void scroll(float x, float y, float dx, float dy, boolean precise, int mods) {
         this.mods = mods;
+        int rawCount = hits.chain(x, y, scratch);
+        for (int rawIndex = 0; rawIndex < rawCount; rawIndex++) {
+            ElementState state = engine.states().get(hits.ids[scratch[0][rawIndex]]);
+            if (state != null && !state.disabledLast && state.inputHandler != null
+                    && raw(state, state.inputHandler, jui.ui.InputEvent.Kind.SCROLL, jui.ui.Key.UNKNOWN, mods, false,
+                    -1, 0, x, y, dx, dy, precise, null)) return;
+        }
         if ((mods & jui.ui.Mod.SHIFT) != 0 && dx == 0) {
             dx = dy;
             dy = 0;

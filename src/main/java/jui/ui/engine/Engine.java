@@ -49,6 +49,15 @@ public final class Engine {
     private int passId;
     /** Whether the pass being built reported input or ran a callback, so another pass must show it. */
     private boolean consumed;
+    private boolean closed;
+    private int callbackDepth;
+
+    public boolean isClosed() { return closed; }
+    public void beginCallback() {
+        if (callbackDepth != 0) throw new IllegalStateException("UI callbacks cannot reenter dispatch");
+        callbackDepth++;
+    }
+    public void endCallback() { callbackDepth--; }
     private int passes;
     /**
      * A focus asked for (by a Handle or autoFocus), applied after a pass that
@@ -104,6 +113,8 @@ public final class Engine {
      * again, at most 3 passes in all, so that the frame shows its result.
      */
     public void buildAndLayout(View view, float width, float height) {
+        if (callbackDepth != 0) throw new IllegalStateException("cannot rebuild a view inside a UI callback");
+        if (closed) return;
         if (Libc.pthreadMainNp() == 0) {
             Dev.fail("views build only on the main thread");
         }
@@ -178,6 +189,12 @@ public final class Engine {
     void menuCommand(long id, jui.ui.EditCommand command) { input.menuCommand(id, command); }
 
     public void closeMenus() { menus.close(); }
+
+    public void close() {
+        if (closed) return;
+        closed = true;
+        try { input.cancelRaw(); } finally { menus.close(); }
+    }
 
     private void buildPass(View view, float width, float height) {
         pool.reset();
@@ -582,6 +599,7 @@ public final class Engine {
                 s.cw = Math.max(0, n.w - n.padLeft - n.padRight - 2 * n.border);
                 s.ch = Math.max(0, n.h - n.padTop - n.padBottom - 2 * n.border);
                 s.disabledLast = n.disabled;
+                s.inputHandler = n.inputHandler;
                 if ((n.flags & Node.SCROLL) != 0) {
                     s.scrollY = n.scrollY;
                     s.contentH = n.contentH;
@@ -1487,8 +1505,11 @@ public final class Engine {
 
     /** A key went down; Tab and the activation keys act at once. */
     public void keyDown(jui.ui.Key key, int mods, boolean repeat) {
-        input.keyDown(key, mods, repeat);
+        dispatchKeyDown(key, mods, repeat);
     }
+
+    public boolean dispatchKeyDown(jui.ui.Key key, int mods, boolean repeat) { return closed || input.dispatchKeyDown(key, mods, repeat); }
+    public void keyUp(jui.ui.Key key, int mods) { input.rawFocus(jui.ui.InputEvent.Kind.KEY_UP, key, mods, false, null); }
 
     /** Follows the system's appearance: the dark theme or the light one. Asks for a frame if it changed. */
     public void setDark(boolean dark) {
@@ -1502,6 +1523,7 @@ public final class Engine {
     /** The modifier keys held changed; asks for no frame. */
     public void modifiersChanged(int mods) {
         input.mods = mods;
+        input.rawFocus(jui.ui.InputEvent.Kind.MODIFIERS_CHANGED, jui.ui.Key.UNKNOWN, mods, false, null);
     }
 
     /** The modifier keys held, as {@link jui.ui.Mod} bits. */
@@ -1725,7 +1747,7 @@ public final class Engine {
     }
 
     void requestFrame() {
-        requestFrame.run();
+        if (!closed) requestFrame.run();
     }
 
     /** Element states kept now: for tests. */
@@ -1878,7 +1900,7 @@ public final class Engine {
 
     /** Asks the window for a frame. */
     public void invalidate() {
-        requestFrame.run();
+        if (!closed) requestFrame.run();
     }
 
     private void checkKeyUsed() {

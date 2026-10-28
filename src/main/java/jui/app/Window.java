@@ -86,7 +86,7 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
     public void windowClosed() {
         if (closed) return;
         closed = true;
-        engine.closeMenus();
+        engine.close();
     }
 
     @Override
@@ -136,6 +136,9 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
     public void keyDown(Key key, int mods, boolean repeat) {
         engine.keyDown(key, mods, repeat);
     }
+
+    @Override public boolean dispatchKeyDown(Key key, int mods, boolean repeat) { return engine.dispatchKeyDown(key, mods, repeat); }
+    @Override public void keyUp(Key key, int mods) { engine.keyUp(key, mods); }
 
     @Override
     public void modifiersChanged(int mods) {
