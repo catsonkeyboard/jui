@@ -21,6 +21,8 @@ public final class Node {
     public static final int CONTEXT_MENU = 2048;
     public static final int RAW_INPUT = 4096;
     public jui.ui.InputHandler inputHandler;
+    public jui.ui.TextInputClient textClient;
+    public boolean textClientDeclared;
     public java.util.function.Consumer<jui.ui.Menu> contextMenu;
     public jui.ui.Painter.Draw draw;
 
@@ -163,6 +165,8 @@ public final class Node {
         contextMenu = null;
         draw = null;
         inputHandler = null;
+        textClient = null;
+        textClientDeclared = false;
         disabled = false;
         opacity = 1;
         noFocusRing = false;

@@ -52,6 +52,31 @@ final class Input {
     long focusedId;
     boolean focusVisible;
     boolean windowFocused = true;
+    private TextClientAdapter custom;
+
+    TextClientAdapter activeCustom() { return custom != null && custom.live() ? custom : null; }
+
+    void beforePrune(long frame, int pass) {
+        if (custom != null && (custom.owner.seenFrame != frame || custom.owner.seenPass != pass || !custom.live())) {
+            TextClientAdapter previous = custom;
+            custom = null;
+            previous.release();
+        }
+    }
+
+    void close() {
+        TextClientAdapter previous = custom;
+        custom = null;
+        try { if (previous != null) previous.release(); }
+        finally {
+            try {
+                if (clientEdit != null && clientEdit.composing()) {
+                    clientEdit.unmark(engine.clockNow());
+                    engine.host().discardMarkedText();
+                }
+            } finally { clientEdit = null; textClient = 0; cancelRaw(); }
+        }
+    }
     /** Committed by the last frame: focusable, enabled identities in order, and the focus chain. */
     long[] focusOrder = new long[16];
     /** Whether each of them shows: its box meets its ancestors' clips (a list's rows built out of view do not). */
@@ -315,6 +340,7 @@ final class Input {
 
     boolean dispatchKeyDown(jui.ui.Key key, int mods, boolean repeat) {
         this.mods = mods;
+        if (activeCustom() != null && custom.composing()) return true;
         if (focusedEdit() == null) {
             if (rawClaimed(mods, key)) { keyDown(key, mods, repeat); return true; }
             if (rawFocus(jui.ui.InputEvent.Kind.KEY_DOWN, key, mods, repeat, null)) return true;
@@ -792,7 +818,7 @@ final class Input {
      * menu's commands go to it.
      */
     TextEdit focusedEdit() {
-        if (!windowFocused || focusedId == 0) {
+        if (!windowFocused || engine.isClosed() || focusedId == 0) {
             return null;
         }
         int i = hits.indexOf(focusedId);
@@ -810,6 +836,20 @@ final class Input {
      * moves focus, and at commit.
      */
     void updateTextInput() {
+        ElementState wanted = engine.states().get(focusedId);
+        if (!windowFocused || engine.isClosed() || hits.indexOf(focusedId) < 0 || wanted == null
+                || wanted.disabledLast || wanted.textClient == null) wanted = null;
+        if (custom != null && (wanted != custom.owner || !custom.live())) {
+            TextClientAdapter previous = custom;
+            custom = null;
+            previous.release();
+        }
+        updateBuiltinTextInput();
+        if (wanted != null && custom == null) custom = new TextClientAdapter(engine, wanted);
+        if (custom != null) custom.refresh();
+    }
+
+    private void updateBuiltinTextInput() {
         TextEdit e = activeEdit();
         long client = e == null ? 0 : focusedId;
         if (client == textClient && e == clientEdit) {

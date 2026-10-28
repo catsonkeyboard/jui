@@ -98,6 +98,12 @@ public final class MacWindow {
             return null;
         }
 
+        default String textIn(int start, int end, int[] actual) {
+            actual[0] = start;
+            actual[1] = end;
+            return textIn(start, end);
+        }
+
         /** The rect of [start, end) in view points: x, y, width, height, and the end of the range it covers in out[4]. */
         default boolean textRect(int start, int end, float[] out) {
             return false;
@@ -620,11 +626,11 @@ public final class MacWindow {
         }
         a = Math.min(a, n);
         int z = (int) Math.min((long) a + length(length), n);
-        String s = input.textIn(a, z);
+        String s = input.textIn(a, z, rangeOut);
         if (s == null) {
             return 0;
         }
-        ObjC.writeRange(actual, a, z - a);
+        ObjC.writeRange(actual, rangeOut[0], rangeOut[1] - rangeOut[0]);
         long attributed = send(send(ObjC.cls("NSAttributedString"), "alloc"), "initWithString:", ObjC.nsString(s));
         return send(attributed, "autorelease");
     }

@@ -75,6 +75,11 @@ public final class MacWindowTextTest {
         }
         @Override public int textLength() { return shown.length(); }
         @Override public String textIn(int start, int end) { return shown.substring(start, end); }
+        @Override public String textIn(int start, int end, int[] actual) {
+            actual[0] = adjustedStart >= 0 ? adjustedStart : start;
+            actual[1] = end;
+            return shown.substring(actual[0], actual[1]);
+        }
         @Override public boolean textRect(int start, int end, float[] out) {
             out[0] = 20;
             out[1] = 30;
@@ -287,6 +292,11 @@ public final class MacWindowTextTest {
             Check.equal("bcdef", ObjC.string(ObjC.send(s, "string")));     // clamped to the shown text
             Check.equal(1, actual.get(JAVA_LONG, 0));
             Check.equal(5, actual.get(JAVA_LONG, 8));
+            r.adjustedStart = 0;
+            s = ObjC.sendWordRange(w.view(), "attributedSubstringForProposedRange:actualRange:", 1, 2, actual.address());
+            Check.equal("abc", ObjC.string(ObjC.send(s, "string")));
+            Check.equal(0, actual.get(JAVA_LONG, 0));
+            Check.equal(3, actual.get(JAVA_LONG, 8));
             Check.equal(0, ObjC.send(ObjC.send(w.view(), "validAttributesForMarkedText"), "count"));
             Check.equal(5, ObjC.sendWordPoint(w.view(), "characterIndexForPoint:", 10, 10));
             r.index = -1;

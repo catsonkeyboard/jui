@@ -39,6 +39,21 @@ public final class Element {
 
     // Behavior.
 
+    public Element handleTextInput(TextInputClient client) {
+        Node current = node();
+        if (current != null) {
+            if (current.kind == Node.INPUT) { Dev.fail("built-in inputs already own text input"); return this; }
+            current.textClientDeclared = true;
+            current.textClient = client;
+            c.engine().state(index);
+            if (client != null) {
+                current.flags |= Node.FOCUSABLE | Node.HOVER;
+                if (current.cursor == 0) current.cursor = (byte) (Cursor.TEXT.ordinal() + 1);
+            }
+        }
+        return this;
+    }
+
     public Element handleInput(InputHandler handler) {
         Node node = node();
         if (node != null) {

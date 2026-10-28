@@ -25,6 +25,8 @@ public final class ElementState {
     public jui.ui.Rect drawBounds;
     public jui.ui.Painter painter;
     public jui.ui.InputHandler inputHandler;
+    public jui.ui.TextInputClient textClient;
+    public boolean noInputMethod;
     public float cx, cy, cw, ch;
 
     // Input not yet reported; a pass that builds the element forgets it.
@@ -89,6 +91,8 @@ public final class ElementState {
         drawBounds = null;
         painter = null;
         inputHandler = null;
+        textClient = null;
+        noInputMethod = false;
         cx = cy = cw = ch = 0;
         clicks = rightClicks = doubleClicks = 0;
         pressed = pressPending = changed = false;

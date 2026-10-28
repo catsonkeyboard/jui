@@ -26,7 +26,7 @@ final class MenuState {
     void ask(Node node, float x, float y) {
         if (closed) return;
         cancel();
-        current = new Session(node, x, y);
+        current = new Session(node, x, y, engine.activeTextConnection());
         engine.requestFrame();
     }
 
@@ -36,6 +36,8 @@ final class MenuState {
         Node node = engine.menuNode(session.id);
         if (node == null || node.disabled || node.state != session.owner || node.state.born != session.born
                 || session.edit != null && node.state.edit != session.edit
+                || node.textClient != session.client
+                || session.connection != null && engine.activeTextConnection() != session.connection
                 || (session.explicit ? node.contextMenu == null : node.kind != Node.INPUT)) return null;
         return node;
     }
@@ -130,16 +132,20 @@ final class MenuState {
         final long id, born;
         final ElementState owner;
         final TextEdit edit;
+        final jui.ui.TextInputClient client;
+        final TextClientAdapter connection;
         final boolean explicit;
         final float x, y;
         MenuModel model;
         MenuModel.Item choice;
 
-        Session(Node node, float x, float y) {
+        Session(Node node, float x, float y, TextClientAdapter connection) {
             id = node.id;
             owner = node.state;
             born = owner.born;
             edit = owner.edit;
+            client = node.textClient;
+            this.connection = connection;
             explicit = node.contextMenu != null;
             this.x = x;
             this.y = y;

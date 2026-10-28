@@ -207,6 +207,8 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
         return engine.textIn(start, end);
     }
 
+    @Override public String textIn(int start, int end, int[] actual) { return engine.textIn(start, end, actual); }
+
     @Override
     public boolean textRect(int start, int end, float[] out) {
         return engine.textRect(start, end, out);

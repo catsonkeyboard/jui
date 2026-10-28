@@ -22,6 +22,8 @@ public final class Engine {
     private final StateTable states = new StateTable();
     private final HitList hits = new HitList();
     private final Input input = new Input(this, hits);
+    private final java.util.IdentityHashMap<jui.ui.TextInputClient, Boolean> clientBindings = Dev.ENABLED ? new java.util.IdentityHashMap<>() : null;
+    private final int[] actualTextRange = new int[2];
     final MenuState menus = new MenuState(this);
     private final Actions clickActions = new Actions();
     private final Actions changeActions = new Actions();
@@ -53,6 +55,7 @@ public final class Engine {
     private int callbackDepth;
 
     public boolean isClosed() { return closed; }
+    TextClientAdapter activeTextConnection() { return input.activeCustom(); }
     public void beginCallback() {
         if (callbackDepth != 0) throw new IllegalStateException("UI callbacks cannot reenter dispatch");
         callbackDepth++;
@@ -193,7 +196,7 @@ public final class Engine {
     public void close() {
         if (closed) return;
         closed = true;
-        try { input.cancelRaw(); } finally { menus.close(); }
+        try { input.close(); } finally { menus.close(); }
     }
 
     private void buildPass(View view, float width, float height) {
@@ -444,7 +447,7 @@ public final class Engine {
 
     /** Turns the node's text input's input method on or off, in this frame. */
     public void inputMethod(int index, boolean on) {
-        if (pool.node(index).kind != Node.INPUT) {
+        if (pool.node(index).kind != Node.INPUT && !pool.node(index).textClientDeclared) {
             Dev.fail("inputMethod is for text inputs");
             return;
         }
@@ -583,6 +586,7 @@ public final class Engine {
      * then lets go of the states this frame did not build.
      */
     private void commit() {
+        if (clientBindings != null) clientBindings.clear();
         hits.clear();
         commitHits(0, -1, Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY,
                 Float.POSITIVE_INFINITY, -1);
@@ -590,6 +594,7 @@ public final class Engine {
             Node n = pool.node(i);
             ElementState s = n.state;
             if (s != null) {
+                boolean resized = n.textClient != null && (s.textClient != n.textClient || s.w != n.w || s.h != n.h);
                 s.x = n.x;
                 s.y = n.y;
                 s.w = n.w;
@@ -600,6 +605,16 @@ public final class Engine {
                 s.ch = Math.max(0, n.h - n.padTop - n.padBottom - 2 * n.border);
                 s.disabledLast = n.disabled;
                 s.inputHandler = n.inputHandler;
+                s.textClient = n.textClient;
+                s.noInputMethod = n.noInputMethod;
+                if (n.textClient != null) {
+                    if (clientBindings != null && clientBindings.put(n.textClient, Boolean.TRUE) != null)
+                        throw new IllegalStateException("a text client cannot belong to two elements");
+                    if (resized) {
+                        beginCallback();
+                        try { n.textClient.resized(n.w, n.h); } finally { endCallback(); }
+                    }
+                }
                 if ((n.flags & Node.SCROLL) != 0) {
                     s.scrollY = n.scrollY;
                     s.contentH = n.contentH;
@@ -613,6 +628,7 @@ public final class Engine {
                 if (n.kind == Node.INPUT && s.edit != null) s.edit.revealCaret = false;
             }
         }
+        input.beforePrune(frame, passId);
         states.prune(frame, passId);
         if (focusRequestThisFrame) {
             focusRequest = 0; // an autoFocus this frame did not apply: its element appeared disabled
@@ -1566,38 +1582,53 @@ public final class Engine {
 
     /** Whether the text input that takes text uses the input method; with it off, keys type their characters. */
     public boolean textInputMethod() {
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) return !custom.owner.noInputMethod;
         TextEdit e = input.activeEdit();
         return e == null || !e.inputMethodOff;
     }
 
     /** Whether a text input takes text now: the platform sends keys through its input method then. */
     public boolean textActive() {
-        return input.activeEdit() != null;
+        return input.activeCustom() != null || !closed && input.activeEdit() != null;
     }
 
     /** Whether the text input is composing (has marked text). */
     public boolean textComposing() {
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) return custom.composing();
         TextEdit e = input.activeEdit();
         return e != null && e.composing();
     }
 
     /** Text typed or committed by the input method, over [replStart, replStart + replLength) of the shown text, or none (replStart below 0). */
     public void textInsert(String s, int replStart, int replLength) {
+        if (closed) return;
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) { custom.replace(s, replStart, replLength); return; }
         input.textInsert(s, replStart, replLength);
     }
 
     /** The input method's marked text, with its selected range; replStart below 0 for no replacement range. */
     public void textMark(String s, int selStart, int selLength, int replStart, int replLength) {
+        if (closed) return;
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) { custom.mark(s, selStart, selLength, replStart, replLength); return; }
         input.textMark(s, selStart, selLength, replStart, replLength);
     }
 
     /** The input method commits its marked text as it stands. */
     public void textUnmark() {
+        if (closed) return;
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) { custom.unmark(); return; }
         input.textUnmark();
     }
 
     /** The marked text in the shown text, as {start, length}; false when there is none. */
     public boolean textMarkedRange(int[] out) {
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) return custom.marked(out);
         TextEdit e = input.activeEdit();
         if (e != null && e.password) {
             out[0] = 0;
@@ -1609,6 +1640,8 @@ public final class Engine {
 
     /** The selection in the shown text, as {start, length}; false without a text input. */
     public boolean textSelectedRange(int[] out) {
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) return custom.selected(out);
         TextEdit e = input.activeEdit();
         if (e == null) {
             return false;
@@ -1624,12 +1657,23 @@ public final class Engine {
 
     /** The shown text's length, or -1. */
     public int textLength() {
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) return custom.length();
         TextEdit e = input.activeEdit();
         return e == null ? -1 : e.password ? e.compose().length() : e.length();
     }
 
     /** A part of the shown text, clamped, or null. */
     public String textIn(int start, int end) {
+        return textIn(start, end, actualTextRange);
+    }
+
+    public String textIn(int start, int end, int[] actual) {
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) return custom.text(start, end, actual);
+        int length = Math.max(0, textLength());
+        actual[0] = Math.max(0, Math.min(start, length));
+        actual[1] = Math.max(actual[0], Math.min(end, length));
         TextEdit e = input.activeEdit();
         if (e != null && e.password) {
             String c = e.compose();
@@ -1650,11 +1694,15 @@ public final class Engine {
      * False without a text input.
      */
     public boolean textRect(int start, int end, float[] out) {
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) return custom.rect(start, end, out);
         TextEdit e = input.activeEdit();
         if (e == null || e.ensureLayout() == null) {
             return false;
         }
         if (e.multiline) return areaRect(e, start, end, out);
+        int passwordStart = Math.max(0, Math.min(start, e.compose().length()));
+        int passwordEnd = Math.max(passwordStart, Math.min(end, e.compose().length()));
         if (e.password) {
             start = end = e.toShown(e.displayCaret()); // a password input shows where only its caret is (as MyGO)
         }
@@ -1675,8 +1723,9 @@ public final class Engine {
         out[2] = w;
         out[3] = h;
         if (out.length >= 5) {
-            out[4] = actual;
+            out[4] = e.password ? passwordEnd : actual;
         }
+        if (out.length > 5) out[5] = e.password ? passwordStart : a;
         return true;
     }
 
@@ -1705,12 +1754,16 @@ public final class Engine {
 
     /** The caret's rect in window DIPs, as textRect gives it; false without a text input. */
     public boolean textCaretRect(float[] out) {
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) return custom.caret(out);
         TextEdit e = input.activeEdit();
         return e != null && textRect(e.displayCaret(), e.displayCaret(), out);
     }
 
     /** The index of the shown text nearest the point in window DIPs, or -1 without a text input. */
     public int textIndexAt(float x, float y) {
+        TextClientAdapter custom = input.activeCustom();
+        if (custom != null) return custom.index(x, y);
         TextEdit e = input.activeEdit();
         if (e == null || e.password || e.ensureLayout() == null) {
             return -1;
