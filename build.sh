@@ -9,7 +9,7 @@
 #   ./build.sh alloc              measure per-frame allocation of the UI API (native and JVM)
 #   ./build.sh listbench          time scroll frames of a 10000-row list in a native image (the M3 gate)
 #   ./build.sh ffi-check          call Objective-C methods of every struct shape, on the JVM and in a native image
-#   ./build.sh demo [Name] [args]        run an example on the JVM: Card (default), Counter, Todo, Files, Scroll, Form or TextArea
+#   ./build.sh demo [Name] [args]        run an example on the JVM: Card (default), Counter, Todo, Files, Scroll, Form, TextArea or ContextMenu
 #   ./build.sh native-demo [Name] [args] build an example into build/<name>-demo and run it
 #
 # Needs GraalVM 25 (GRAALVM_HOME, or found in ~/Library/Java/JavaVirtualMachines)

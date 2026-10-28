@@ -27,6 +27,7 @@ import static jui.ui.Ui.slider;
 import static jui.ui.Ui.row;
 import static jui.ui.Ui.text;
 import static jui.ui.Ui.textInput;
+import static jui.ui.Ui.contextMenu;
 
 /**
  * Measures what frames of the UI API allocate on this thread (design §8),
@@ -39,6 +40,8 @@ public final class AllocSpike {
     private AllocSpike() {}
 
     private static final int WARMUP = 20_000, FRAMES = 1_000;
+    private static int menuBuilds;
+    private static final java.util.function.Consumer<jui.ui.Menu> MENU = menu -> { menuBuilds++; menu.item("one"); };
     private static final com.sun.management.ThreadMXBean MX =
             (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
 
@@ -160,6 +163,8 @@ public final class AllocSpike {
             System.exit(1);
         }
         measureAreas(text, nativeImage);
+        System.out.printf("MENU mode=%s idle_builds=%d%n", nativeImage ? "native" : "jvm", menuBuilds);
+        if (menuBuilds != 0) throw new IllegalStateException("idle frames ran a menu builder");
     }
 
     private static void measureAreas(TextEngine textEngine, boolean nativeImage) {
@@ -263,13 +268,13 @@ public final class AllocSpike {
 
     private static void controls(Context c) {
         for (int i = 0; i < 40; i++) {
-            button(c.key(i), LABELS[i]);
+            contextMenu(c, button(c.key(i), LABELS[i]), MENU);
         }
         for (int i = 0; i < 40; i++) {
-            checkbox(c.key(100 + i), CHECKS[i], LABELS[i]);
+            contextMenu(c, checkbox(c.key(100 + i), CHECKS[i], LABELS[i]), MENU);
         }
         for (int i = 0; i < 20; i++) {
-            slider(c.key(200 + i), VALUES[i], 0, 100);
+            contextMenu(c, slider(c.key(200 + i), VALUES[i], 0, 100), MENU);
         }
     }
 
@@ -286,6 +291,7 @@ public final class AllocSpike {
     private static void inputs(Context c) {
         for (int i = 0; i < INPUTS; i++) {
             jui.ui.Element in = textInput(c.key(300 + i), FIELDS[i]);
+            contextMenu(c, in, MENU);
             if (i % 2 == 1) {
                 in.password(); // its mask is made once, not each frame
             }
