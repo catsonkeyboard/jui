@@ -21,12 +21,50 @@ public interface Host {
     /** The caret moved, or text input began or ended: the input method asks where the caret is again. */
     void textInputChanged();
 
+    default void popupMenu(jui.platform.MenuModel model, float x, float y, java.util.function.IntConsumer result) {
+        result.accept(0);
+    }
+
+    default void cancelMenu() {}
+
     /** A host in memory, for Tester and windowless engines: a clipboard string, the cursor last set, counts. */
     final class Memory implements Host {
         public String clipboard;
         public Cursor cursor = Cursor.DEFAULT;
         /** How many times discardMarkedText and textInputChanged were called: for tests. */
         public int discards, changes;
+        public jui.platform.MenuModel menuModel;
+        public java.util.function.IntConsumer menuResult;
+        public float menuX, menuY;
+        public int menusOpened;
+
+        @Override
+        public void popupMenu(jui.platform.MenuModel model, float x, float y, java.util.function.IntConsumer result) {
+            cancelMenu();
+            menuModel = model;
+            menuX = x;
+            menuY = y;
+            menuResult = result;
+            menusOpened++;
+        }
+
+        public void chooseMenu(int id) {
+            jui.platform.MenuModel.Item item = menuModel == null ? null : menuModel.find(id);
+            if (item == null || !item.enabled() || item.kind() != jui.platform.MenuModel.Kind.ITEM) {
+                throw new IllegalStateException("menu item cannot be chosen");
+            }
+            finishMenu(id);
+        }
+
+        @Override
+        public void cancelMenu() { finishMenu(0); }
+
+        private void finishMenu(int id) {
+            java.util.function.IntConsumer result = menuResult;
+            menuResult = null;
+            menuModel = null;
+            if (result != null) result.accept(id);
+        }
 
         @Override
         public String readClipboard() {

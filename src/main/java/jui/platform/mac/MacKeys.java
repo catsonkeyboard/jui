@@ -34,6 +34,7 @@ public final class MacKeys {
             case 0x7C: return Key.RIGHT;
             case 0x7D: return Key.DOWN;
             case 0x7E: return Key.UP;
+            case 0x6E: return Key.CONTEXT_MENU;
             default: break;
         }
         for (int i = 0; i < F_CODES.length; i++) {

@@ -22,6 +22,7 @@ public final class Engine {
     private final StateTable states = new StateTable();
     private final HitList hits = new HitList();
     private final Input input = new Input(this, hits);
+    final MenuState menus = new MenuState(this);
     private final Actions clickActions = new Actions();
     private final Actions changeActions = new Actions();
     private final Actions submitActions = new Actions();
@@ -123,6 +124,10 @@ public final class Engine {
                 input.beginPass();
                 buildPass(view, width, height);
                 endPass();
+                if (menus.hasWork()) {
+                    settleInputs();
+                    consumed |= menus.resolve();
+                }
                 if (pass == 0) {
                     input.dropKey();
                 }
@@ -155,7 +160,24 @@ public final class Engine {
             }
         }
         commit();
+        menus.publish();
     }
+
+    Node menuNode(long id) {
+        for (int index = 0; index < pool.size(); index++) {
+            Node node = pool.node(index);
+            if (node.id != id) continue;
+            for (int ancestor = index; ancestor != Node.NONE; ancestor = pool.node(ancestor).parent) {
+                if (pool.node(ancestor).invisible) return null;
+            }
+            return node;
+        }
+        return null;
+    }
+
+    void menuCommand(long id, jui.ui.EditCommand command) { input.menuCommand(id, command); }
+
+    public void closeMenus() { menus.close(); }
 
     private void buildPass(View view, float width, float height) {
         pool.reset();

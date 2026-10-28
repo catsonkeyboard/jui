@@ -18,6 +18,8 @@ public final class Node {
             TEXT_INPUT = 256;
     /** Which ways a scroll container (SCROLL) scrolls: across, down, or both. */
     public static final int SCROLL_X = 512, SCROLL_Y = 1024;
+    public static final int CONTEXT_MENU = 2048;
+    public java.util.function.Consumer<jui.ui.Menu> contextMenu;
 
     // Structure.
     public long id;
@@ -155,6 +157,7 @@ public final class Node {
         label = null;
         state = null;
         flags = 0;
+        contextMenu = null;
         disabled = false;
         opacity = 1;
         noFocusRing = false;

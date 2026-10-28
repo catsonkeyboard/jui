@@ -263,7 +263,7 @@ public final class TextEdit {
                 return m != 0;
             case ENTER:
                 return m == 0;
-            case TAB, ESCAPE, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12:
+            case TAB, ESCAPE, CONTEXT_MENU, F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12:
                 return false;
             default:
                 break;

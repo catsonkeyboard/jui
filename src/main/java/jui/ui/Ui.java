@@ -13,6 +13,21 @@ public final class Ui {
     /** An automatic margin, which takes the free space on its side. */
     public static final float AUTO = Float.POSITIVE_INFINITY;
 
+    public static void contextMenu(Context context, Element target, java.util.function.Consumer<Menu> build) {
+        if (target == null || target.c.engine() != context.engine()) {
+            jui.ui.engine.Dev.fail("contextMenu requires an element from this context");
+            return;
+        }
+        Node node = target.node();
+        if (node == null) return;
+        node.contextMenu = build;
+        if (build == null) node.flags &= ~Node.CONTEXT_MENU;
+        else {
+            node.flags |= Node.CONTEXT_MENU;
+            context.engine().state(target.index);
+        }
+    }
+
     /** A box: a column. */
     public static Element box(Context c) {
         return open(c, Node.BOX, false, Align.STRETCH);

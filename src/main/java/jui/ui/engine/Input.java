@@ -73,6 +73,7 @@ final class Input {
     /** The caret's rect as the input method last heard of it (x, top, height). */
     private float caretX = Float.NaN, caretY, caretH;
     private final float[] caretRect = new float[4];
+    private final int[] menuHit = new int[2];
 
     /** The key this frame delivers in its first pass: to an identity (0 the window), or to whoever claims it. */
     private jui.ui.Key deliveredKey;
@@ -130,6 +131,7 @@ final class Input {
         if (pressedId == 0) {
             rehover();
         }
+        if (button == 1 && menuPress(x, y)) return;
         if (button == 0 && barPress(x, y)) {
             return;
         }
@@ -234,6 +236,8 @@ final class Input {
         if (textKey(key, mods)) {
             return;
         }
+        if ((key == jui.ui.Key.CONTEXT_MENU && mods == 0 || key == jui.ui.Key.F10 && mods == jui.ui.Mod.SHIFT)
+                && !claimedBy(mods, key, true) && menuKey()) return;
         // A text input with focus takes the keys it wants before any shortcut (design §7.3, as MyGO).
         TextEdit edit = focusedEdit();
         if (edit != null && edit.wantsKey(key, mods)) {
@@ -298,6 +302,57 @@ final class Input {
             case LEFT, RIGHT, UP, DOWN, HOME, END, PAGE_UP, PAGE_DOWN -> true;
             default -> false;
         };
+    }
+
+    private void clearMenuPress() {
+        ElementState pressed = engine.states().get(pressedId);
+        if (pressed != null) pressed.pressed = pressed.pressPending = false;
+        pressedId = dragId = 0;
+    }
+
+    private boolean menuPress(float x, float y) {
+        Node node = engine.menus.target(hoverIds, hoverCount);
+        if (node == null) return false;
+        clearMenuPress();
+        TextEdit edit = node.kind == Node.INPUT ? node.state.edit : null;
+        if (edit != null) {
+            focusedId = node.id;
+            focusVisible = false;
+            updateTextInput();
+            if (edit.composing()) {
+                edit.unmark(engine.clockNow());
+                engine.host().discardMarkedText();
+            }
+            jui.text.TextLayout layout = edit.ensureLayout();
+            if (layout != null) {
+                layout.hitTest(x - edit.originX, edit.multiline ? y - edit.originY : 0, menuHit);
+                int index = edit.fromShown(menuHit[0]);
+                if (edit.selStart() == edit.selEnd() || index < edit.selStart() || index > edit.selEnd()) {
+                    edit.pressAt(x - edit.originX, y - edit.originY, 1, false);
+                }
+            }
+            edited(engine.clockNow());
+        }
+        engine.menus.ask(node, x, y);
+        updateCursor();
+        return true;
+    }
+
+    private boolean menuKey() {
+        Node node = engine.menus.target(focusChain, focusChainCount);
+        if (node == null) return false;
+        clearMenuPress();
+        float x = node.x, y = node.y + Math.min(node.h, 32);
+        TextEdit edit = node.kind == Node.INPUT ? node.state.edit : null;
+        if (edit != null && edit.ensureLayout() != null) {
+            int line = edit.layout.lineAt(edit.toShown(edit.displayCaret()), edit.caretUpstream);
+            x = Math.max(edit.clipX0, Math.min(edit.clipX1, edit.originX
+                    + edit.layout.caretX(edit.toShown(edit.displayCaret()), edit.caretUpstream)));
+            float top = edit.multiline ? edit.originY + edit.layout.lineTop(line) : edit.lineTop;
+            y = Math.max(edit.clipY0, Math.min(edit.clipY1, top + edit.layout.lineHeight(line)));
+        }
+        engine.menus.ask(node, x, y);
+        return true;
     }
 
     /** Whether a shortcut of the focus chain (or, if window, of the window) claims the key. */
@@ -738,6 +793,17 @@ final class Input {
 
     /** Runs a command, through the host's clipboard; the composition is committed first, and the input method forgets it. */
     private void runCommand(TextEdit e, jui.ui.EditCommand c, long now) {
+        runCommand(focusedId, e, c, now);
+    }
+
+    void menuCommand(long target, jui.ui.EditCommand command) {
+        ElementState state = engine.states().get(target);
+        if (state == null || state.edit == null) return;
+        runCommand(target, state.edit, command, engine.clockNow());
+        edited(engine.clockNow());
+    }
+
+    private void runCommand(long target, TextEdit e, jui.ui.EditCommand c, long now) {
         if (e.readOnly && c != jui.ui.EditCommand.COPY && c != jui.ui.EditCommand.SELECT_ALL) {
             return;
         }
@@ -749,7 +815,7 @@ final class Input {
         String clipboard = paste ? engine.host().readClipboard() : null;
         if (paste) {
             // The app sees the paste first: one it takes changes nothing (as MyGO's OnPaste).
-            ElementState s = engine.states().get(focusedId);
+            ElementState s = engine.states().get(target);
             if (s != null && s.onPaste != null && s.onPaste.test(clipboard == null ? "" : clipboard)) {
                 return;
             }

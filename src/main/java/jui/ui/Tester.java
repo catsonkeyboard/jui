@@ -117,6 +117,31 @@ public final class Tester {
         clickAt(p[0], p[1], 1, 1);
     }
 
+    public void rightClickAt(float x, float y) { clickAt(x, y, 1, 1); }
+
+    public jui.platform.MenuModel menu() { started(); return host.menuModel; }
+
+    public void closeMenu() { host.cancelMenu(); settle(); }
+
+    public void chooseMenuItem(String... labels) {
+        if (host.menuModel == null || labels.length == 0) throw new AssertionError("no menu or empty path");
+        java.util.List<jui.platform.MenuModel.Item> items = host.menuModel.items();
+        jui.platform.MenuModel.Item found = null;
+        for (String label : labels) {
+            found = null;
+            for (jui.platform.MenuModel.Item item : items) {
+                if (item.label().equals(label)) {
+                    if (found != null) throw new AssertionError("ambiguous menu label: " + label);
+                    found = item;
+                }
+            }
+            if (found == null) throw new AssertionError("no menu item: " + label);
+            items = found.children();
+        }
+        host.chooseMenu(found.id());
+        settle();
+    }
+
     /** Moves the pointer onto the element's center. */
     public void hover(String s) {
         float[] p = center(s);
