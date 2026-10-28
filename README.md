@@ -327,8 +327,8 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 
 **推迟到后面的**
 - 只读、密码框、`onPaste`/`onTextKey`、设置选区、关闭输入法已由后续的输入框选项补齐；多行文本框见后面的专节。
-- 菜单里的“粘贴并匹配样式”“删除”，以及菜单标题的本地化（M5 的应用菜单）；
-- 右键菜单（M5 的 `contextMenu`）；
+- 菜单里的“粘贴并匹配样式”“删除”已由输入框选项补齐；菜单标题的本地化仍留到M5的应用菜单；
+- 原生右键菜单已由后面的计划三专节补齐，只提前完成M5的这一项；
 - 设计 6.12 给编辑器预留的“元素接管文本输入”和富文本片段，留给编辑器的设计。
 
 ## 滚动、列表和布局的后续（2026-10-27）
@@ -457,13 +457,51 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - 消息框Enter发送、Shift+Enter换行、增高到上限后内部滚动；
 - 只读框的选择复制、关闭输入法的按键路径。
 
+## 原生右键菜单（2026-10-29）
+
+按[计划三](docs/plans/2026-10-29-context-menu.md)提前完成M5的`contextMenu`。分栏、modal、popover、tabs和应用菜单重构仍未完成。
+
+```java
+Element target = box(c).focusable();
+contextMenu(c, target, menu -> {
+    if (menu.item("重命名").chosen()) beginRename();
+    menu.separator();
+    menu.submenu("设置", submenu -> {
+        if (submenu.item("置顶").checked(pinned).chosen()) pinned = !pinned;
+    });
+});
+```
+
+- 每次构建登记`contextMenu(c, target, builder)`；登记不执行builder。打开菜单时收集一次，选择自定义项后再运行一次，通过`chosen()`读取结果；取消不运行响应回调。
+- `item`、`separator`、`submenu`、`disabled`、`checked`和`shortcut(Shortcut)`。快捷键仅标注，不替应用注册菜单关闭时的快捷键。Menu/MenuItem不能保存到回调之后使用。
+- 为保证对子菜单整体设置disabled在子项chosen之前生效，子菜单builder在其父builder返回后递归执行，仍属于同一次菜单构建；普通项按登记顺序显示。
+- 鼠标右键、Ctrl+单击、Shift+F10或菜单键；最内层启用菜单优先，应用快捷键和输入框的onTextKey可以先取走按键。普通元素需自己`.focusable()`才有键盘入口。
+- 单行和多行输入框隐式具有Cut、Copy、Paste、Select All；只读框仅Copy/Select All；密码框禁用Cut/Copy。右键在选区内保留选区，外部则移动caret；普通元素右键不抢焦点。
+- 自定义菜单替换输入框默认菜单；`editItems()`可在当前位置加入编辑项。编辑命令绑定打开菜单时的输入框，后续焦点变化不会把Paste送到另一个框，并继续遵守当前只读/密码策略和onPaste。
+- NSMenu在当前帧结束后经主线程队列显示，不在draw/build内开启跟踪循环；定时器使用common modes。取消、关闭、目标消失和迟到回调受到会话保护。
+
+**验证结果**：453个测试通过；原生菜单树、target/tag、禁用/勾选、tracking-mode计时帧、Ctrl单击丢失release、排队显示后关闭、回调过期及文本命令均有测试。`alloc`、`listbench`、`ffi-check`全部通过：
+
+- 给100个控件及20个输入框登记预建菜单回调，native每控件/输入框仍为0 B；普通不变帧菜单builder调用次数为0。菜单打开/选择时的事件级分配不包含在这个steady-frame指标里。
+- 列表门槛：p50 0.184 ms、p95 0.247 ms、max 0.434 ms，图集未满。
+- 多行框旧门槛继续通过：native滚动p95 0.050 ms/max 0.063 ms；5000 UTF-16单位插入LF后立即Up并更新，p95 0.371 ms/max 1.285 ms。
+- 新popup的BOOL/point/word ABI与common-mode延迟调度handle在JVM和native均实际调用通过。ABI probe不打开菜单，不能代替用户对真实系统菜单的交互核对。
+
+实测硬件：Apple M5 Pro、64 GiB、macOS 26.6.1。实现裁定、审查发现及验证边界见[整体审查记录](docs/reviews/2026-10-29-context-menu-review.md)。
+
+**原生示例**：`./build.sh native-demo ContextMenu`，包含嵌套卡片、子菜单和勾选/禁用项、普通/只读/密码输入框、多行自定义菜单及定时帧读数。
+
+原生示例已构建启动；当前屏幕录制权限检查仍为false，系统菜单截图暂缺，未绕过权限。
+
+**还需要手动核对**：原生菜单位置和子菜单；Ctrl+单击取消后下一次普通单击；Shift+F10/菜单键；中文组字及跨行选区内/外右键；Copy/Paste/Cut/Undo；菜单打开期间定时帧继续；关闭窗口及多窗口互不串线。本轮没有把计划二或本节的原生人工项标记为通过。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
 
 ```bash
 ./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
-./build.sh demo            # 卡片示例，在 JVM 上运行；其他示例：Counter、Todo、Files、Scroll、Form、TextArea
+./build.sh demo            # 卡片示例，在 JVM 上运行；其他示例：Counter、Todo、Files、Scroll、Form、TextArea、ContextMenu
 ./build.sh native-demo     # 同上，编译成 native image（build/<name>-demo）后运行，也接受示例名
 ./build.sh alloc           # 实测 UI API 每帧的分配（native image 和 JVM）
 ./build.sh listbench       # 1 万行列表的滚动帧耗时（native image，M3 的门槛）
@@ -519,9 +557,12 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 | `jui/examples/ScrollDemo.java` | 滚动和列表后续的示例：横向卡片条、跟随末尾的日志、描边的勾号 | — |
 | `jui/examples/FormDemo.java` | 输入框选项的示例：只读、密码、回车发送、拒绝长粘贴、关闭输入法 | — |
 | `jui/examples/TextAreaDemo.java` | 多行备注、自动增高消息框、只读多行预览 | — |
+| `jui/examples/ContextMenuDemo.java` | 原生右键菜单、嵌套菜单、默认编辑项及定时帧示例 | — |
 | `jui/text/TextBounds.java` | 字素簇和词的边界 | `internal/text/word.go`、`ui/textbuffer.go` |
 | `jui/ui/engine/TextEdit.java` | 单行编辑：文字、选区、组字、按键、命令、撤销 | `ui/editor*.go` |
-| `jui/ui/engine/Host.java` | 引擎交给平台的事：剪贴板、指针形状、输入法 | `host` |
+| `jui/ui/engine/Host.java` | 引擎交给平台的事：剪贴板、指针形状、输入法、菜单 | `host` |
+| `jui/ui/{Menu,MenuItem}.java`、`jui/ui/engine/MenuState.java` | 菜单构建、选择响应、会话和定向命令 | `ui/menu.go` |
+| `jui/platform/MenuModel.java`、`jui/platform/mac/MacMenus.java` | 冻结菜单树、NSMenu所有权与跟踪 | `internal/darwin/menu.go` |
 | `jui/ui/{TextRef,Cursor,EditCommand,TextKey}.java` | 文本引用对象、指针形状、编辑菜单的命令、`onTextKey` 看到的按键 | 同上 |
 | `jui/platform/mac/{MacPasteboard,MacCursors}.java` | 剪贴板的纯文本；指针形状对应的 `NSCursor` | `internal/darwin/system.go`、`surface.go` |
 | `jui/spike/FfiCheck.java` | 在 native image 里调用每种结构体形状的 Objective-C 方法 | — |

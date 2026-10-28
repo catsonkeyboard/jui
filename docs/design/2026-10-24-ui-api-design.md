@@ -307,7 +307,7 @@ public static FloatRef localFloat(Element e, String name, float initial);
 | 分栏 | `split(c, FloatRef firstWidth, Runnable first, Runnable second)` | `ui.Split` | M5 |
 | 弹窗 | `modal(c, BoolRef open, Runnable content)`（点击外部或按 Esc 关闭） | `ui.Modal` | M5 |
 | 弹出面板 | `popover(c, Element anchor, BoolRef open, Runnable content)` | `ui.Popover` | M5 |
-| 右键菜单 | `contextMenu(c, Element target, Consumer<Menu> items)`（使用系统原生菜单） | `ui.ContextMenu` | M5 |
+| 右键菜单 | `contextMenu(c, Element target, Consumer<Menu> items)`（使用系统原生菜单） | `ui.ContextMenu` | M5（2026-10-29已提前实现） |
 | 标签页 | `tabs(c, IntRef selected, String... titles)` | `ui.Tabs` | M5 |
 | 自定义绘制 | `element.draw(Painter.Draw)`，见 6.12 | `Draw` | M6 |
 
@@ -609,6 +609,8 @@ public final class NotesApp {
 | M6 绘制和性能 | `Painter`（线段、圆、文字）、布局缓存、字形图集扩容和回收、帧统计、对照第 8 节逐项测量和优化 | 简单的图谱视图；第 8 节的指标**全部达标**（硬性门槛，达标才算完成） |
 
 ## 11. 留给实现者决定的
+
+进度补记（2026-10-29）：[计划三](../plans/2026-10-29-context-menu.md)提前实现M5的原生contextMenu、输入框默认菜单及相应键盘入口。只完成这一项，不把split、modal、popover、tabs或应用菜单重构标记为完成；原生人工交互验收仍单列待办。
 
 - 第 6 节以外的方法命名和重载；只要和 MyGO 的语义对应即可。
 - 节点池、状态表、命中测试列表的具体数据结构。
