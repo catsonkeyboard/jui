@@ -39,6 +39,18 @@ public final class Element {
 
     // Behavior.
 
+    public Element draw(Painter.Draw draw) {
+        Node node = node();
+        if (node != null) {
+            node.draw = draw;
+            if (draw != null) {
+                var state = c.engine().state(index);
+                if (state.painter == null) state.painter = new Painter(c.engine());
+            }
+        }
+        return this;
+    }
+
     /**
      * Disables the element and what it holds: no input, no focus, half
      * opacity. An element inside a disabled one stays disabled.

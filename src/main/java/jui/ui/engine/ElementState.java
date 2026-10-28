@@ -22,6 +22,8 @@ public final class ElementState {
     public float x, y, w, h;
     /** The box as Element.bounds() last gave it: given again while the box stays, so a frame makes none. */
     public jui.ui.Rect bounds;
+    public jui.ui.Rect drawBounds;
+    public jui.ui.Painter painter;
     public float cx, cy, cw, ch;
 
     // Input not yet reported; a pass that builds the element forgets it.
@@ -83,6 +85,8 @@ public final class ElementState {
         seenPass = -1;
         x = y = w = h = 0;
         bounds = null;
+        drawBounds = null;
+        painter = null;
         cx = cy = cw = ch = 0;
         clicks = rightClicks = doubleClicks = 0;
         pressed = pressPending = changed = false;

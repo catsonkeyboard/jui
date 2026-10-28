@@ -20,6 +20,7 @@ public final class Node {
     public static final int SCROLL_X = 512, SCROLL_Y = 1024;
     public static final int CONTEXT_MENU = 2048;
     public java.util.function.Consumer<jui.ui.Menu> contextMenu;
+    public jui.ui.Painter.Draw draw;
 
     // Structure.
     public long id;
@@ -158,6 +159,7 @@ public final class Node {
         state = null;
         flags = 0;
         contextMenu = null;
+        draw = null;
         disabled = false;
         opacity = 1;
         noFocusRing = false;

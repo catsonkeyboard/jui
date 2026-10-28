@@ -13,6 +13,8 @@ public final class Ui {
     /** An automatic margin, which takes the free space on its side. */
     public static final float AUTO = Float.POSITIVE_INFINITY;
 
+    public static Element canvas(Context context) { return box(context); }
+
     public static void contextMenu(Context context, Element target, java.util.function.Consumer<Menu> build) {
         if (target == null || target.c.engine() != context.engine()) {
             jui.ui.engine.Dev.fail("contextMenu requires an element from this context");

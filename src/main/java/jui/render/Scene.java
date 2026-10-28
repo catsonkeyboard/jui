@@ -47,6 +47,9 @@ public final class Scene {
         return scale;
     }
 
+    public float clipTop() { return clipY0; }
+    public float clipBottom() { return clipY1; }
+
     /**
      * A copy of instance i's 28 floats: rect 0–3, radii 4–7, color 8–11,
      * border 12–15, params 16–19 (kind at 18: 0 box, 1 shadow, 2 glyph),

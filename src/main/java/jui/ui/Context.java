@@ -32,6 +32,20 @@ public final class Context {
         return engine.theme();
     }
 
+    public jui.text.TextLayout layoutText(String text, float size, int weight, float maxWidth) {
+        return serviceThread() ? engine.text().layout(text, size, weight, maxWidth) : null;
+    }
+
+    public String clipboardText() { return serviceThread() ? engine.host().readClipboard() : null; }
+
+    public void copyText(String text) { if (serviceThread()) engine.host().writeClipboard(text); }
+
+    private boolean serviceThread() {
+        if (jui.ffi.Libc.pthreadMainNp() != 0) return true;
+        Dev.fail("Context services require the UI thread");
+        return false;
+    }
+
     /** Keys the next element built, so that its state follows the key rather than its position. */
     public Context key(long key) {
         engine.key(key);

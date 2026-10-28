@@ -60,6 +60,7 @@ final class Paint {
         if (n.kind == Node.INPUT) {
             input(n, scene, theme, o);
         }
+        if (n.draw != null) n.state.painter.paint(n, scene, o);
         if (n.clip) {
             // Inside the border, its corners rounded as the border's inner edge (as MyGO's clipRect).
             float b = n.border;
@@ -67,18 +68,21 @@ final class Paint {
                     inner(n.radiusTR, half, b), inner(n.radiusBR, half, b), inner(n.radiusBL, half, b));
         }
         // The flow first, then absolute children over it, in the order built (as MyGO).
-        for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
-            if (!pool.node(c).absolute) {
-                paint(pool, c, scene, theme, o, n.disabled, ringId);
+        try {
+            for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+                if (!pool.node(c).absolute) {
+                    paint(pool, c, scene, theme, o, n.disabled, ringId);
+                }
             }
-        }
-        for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
-            if (pool.node(c).absolute) {
-                paint(pool, c, scene, theme, o, n.disabled, ringId);
+            for (int c = n.firstChild; c != Node.NONE; c = pool.node(c).nextSibling) {
+                if (pool.node(c).absolute) {
+                    paint(pool, c, scene, theme, o, n.disabled, ringId);
+                }
             }
+        } finally {
+            if (n.clip) scene.popClip();
         }
         if (n.clip) {
-            scene.popClip();
             if (n.border > 0 && alpha(borderColor) != 0) {
                 scene.box(n.x, n.y, n.w, n.h, Math.min(n.radiusTL, half), Math.min(n.radiusTR, half),
                         Math.min(n.radiusBR, half), Math.min(n.radiusBL, half), 0, n.border, borderColor);
