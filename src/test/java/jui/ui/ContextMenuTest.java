@@ -6,6 +6,42 @@ import jui.ui.engine.Host;
 import static jui.ui.Ui.*;
 
 public final class ContextMenuTest {
+    public void testOrdinaryMenusDoNotStealFocusAndNoMenuStillReportsRightClick() {
+        int[] right = {0};
+        Tester tester = Tester.of(context -> {
+            button(context, "focus");
+            contextMenu(context, button(context, "target"), menu -> menu.item("one"));
+            if (button(context, "plain").rightClicked()) right[0]++;
+        }, 300, 240);
+        tester.key(Shortcut.of(Key.TAB));
+        tester.rightClick("target");
+        Check.isTrue(tester.focused("focus"), "ordinary menu leaves focus alone");
+        tester.closeMenu();
+        tester.rightClick("plain");
+        Check.equal(1, right[0]);
+        Check.isTrue(tester.menu() == null, "plain right click is not a menu");
+    }
+
+    public void testInvalidTargetsAndUnregistering() {
+        Context[] original = new Context[1];
+        Element[] saved = new Element[1];
+        Tester first = Tester.of(context -> {
+            original[0] = context;
+            saved[0] = button(context, "first");
+        }, 300, 240);
+        first.frame();
+        Check.fails(IllegalStateException.class, () -> Tester.of(context ->
+                contextMenu(context, saved[0], menu -> menu.item("bad")), 300, 240).frame());
+        Check.fails(IllegalStateException.class, () -> contextMenu(original[0], saved[0], menu -> menu.item("bad")));
+        Tester tester = Tester.of(context -> {
+            Element target = button(context, "target");
+            contextMenu(context, target, menu -> menu.item("one"));
+            contextMenu(context, target, null);
+        }, 300, 240);
+        tester.rightClick("target");
+        Check.isTrue(tester.menu() == null, "last registration wins");
+    }
+
     public void testOpensOnlyOnDemandAndChoosesOnce() {
         int[] builds = {0}, chosen = {0}, clicks = {0};
         Tester tester = Tester.of(context -> {

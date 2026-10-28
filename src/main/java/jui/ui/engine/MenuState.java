@@ -10,6 +10,7 @@ final class MenuState {
     private final Engine engine;
     private Session current;
     private Session pending;
+    private final java.util.ArrayDeque<Session> responses = new java.util.ArrayDeque<>();
     private boolean closed;
 
     MenuState(Engine engine) { this.engine = engine; }
@@ -29,7 +30,7 @@ final class MenuState {
         engine.requestFrame();
     }
 
-    boolean hasWork() { return current != null && (current.model == null || current.choice != null); }
+    boolean hasWork() { return !responses.isEmpty() || current != null && current.model == null; }
 
     private Node valid(Session session) {
         Node node = engine.menuNode(session.id);
@@ -40,20 +41,30 @@ final class MenuState {
     }
 
     boolean resolve() {
+        boolean consumed = false;
+        while (!responses.isEmpty()) {
+            Session response = responses.removeFirst();
+            Node target = valid(response);
+            if (target == null) continue;
+            try {
+                if (response.choice.command() != null) {
+                    engine.menuCommand(response.id, response.choice.command());
+                    consumed = true;
+                } else if (target.contextMenu != null) {
+                    consumed |= Menu.build(target.contextMenu, edits(target), response.choice).chosen();
+                }
+            } catch (RuntimeException | Error failure) {
+                responses.clear();
+                cancel();
+                throw failure;
+            }
+        }
+        if (consumed) return true;
         Session session = current;
         if (session == null) return false;
         Node node = valid(session);
         if (node == null) { cancel(); return false; }
         try {
-            if (session.choice != null) {
-                current = pending = null;
-                if (session.choice.command() != null) {
-                    engine.menuCommand(session.id, session.choice.command());
-                    return true;
-                }
-                return node.contextMenu != null
-                        && Menu.build(node.contextMenu, edits(node), session.choice).chosen();
-            }
             if (session.model == null) {
                 session.model = Menu.build(node.contextMenu == null ? Menu::editItems : node.contextMenu, edits(node), null).model();
                 if (session.model.visible()) pending = session;
@@ -71,7 +82,12 @@ final class MenuState {
         if (session != null && valid(session) == null) { cancel(); return; }
         if (pending == null) return;
         pending = null;
-        engine.host().popupMenu(session.model, session.x, session.y, id -> selected(session, id));
+        try {
+            engine.host().popupMenu(session.model, session.x, session.y, id -> selected(session, id));
+        } catch (RuntimeException | Error failure) {
+            cancel();
+            throw failure;
+        }
     }
 
     private void selected(Session session, int id) {
@@ -80,6 +96,9 @@ final class MenuState {
         if (id == 0) { current = pending = null; return; }
         if (session.choice != null || choice == null || !choice.enabled() || choice.kind() != MenuModel.Kind.ITEM) return;
         session.choice = choice;
+        responses.addLast(session);
+        current = pending = null;
+        engine.host().cancelMenu();
         engine.requestFrame();
     }
 
@@ -88,7 +107,7 @@ final class MenuState {
         engine.host().cancelMenu();
     }
 
-    void close() { closed = true; cancel(); }
+    void close() { closed = true; responses.clear(); cancel(); }
 
     private static List<MenuModel.Item> edits(Node node) {
         TextEdit edit = node.state == null ? null : node.state.edit;
