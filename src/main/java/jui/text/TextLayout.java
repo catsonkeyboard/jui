@@ -1,5 +1,7 @@
 package jui.text;
 
+import java.util.Arrays;
+
 /**
  * A paragraph laid out by Core Text: its glyphs, each with the font Core Text
  * chose for it (a fallback font for what the first one lacks, such as Han
@@ -26,22 +28,29 @@ public final class TextLayout {
     final int[] indices;
     /** The text's grapheme cluster boundaries: where a caret may stop. Made on first use. */
     private int[] stops;
+    private final LineTable lineTable;
+    private final float[] downstreamX, upstreamX;
 
-    TextLayout(String text, float size, int weight, float maxWidth, float width, float height, int lines,
-               int count, long[] fonts, short[] glyphs, float[] xs, float[] ys, int[] indices) {
+    TextLayout(String text, float size, int weight, float maxWidth, float width, float height,
+               int count, long[] fonts, short[] glyphs, float[] xs, float[] ys, int[] indices,
+               LineTable lineTable, int[] stops, float[] downstreamX, float[] upstreamX) {
         this.text = text;
         this.weight = weight;
         this.maxWidth = maxWidth;
         this.size = size;
         this.width = width;
         this.height = height;
-        this.lines = lines;
+        this.lines = lineTable.count;
         this.count = count;
         this.fonts = fonts;
         this.glyphs = glyphs;
         this.xs = xs;
         this.ys = ys;
         this.indices = indices;
+        this.lineTable = lineTable;
+        this.stops = stops;
+        this.downstreamX = downstreamX;
+        this.upstreamX = upstreamX;
     }
 
     public int glyphCount() {
@@ -86,12 +95,7 @@ public final class TextLayout {
      * the caret geometry of several lines is the editor's (design §12).
      */
     public float caretX(int index) {
-        for (int g = 0; g < count; g++) {
-            if (indices[g] >= index) {
-                return xs[g];
-            }
-        }
-        return width;
+        return caretX(index, false);
     }
 
     /** The caret stop after {@code index}: the end of its grapheme cluster; the length at the end. */
@@ -109,22 +113,119 @@ public final class TextLayout {
      * one line.
      */
     public int indexAt(float x) {
-        if (stops == null) {
-            stops = TextBounds.graphemes(text);
+        return indexInLine(0, x);
+    }
+
+    public int lineStart(int line) { return lineTable.starts[line]; }
+    public int lineEnd(int line) { return lineTable.ends[line]; }
+    public int lineBreakEnd(int line) { return lineTable.breaks[line]; }
+    public float lineTop(int line) { return lineTable.tops[line]; }
+    public float lineHeight(int line) { return lineTable.heights[line]; }
+    public float lineWidth(int line) { return lineTable.widths[line]; }
+    public int lineGlyphStart(int line) { return lineTable.glyphStarts[line]; }
+    public int lineGlyphEnd(int line) { return lineTable.glyphEnds[line]; }
+
+    public float caretX(int index, boolean upstream) {
+        int bounded = TextBounds.floor(stops, Math.max(0, Math.min(index, text.length())));
+        return upstream ? upstreamX[bounded] : downstreamX[bounded];
+    }
+
+    public int lineAt(int index, boolean upstream) {
+        int bounded = TextBounds.floor(stops, Math.max(0, Math.min(index, text.length())));
+        int low = 0, high = lines;
+        while (low < high) {
+            int middle = (low + high) >>> 1;
+            if (lineStart(middle) <= bounded) low = middle + 1;
+            else high = middle;
         }
-        int best = 0;
+        int found = Math.max(0, low - 1);
+        if (upstream && found > 0 && lineStart(found) == bounded
+                && lineEnd(found - 1) == bounded && lineBreakEnd(found - 1) == bounded) {
+            found--;
+        }
+        return found;
+    }
+
+    public int lineForY(float y) {
+        int low = 0, high = lines;
+        while (low < high) {
+            int middle = (low + high) >>> 1;
+            if (lineTop(middle) + lineHeight(middle) <= y) low = middle + 1;
+            else high = middle;
+        }
+        return Math.min(low, lines - 1);
+    }
+
+    public boolean softEnd(int line) {
+        return line + 1 < lines && lineEnd(line) == lineStart(line + 1);
+    }
+
+    public int indexInLine(int line, float x) {
+        int best = lineStart(line);
         float bestDistance = Float.POSITIVE_INFINITY;
-        int g = 0;
-        for (int stop : stops) {
-            while (g < count && indices[g] < stop) {
-                g++;
-            }
-            float d = Math.abs((g < count ? xs[g] : width) - x);
-            if (d < bestDistance) {
-                bestDistance = d;
+        int first = Arrays.binarySearch(stops, lineStart(line));
+        for (int position = Math.max(0, first); position < stops.length; position++) {
+            int stop = stops[position];
+            if (stop > lineEnd(line)) break;
+            float distance = Math.abs(caretX(stop, stop == lineEnd(line) && softEnd(line)) - x);
+            if (distance < bestDistance) {
+                bestDistance = distance;
                 best = stop;
             }
         }
         return best;
+    }
+
+    public void hitTest(float x, float y, int[] out) {
+        int line = lineForY(y);
+        out[0] = indexInLine(line, x);
+        out[1] = out[0] == lineEnd(line) && softEnd(line) ? 1 : 0;
+    }
+
+    public boolean selectionRect(int start, int end, int line, float[] out) {
+        int first = Math.max(0, Math.min(start, end));
+        int last = Math.min(text.length(), Math.max(start, end));
+        int selectedStart = Math.max(first, lineStart(line));
+        int selectedEnd = Math.min(last, lineEnd(line));
+        boolean newline = lineBreakEnd(line) > lineEnd(line)
+                && first <= lineEnd(line) && last > lineEnd(line);
+        if (first == last || selectedEnd < selectedStart || selectedEnd == selectedStart && !newline) return false;
+        float left = caretX(selectedStart, false);
+        float right = caretX(selectedEnd, selectedEnd == lineEnd(line) && softEnd(line));
+        out[0] = Math.min(left, right);
+        out[1] = lineTop(line);
+        out[2] = Math.abs(right - left) + (newline ? size / 3 : 0);
+        out[3] = lineHeight(line);
+        return out[2] > 0;
+    }
+
+    static final class LineTable {
+        int count;
+        int[] starts = new int[16], ends = new int[16], breaks = new int[16];
+        int[] glyphStarts = new int[16], glyphEnds = new int[16];
+        float[] tops = new float[16], heights = new float[16], widths = new float[16];
+
+        void add(int start, int end, int breakEnd, int glyphStart, int glyphEnd,
+                 float top, float height, float width) {
+            if (count == starts.length) {
+                int capacity = count * 2;
+                starts = Arrays.copyOf(starts, capacity);
+                ends = Arrays.copyOf(ends, capacity);
+                breaks = Arrays.copyOf(breaks, capacity);
+                glyphStarts = Arrays.copyOf(glyphStarts, capacity);
+                glyphEnds = Arrays.copyOf(glyphEnds, capacity);
+                tops = Arrays.copyOf(tops, capacity);
+                heights = Arrays.copyOf(heights, capacity);
+                widths = Arrays.copyOf(widths, capacity);
+            }
+            starts[count] = start;
+            ends[count] = end;
+            breaks[count] = breakEnd;
+            glyphStarts[count] = glyphStart;
+            glyphEnds[count] = glyphEnd;
+            tops[count] = top;
+            heights[count] = height;
+            widths[count++] = width;
+        }
     }
 }

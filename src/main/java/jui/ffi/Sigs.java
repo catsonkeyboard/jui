@@ -72,6 +72,8 @@ public final class Sigs {
     /** double CTLineGetTypographicBounds(CTLineRef, CGFloat *ascent, CGFloat *descent, CGFloat *leading). */
     public static final FunctionDescriptor LINE_BOUNDS = down(FunctionDescriptor.of(JAVA_DOUBLE,
             JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG));
+    public static final FunctionDescriptor LINE_OFFSET = down(FunctionDescriptor.of(JAVA_DOUBLE,
+            JAVA_LONG, JAVA_LONG, JAVA_LONG));
     /** CGRect CTFontGetBoundingRectsForGlyphs(CTFontRef, orientation, const CGGlyph *, CGRect *, CFIndex). */
     public static final FunctionDescriptor GLYPH_RECTS = down(FunctionDescriptor.of(CG_RECT,
             JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG));

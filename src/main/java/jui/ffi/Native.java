@@ -38,6 +38,7 @@ public final class Native {
     public static final MethodHandle CREATE_LINE = handle(Sigs.CREATE_LINE);
     public static final MethodHandle RUN_GET = handle(Sigs.RUN_GET);
     public static final MethodHandle LINE_BOUNDS = handle(Sigs.LINE_BOUNDS);
+    public static final MethodHandle LINE_OFFSET = handle(Sigs.LINE_OFFSET);
     public static final MethodHandle GLYPH_RECTS = handle(Sigs.GLYPH_RECTS);
     public static final MethodHandle SET_FILL_RGBA = handle(Sigs.SET_FILL_RGBA);
     public static final MethodHandle SCALE_CTM = handle(Sigs.SCALE_CTM);

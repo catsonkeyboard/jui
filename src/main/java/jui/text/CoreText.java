@@ -38,6 +38,7 @@ final class CoreText {
     private static final MemorySegment CT_TYPESETTER_CREATE_LINE = ObjC.symbol(CT, "CTTypesetterCreateLine");
     private static final MemorySegment CT_LINE_GET_TYPOGRAPHIC_BOUNDS = ObjC.symbol(CT, "CTLineGetTypographicBounds");
     private static final MemorySegment CT_LINE_GET_GLYPH_RUNS = ObjC.symbol(CT, "CTLineGetGlyphRuns");
+    private static final MemorySegment CT_LINE_GET_OFFSET = ObjC.symbol(CT, "CTLineGetOffsetForStringIndex");
     private static final MemorySegment CT_RUN_GET_ATTRIBUTES = ObjC.symbol(CT, "CTRunGetAttributes");
     private static final MemorySegment CT_RUN_GET_GLYPH_COUNT = ObjC.symbol(CT, "CTRunGetGlyphCount");
     private static final MemorySegment CT_RUN_GET_GLYPHS = ObjC.symbol(CT, "CTRunGetGlyphs");
@@ -162,6 +163,14 @@ final class CoreText {
 
     static long glyphRuns(long line) {
         return Native.call(CT_LINE_GET_GLYPH_RUNS, line);
+    }
+
+    static double lineOffset(long line, long index) {
+        try {
+            return (double) Native.LINE_OFFSET.invokeExact(CT_LINE_GET_OFFSET, line, index, 0L);
+        } catch (Throwable failure) {
+            throw Native.rethrow(failure);
+        }
     }
 
     static long runAttributes(long run) {

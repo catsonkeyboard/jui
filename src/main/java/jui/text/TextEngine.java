@@ -48,6 +48,7 @@ public final class TextEngine {
     private LongMap<TextLayout> layouts = new LongMap<>();
     private LongMap<TextLayout> previous = new LongMap<>();
     private long glyphs, previousGlyphs;
+    private long sourceUnits, previousSourceUnits;
 
     // Scratch memory for rasterizing.
     private final MemorySegment glyphArg = Arena.global().allocate(JAVA_SHORT);
@@ -73,6 +74,10 @@ public final class TextEngine {
     /** Glyphs of the layouts the cache keeps, in both generations. */
     public long cachedGlyphs() {
         return glyphs + previousGlyphs;
+    }
+
+    public long cachedSourceUnits() {
+        return sourceUnits + previousSourceUnits;
     }
 
     /**
@@ -101,16 +106,20 @@ public final class TextEngine {
 
     /** Puts a layout in the current generation, which first ages into the previous one when full. */
     private void keep(long key, TextLayout layout) {
-        if (layouts.size() >= MAX_LAYOUTS || glyphs + layout.count > MAX_GLYPHS) {
+        if (layouts.size() >= MAX_LAYOUTS || glyphs + layout.count > MAX_GLYPHS
+                || sourceUnits + layout.length() > 200_000) {
             LongMap<TextLayout> spare = previous;
             previous = layouts;
             previousGlyphs = glyphs;
+            previousSourceUnits = sourceUnits;
             layouts = spare;
             layouts.clear();
             glyphs = 0;
+            sourceUnits = 0;
         }
         layouts.put(key, layout);
         glyphs += layout.count;
+        sourceUnits += layout.length();
     }
 
     /** A hash of a layout's parameters; a hit is checked against them, so collisions only miss. */
@@ -123,10 +132,6 @@ public final class TextEngine {
 
     private TextLayout shape(String text, float size, int weight, float maxWidth) {
         long font = systemFont(size, weight);
-        if (text.isEmpty()) {
-            return new TextLayout(text, size, weight, maxWidth, 0, 0, 0, 0, new long[0], new short[0], new float[0],
-                    new float[0], new int[0]);
-        }
         long str = CoreText.string(text);
         long attrs = CoreText.dictionary(
                 new long[] {CoreText.FONT_ATTRIBUTE_NAME, CoreText.LANGUAGE_ATTRIBUTE_NAME},
@@ -140,14 +145,38 @@ public final class TextEngine {
         float[] xs = new float[cap];
         float[] ys = new float[cap];
         int[] indices = new int[cap];
-        int count = 0, lines = 0;
+        int count = 0;
+        TextLayout.LineTable lineTable = new TextLayout.LineTable();
+        int[] stops = TextBounds.graphemes(text);
+        float[] downstreamX = new float[text.length() + 1], upstreamX = new float[text.length() + 1];
         double top = 0, widest = 0;
         // Without a width, lines still break at newlines.
         double width = maxWidth > 0 ? maxWidth + 1.0 / 1024 : 1e7;
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment metrics = arena.allocate(24, 8);
-            for (long start = 0; start < text.length(); ) {
-                long n = Math.max(1, CoreText.suggestLineBreak(typesetter, start, width));
+            for (int start = 0; ; ) {
+                int paragraphEnd = start;
+                while (paragraphEnd < text.length() && text.charAt(paragraphEnd) != '\n'
+                        && text.charAt(paragraphEnd) != '\r') paragraphEnd++;
+                int breakEnd = paragraphEnd;
+                if (breakEnd < text.length()) {
+                    breakEnd++;
+                    if (text.charAt(paragraphEnd) == '\r' && breakEnd < text.length()
+                            && text.charAt(breakEnd) == '\n') breakEnd++;
+                }
+                if (paragraphEnd == start) {
+                    float emptyHeight = lineHeight(size, weight);
+                    lineTable.add(start, start, breakEnd, count, count, (float) top, emptyHeight, 0);
+                    downstreamX[start] = 0;
+                    top += emptyHeight;
+                    if (breakEnd == text.length() && start == text.length()) break;
+                    start = breakEnd;
+                    continue;
+                }
+                int end = Math.min(paragraphEnd, start + (int) Math.max(1, CoreText.suggestLineBreak(typesetter, start, width)));
+                end = TextBounds.floor(stops, end);
+                if (end <= start) end = TextBounds.after(stops, start);
+                long n = end - start;
                 long line = CoreText.createLine(typesetter, start, n);
                 if (line == 0) {
                     break;
@@ -157,6 +186,7 @@ public final class TextEngine {
                 double descent = metrics.get(JAVA_DOUBLE, 8);
                 double leading = metrics.get(JAVA_DOUBLE, 16);
                 double baseline = top + ascent;
+                int glyphStart = count;
 
                 long runs = CoreText.glyphRuns(line);
                 for (long r = 0, nr = CoreText.arrayCount(runs); r < nr; r++) {
@@ -191,11 +221,23 @@ public final class TextEngine {
                         count++;
                     }
                 }
+                int firstStop = Arrays.binarySearch(stops, start);
+                for (int position = firstStop; position < stops.length && stops[position] <= end; position++) {
+                    int stop = stops[position];
+                    float offset = (float) CoreText.lineOffset(line, stop);
+                    downstreamX[stop] = offset;
+                    if (stop != start || lineTable.count == 0 || lineTable.breaks[lineTable.count - 1] > start) {
+                        upstreamX[stop] = offset;
+                    }
+                }
+                float rowWidth = (float) Math.max(lineWidth, CoreText.lineOffset(line, end));
+                lineTable.add(start, end, end == paragraphEnd ? breakEnd : end, glyphStart, count,
+                        (float) top, (float) (ascent + descent + leading), rowWidth);
                 CoreText.release(line);
                 top += ascent + descent + leading;
-                widest = Math.max(widest, lineWidth);
-                lines++;
-                start += n;
+                widest = Math.max(widest, rowWidth);
+                if (end == text.length()) break;
+                start = end == paragraphEnd ? breakEnd : end;
             }
         } finally {
             CoreText.release(typesetter);
@@ -203,8 +245,8 @@ public final class TextEngine {
             CoreText.release(attrs);
             CoreText.release(str);
         }
-        return new TextLayout(text, size, weight, maxWidth, (float) widest, (float) top, lines, count, fonts, glyphs, xs, ys,
-                indices);
+        return new TextLayout(text, size, weight, maxWidth, (float) widest, (float) top, count, fonts, glyphs, xs, ys,
+                indices, lineTable, stops, downstreamX, upstreamX);
     }
 
     /**
