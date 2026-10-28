@@ -1610,9 +1610,10 @@ public final class Engine {
      */
     public boolean textRect(int start, int end, float[] out) {
         TextEdit e = input.activeEdit();
-        if (e == null || e.layout == null) {
+        if (e == null || e.ensureLayout() == null) {
             return false;
         }
+        if (e.multiline) return areaRect(e, start, end, out);
         if (e.password) {
             start = end = e.toShown(e.displayCaret()); // a password input shows where only its caret is (as MyGO)
         }
@@ -1638,6 +1639,29 @@ public final class Engine {
         return true;
     }
 
+    private boolean areaRect(TextEdit edit, int start, int end, float[] out) {
+        jui.text.TextLayout layout = edit.ensureLayout();
+        int actualStart = layout.floorIndex(start);
+        int actualEnd = end <= start ? actualStart : layout.stopAfter(actualStart);
+        boolean upstream = end <= start && actualStart == edit.displayCaret() && edit.caretUpstream;
+        int line = layout.lineAt(actualStart, upstream);
+        float left = layout.caretX(actualStart, upstream);
+        float width = 1;
+        if (actualEnd > actualStart) {
+            width = actualStart == layout.lineEnd(line) && layout.lineBreakEnd(line) > actualStart ? layout.size / 3
+                    : Math.abs(layout.caretX(actualEnd, layout.softEnd(line) && actualEnd == layout.lineEnd(line)) - left);
+        }
+        width = Math.max(1, Math.min(width, Math.max(1, edit.clipX1 - edit.clipX0)));
+        float height = Math.min(layout.lineHeight(line), Math.max(1, edit.clipY1 - edit.clipY0));
+        out[0] = Math.max(edit.clipX0, Math.min(edit.originX + left, edit.clipX1 - width));
+        out[1] = Math.max(edit.clipY0, Math.min(edit.originY + layout.lineTop(line), edit.clipY1 - height));
+        out[2] = width;
+        out[3] = height;
+        if (out.length > 4) out[4] = actualEnd;
+        if (out.length > 5) out[5] = actualStart;
+        return true;
+    }
+
     /** The caret's rect in window DIPs, as textRect gives it; false without a text input. */
     public boolean textCaretRect(float[] out) {
         TextEdit e = input.activeEdit();
@@ -1647,8 +1671,12 @@ public final class Engine {
     /** The index of the shown text nearest the point in window DIPs, or -1 without a text input. */
     public int textIndexAt(float x, float y) {
         TextEdit e = input.activeEdit();
-        if (e == null || e.layout == null || e.password) {
+        if (e == null || e.password || e.ensureLayout() == null) {
             return -1;
+        }
+        if (e.multiline) {
+            int line = e.layout.lineForY(y - e.originY);
+            return e.layout.indexInLine(line, x - e.originX);
         }
         return e.layout.indexAt(x - e.originX);
     }

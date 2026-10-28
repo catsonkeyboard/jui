@@ -130,6 +130,10 @@ public final class TextLayout {
         return upstream ? upstreamX[bounded] : downstreamX[bounded];
     }
 
+    public int floorIndex(int index) {
+        return TextBounds.floor(stops, Math.max(0, Math.min(index, text.length())));
+    }
+
     public int lineAt(int index, boolean upstream) {
         int bounded = TextBounds.floor(stops, Math.max(0, Math.min(index, text.length())));
         int low = 0, high = lines;

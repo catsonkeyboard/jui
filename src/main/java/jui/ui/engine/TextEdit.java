@@ -522,6 +522,8 @@ public final class TextEdit {
         }
         compose = s;
         display = null;
+        caretUpstream = false;
+        hasGoal = false;
         if (s.isEmpty()) {
             composeSel = composeSelLength = 0;
             closeStep();
@@ -757,6 +759,7 @@ public final class TextEdit {
         compositionActive = false;
         coalesce = false;
         anchorUpstream = caretUpstream = false;
+        hasGoal = false;
         anchor = snap(anchor);
         caret = snap(caret);
         Step last = undo.peekLast();
@@ -877,6 +880,7 @@ public final class TextEdit {
         anchorUpstream = back ? st.beforeAnchorUpstream : st.afterAnchorUpstream;
         caretUpstream = back ? st.beforeCaretUpstream : st.afterCaretUpstream;
         revealCaret = multiline;
+        hasGoal = false;
     }
 
     /** An index of the shown text in the committed text: inside the composition, the caret. */

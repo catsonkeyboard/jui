@@ -159,7 +159,7 @@ public final class MacWindow {
     /** Tests: in place of interpretKeyEvents:, whose result depends on the input source in use. */
     java.util.function.LongConsumer interpretHook;
     private final int[] rangeOut = new int[2];
-    private final float[] rectOut = new float[5];
+    private final float[] rectOut = new float[6];
     /** The pointer's shape (an NSCursor), and whether the pointer is over the view. */
     private long cursor = MacCursors.of(jui.ui.Cursor.DEFAULT);
     private boolean pointerInside;
@@ -617,13 +617,15 @@ public final class MacWindow {
     /** firstRectForCharacterRange:actualRange:: the input's rect, in screen coordinates; a zero rect for none. */
     private void firstRect(long location, long length, long actual, double[] out) {
         int a = location(location);
+        rectOut[5] = a;
         if (input == null || a < 0 || !input.textRect(a, (int) Math.min((long) a + length(length), Integer.MAX_VALUE), rectOut)) {
             return;
         }
         double[] r = ObjC.convertRect(view, "convertRect:toView:", rectOut[0], rectOut[1], rectOut[2], rectOut[3], 0);
         double[] screen = ObjC.convertRect(window, "convertRectToScreen:", r[0], r[1], r[2], r[3]);
         System.arraycopy(screen, 0, out, 0, 4);
-        ObjC.writeRange(actual, a, Math.max(0, (int) rectOut[4] - a));
+        int actualStart = (int) rectOut[5];
+        ObjC.writeRange(actual, actualStart, Math.max(0, (int) rectOut[4] - actualStart));
     }
 
     /** Runs what to do with the window of a view, if it has one. */

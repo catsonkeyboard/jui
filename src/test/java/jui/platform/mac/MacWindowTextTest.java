@@ -37,6 +37,7 @@ public final class MacWindowTextTest {
         int[] selected = {0, 0}, marked;
         String shown = "abcdef";
         int index = 5;
+        int adjustedStart = -1;
         boolean ime = true;
 
         public void pointerMove(double x, double y, int mods) {}
@@ -78,6 +79,7 @@ public final class MacWindowTextTest {
             out[2] = 1;
             out[3] = 16;
             if (out.length >= 5) out[4] = end > start ? start + 1 : start;   // the first grapheme
+            if (out.length >= 6 && adjustedStart >= 0) out[5] = adjustedStart;
             return true;
         }
         @Override public int textIndexAt(double x, double y) { return index; }
@@ -235,6 +237,21 @@ public final class MacWindowTextTest {
             Check.equal(1, actual.get(JAVA_LONG, 8));        // its first grapheme
         } finally {
             w.close();
+        }
+    }
+
+    public void testFirstRectReportsTheAdjustedStart() {
+        Recorder recorder = new Recorder();
+        recorder.adjustedStart = 1;
+        MacWindow window = open(recorder);
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment actual = arena.allocate(16, 8);
+            double[] rectangle = new double[4];
+            ObjC.sendRectRange(window.view(), "firstRectForCharacterRange:actualRange:", 2, 1, actual.address(), rectangle);
+            Check.equal(1, actual.get(JAVA_LONG, 0));
+            Check.equal(2, actual.get(JAVA_LONG, 8));
+        } finally {
+            window.close();
         }
     }
 

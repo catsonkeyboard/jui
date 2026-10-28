@@ -72,6 +72,7 @@ final class Input {
     private TextEdit clientEdit;
     /** The caret's rect as the input method last heard of it (x, top, height). */
     private float caretX = Float.NaN, caretY, caretH;
+    private final float[] caretRect = new float[4];
 
     /** The key this frame delivers in its first pass: to an identity (0 the window), or to whoever claims it. */
     private jui.ui.Key deliveredKey;
@@ -247,8 +248,7 @@ final class Input {
             } else if (edit.key(key, mods, now)) {
                 engine.states().get(focusedId).submits++;
             }
-            blinkStart = now;
-            engine.requestFrame();
+            edited(now);
             return;
         }
         // Keys that act at once yield to a shortcut that claims them (as MyGO's claimedBy).
@@ -599,6 +599,7 @@ final class Input {
                 return;
             }
             edit.setText(s, true); // joins the last undo step (as MyGO's TextKey.SetText)
+            edit.revealCaret = edit.multiline;
             if (state.ref != null) {
                 state.ref.set(edit.synced);
             }
@@ -648,12 +649,11 @@ final class Input {
         long client = e == null ? 0 : focusedId;
         if (client == textClient && e == clientEdit) {
             // The same input: the input method asks again where the caret is once it moved.
-            if (e != null && e.layout != null) {
-                float x = e.originX + e.layout.caretX(Math.min(e.toShown(e.displayCaret()), e.layout.length()));
-                if (x != caretX || e.lineTop != caretY || e.lineH != caretH) {
-                    caretX = x;
-                    caretY = e.lineTop;
-                    caretH = e.lineH;
+            if (e != null && engine.textCaretRect(caretRect)) {
+                if (caretRect[0] != caretX || caretRect[1] != caretY || caretRect[3] != caretH) {
+                    caretX = caretRect[0];
+                    caretY = caretRect[1];
+                    caretH = caretRect[3];
                     engine.host().textInputChanged();
                 }
             }
@@ -693,7 +693,7 @@ final class Input {
 
     void textMark(String s, int selStart, int selLength, int replStart, int replLength) {
         TextEdit e = activeEdit();
-        if (e == null) {
+        if (e == null || e.inputMethodOff) {
             return;
         }
         long now = engine.clockNow();
@@ -763,6 +763,7 @@ final class Input {
     private void edited(long now) {
         blinkStart = now;
         engine.requestFrame();
+        updateTextInput();
     }
 
     /**
@@ -859,6 +860,7 @@ final class Input {
             }
             s.wheelingX = s.wheelingY = false;
             s.animating = false;
+            if (s.edit != null && s.edit.multiline) s.edit.revealCaret = false;
             engine.requestFrame();
             return true;
         }
@@ -929,6 +931,7 @@ final class Input {
                 wheel(s, sx, sy);
             }
             s.animating = false; // the user takes over from a scrollTo
+            if (s.edit != null && s.edit.multiline) s.edit.revealCaret = false;
             engine.requestFrame();
             return;
         }
