@@ -62,6 +62,10 @@ public final class Sigs {
     /** CFRange: location and length. */
     public static final StructLayout CF_RANGE = MemoryLayout.structLayout(
             JAVA_LONG.withName("location"), JAVA_LONG.withName("length"));
+    public static final FunctionDescriptor CF_SET_ATTRIBUTE = down(FunctionDescriptor.ofVoid(JAVA_LONG, CF_RANGE, JAVA_LONG, JAVA_LONG));
+    public static final FunctionDescriptor FONT_TRAITS = down(FunctionDescriptor.of(JAVA_LONG, JAVA_LONG, JAVA_DOUBLE, JAVA_LONG, JAVA_INT, JAVA_INT));
+    public static final FunctionDescriptor CF_EQUAL = down(FunctionDescriptor.of(JAVA_BOOLEAN, JAVA_LONG, JAVA_LONG));
+    public static final FunctionDescriptor FONT_METRIC = down(FunctionDescriptor.of(JAVA_DOUBLE, JAVA_LONG));
     /** CFIndex CTTypesetterSuggestLineBreak(CTTypesetterRef, CFIndex start, double width). */
     public static final FunctionDescriptor SUGGEST_LINE_BREAK = down(FunctionDescriptor.of(JAVA_LONG,
             JAVA_LONG, JAVA_LONG, JAVA_DOUBLE));

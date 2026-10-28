@@ -37,6 +37,10 @@ public final class Native {
     public static final MethodHandle SUGGEST_LINE_BREAK = handle(Sigs.SUGGEST_LINE_BREAK);
     public static final MethodHandle CREATE_LINE = handle(Sigs.CREATE_LINE);
     public static final MethodHandle RUN_GET = handle(Sigs.RUN_GET);
+    public static final MethodHandle CF_SET_ATTRIBUTE = handle(Sigs.CF_SET_ATTRIBUTE);
+    public static final MethodHandle FONT_TRAITS = handle(Sigs.FONT_TRAITS);
+    public static final MethodHandle CF_EQUAL = handle(Sigs.CF_EQUAL);
+    public static final MethodHandle FONT_METRIC = handle(Sigs.FONT_METRIC);
     public static final MethodHandle LINE_BOUNDS = handle(Sigs.LINE_BOUNDS);
     public static final MethodHandle LINE_OFFSET = handle(Sigs.LINE_OFFSET);
     public static final MethodHandle GLYPH_RECTS = handle(Sigs.GLYPH_RECTS);

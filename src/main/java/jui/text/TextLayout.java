@@ -18,6 +18,8 @@ public final class TextLayout {
     final String text;
     final int weight;
     final float maxWidth;
+    jui.ui.Spans spans;
+    float[] sizes;
 
     final int count;
     final long[] fonts;
@@ -64,7 +66,17 @@ public final class TextLayout {
 
     /** Whether this layout was made from these parameters. */
     boolean is(String text, float size, int weight, float maxWidth) {
-        return this.size == size && this.weight == weight && this.maxWidth == maxWidth && this.text.equals(text);
+        return spans == null && this.size == size && this.weight == weight && this.maxWidth == maxWidth && this.text.equals(text);
+    }
+
+    boolean is(jui.ui.Spans spans, float size, int weight, float maxWidth) {
+        return this.size == size && this.weight == weight && this.maxWidth == maxWidth && this.spans != null && this.spans.sameShape(spans);
+    }
+    public float glyphSize(int glyph) { return sizes == null ? size : sizes[glyph]; }
+    public float lineBaseline(int line) { return lineTable.baselines[line]; }
+    public void caretRect(int index, boolean upstream, float[] out) {
+        int line = lineAt(index, upstream);
+        out[0] = caretX(index, upstream); out[1] = lineTop(line); out[2] = 1; out[3] = lineHeight(line);
     }
 
     public long font(int i) {
@@ -209,6 +221,7 @@ public final class TextLayout {
     }
 
     static final class LineTable {
+        float[] baselines = new float[16];
         int count;
         int[] starts = new int[16], ends = new int[16], breaks = new int[16];
         int[] glyphStarts = new int[16], glyphEnds = new int[16];
@@ -226,6 +239,7 @@ public final class TextLayout {
                 tops = Arrays.copyOf(tops, capacity);
                 heights = Arrays.copyOf(heights, capacity);
                 widths = Arrays.copyOf(widths, capacity);
+                baselines = Arrays.copyOf(baselines, capacity);
             }
             starts[count] = start;
             ends[count] = end;

@@ -34,7 +34,22 @@ public final class TextEngine {
      * and the glyph atlas keys on the font: without one font each, every new
      * text would rasterize its glyphs again, until the atlas is full.
      */
-    private final Map<String, Long> canonicalFonts = new HashMap<>();
+    private final Map<Long, java.util.ArrayList<Long>> canonicalFonts = new HashMap<>();
+    private final LongMap<FontMetrics> fontMetrics = new LongMap<>();
+    public record FontMetrics(float size, float underline, float thickness, float xHeight, float ascent) {}
+    public FontMetrics metrics(long font) { return fontMetrics.get(font); }
+
+    public void checkRichFfi() {
+        long font = styledFont(18, 400, true, false);
+        long copy = CoreText.fontCopy(font);
+        try {
+            if (copy == 0 || canonical(copy) != font) throw new IllegalStateException("equivalent fonts did not canonicalize");
+        } finally { CoreText.release(copy); }
+        long italic = styledFont(18, 400, true, true);
+        if (italic == font || CoreText.equal(font, italic)) throw new IllegalStateException("italic font collapsed");
+        TextLayout layout = layout(jui.ui.Spans.of(jui.ui.Span.text("mono").monospace().italic(), jui.ui.Span.text(" BIG").fontSize(24).bold()), 18, 400, 100);
+        if (layout.count == 0 || metrics(italic).size() != 18) throw new IllegalStateException("rich font FFI failed");
+    }
 
     /**
      * Layouts in two generations: when the current one fills up, by count or
@@ -99,7 +114,21 @@ public final class TextEngine {
             return old;
         }
         long started = System.nanoTime();
-        TextLayout layout = shape(text, size, weight, maxWidth);
+        TextLayout layout = shape(text, null, size, weight, maxWidth);
+        layoutNanos += System.nanoTime() - started;
+        keep(key, layout);
+        return layout;
+    }
+
+    public TextLayout layout(jui.ui.Spans spans, float size, int weight, float maxWidth) {
+        long key = layoutKey(spans.text(), size, weight, maxWidth) * 31 + spans.shapeHash();
+        TextLayout cached = layouts.get(key);
+        if (cached != null && cached.is(spans, size, weight, maxWidth)) return cached;
+        cached = previous.get(key);
+        if (cached != null && cached.is(spans, size, weight, maxWidth)) { keep(key, cached); return cached; }
+        long started = System.nanoTime();
+        TextLayout layout = shape(spans.text(), spans, size, weight, maxWidth);
+        layout.spans = spans;
         layoutNanos += System.nanoTime() - started;
         keep(key, layout);
         return layout;
@@ -131,11 +160,12 @@ public final class TextEngine {
         return h * 0x9E3779B97F4A7C15L + Float.floatToIntBits(maxWidth);
     }
 
-    private TextLayout shapeParagraphs(String text, float size, int weight, float maxWidth) {
+    private TextLayout shapeParagraphs(String text, jui.ui.Spans spans, float size, int weight, float maxWidth) {
         int capacity = text.length() + 8;
         long[] fonts = new long[capacity];
         short[] glyphs = new short[capacity];
         float[] xs = new float[capacity], ys = new float[capacity];
+        float[] sizes = new float[capacity];
         int[] indices = new int[capacity];
         float[] downstream = new float[text.length() + 1], upstream = new float[text.length() + 1];
         TextLayout.LineTable lines = new TextLayout.LineTable();
@@ -149,19 +179,22 @@ public final class TextEngine {
                 breakEnd++;
                 if (text.charAt(end) == '\r' && breakEnd < text.length() && text.charAt(breakEnd) == '\n') breakEnd++;
             }
-            TextLayout paragraph = layout(text.substring(start, end), size, weight, maxWidth);
+            TextLayout paragraph = spans == null ? layout(text.substring(start, end), size, weight, maxWidth)
+                    : layout(spans.slice(start, end), size, weight, maxWidth);
             if (count + paragraph.count > fonts.length) {
                 int grown = Math.max(fonts.length * 2, count + paragraph.count);
                 fonts = Arrays.copyOf(fonts, grown);
                 glyphs = Arrays.copyOf(glyphs, grown);
                 xs = Arrays.copyOf(xs, grown);
                 ys = Arrays.copyOf(ys, grown);
+                sizes = Arrays.copyOf(sizes, grown);
                 indices = Arrays.copyOf(indices, grown);
             }
             System.arraycopy(paragraph.fonts, 0, fonts, count, paragraph.count);
             System.arraycopy(paragraph.glyphs, 0, glyphs, count, paragraph.count);
             System.arraycopy(paragraph.xs, 0, xs, count, paragraph.count);
             for (int glyph = 0; glyph < paragraph.count; glyph++) {
+                sizes[count + glyph] = paragraph.glyphSize(glyph);
                 ys[count + glyph] = paragraph.ys[glyph] + top;
                 indices[count + glyph] = paragraph.indices[glyph] + start;
             }
@@ -171,6 +204,7 @@ public final class TextEngine {
                         line == paragraph.lines - 1 ? breakEnd : start + paragraph.lineBreakEnd(line),
                         count + paragraph.lineGlyphStart(line), count + paragraph.lineGlyphEnd(line),
                         top + paragraph.lineTop(line), paragraph.lineHeight(line), paragraph.lineWidth(line));
+                lines.baselines[lines.count - 1] = top + paragraph.lineBaseline(line);
             }
             count += paragraph.count;
             top += paragraph.height;
@@ -178,18 +212,32 @@ public final class TextEngine {
             if (end == text.length()) break;
             start = breakEnd;
         }
-        return new TextLayout(text, size, weight, maxWidth, widest, top, count, fonts, glyphs, xs, ys,
+        TextLayout result = new TextLayout(text, size, weight, maxWidth, widest, top, count, fonts, glyphs, xs, ys,
                 indices, lines, TextBounds.graphemes(text), downstream, upstream);
+        result.sizes = sizes;
+        return result;
     }
 
-    private TextLayout shape(String text, float size, int weight, float maxWidth) {
-        if (text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0) return shapeParagraphs(text, size, weight, maxWidth);
+    private TextLayout shape(String text, jui.ui.Spans spans, float size, int weight, float maxWidth) {
+        if (text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0) return shapeParagraphs(text, spans, size, weight, maxWidth);
         long font = systemFont(size, weight);
         long str = CoreText.string(text);
         long attrs = CoreText.dictionary(
                 new long[] {CoreText.FONT_ATTRIBUTE_NAME, CoreText.LANGUAGE_ATTRIBUTE_NAME},
                 new long[] {font, language});
         long attributed = CoreText.attributedString(str, attrs);
+        if (spans != null && spans.shapeCount() > 0) {
+            long mutable = CoreText.mutableCopy(attributed);
+            CoreText.release(attributed);
+            attributed = mutable;
+            int start = 0;
+            for (int index = 0; index < spans.shapeCount(); index++) {
+                jui.ui.Spans.Shape style = spans.shape(index);
+                long resolved = styledFont(style.size() == 0 ? size : style.size(), style.weight() == 0 ? weight : style.weight(), style.mono(), style.italic());
+                CoreText.fontAttribute(attributed, start, style.end(), resolved);
+                start = style.end();
+            }
+        }
         long typesetter = CoreText.typesetter(attributed);
 
         int cap = text.length() + 8;
@@ -197,6 +245,7 @@ public final class TextEngine {
         short[] glyphs = new short[cap];
         float[] xs = new float[cap];
         float[] ys = new float[cap];
+        float[] sizes = new float[cap];
         int[] indices = new int[cap];
         int count = 0;
         TextLayout.LineTable lineTable = new TextLayout.LineTable();
@@ -212,6 +261,7 @@ public final class TextEngine {
                 if (paragraphEnd == start) {
                     float emptyHeight = lineHeight(size, weight);
                     lineTable.add(start, start, breakEnd, count, count, (float) top, emptyHeight, 0);
+                    lineTable.baselines[lineTable.count - 1] = (float) top + CoreText.ascent(font);
                     downstreamX[start] = 0;
                     top += emptyHeight;
                     if (breakEnd == text.length() && start == text.length()) break;
@@ -239,6 +289,7 @@ public final class TextEngine {
                     long run = CoreText.arrayGet(runs, r);
                     long runFont = canonical(CoreText.dictionaryGetValue(CoreText.runAttributes(run),
                             CoreText.FONT_ATTRIBUTE_NAME));
+                    float runSize = metrics(runFont).size();
                     int ng = (int) CoreText.runGlyphCount(run);
                     if (ng == 0) {
                         continue;
@@ -255,10 +306,12 @@ public final class TextEngine {
                         glyphs = Arrays.copyOf(glyphs, grown);
                         xs = Arrays.copyOf(xs, grown);
                         ys = Arrays.copyOf(ys, grown);
+                        sizes = Arrays.copyOf(sizes, grown);
                         indices = Arrays.copyOf(indices, grown);
                     }
                     for (int j = 0; j < ng; j++) {
                         fonts[count] = runFont;
+                        sizes[count] = runSize;
                         glyphs[count] = ids.getAtIndex(JAVA_SHORT, j);
                         xs[count] = (float) points.get(JAVA_DOUBLE, 16L * j);
                         // Core Text's y goes up from the baseline.
@@ -279,6 +332,7 @@ public final class TextEngine {
                 float rowWidth = (float) Math.max(lineWidth, CoreText.lineOffset(line, end));
                 lineTable.add(start, end, end == paragraphEnd ? breakEnd : end, glyphStart, count,
                         (float) top, (float) (ascent + descent + leading), rowWidth);
+                lineTable.baselines[lineTable.count - 1] = (float) baseline;
                 CoreText.release(line);
                 top += ascent + descent + leading;
                 widest = Math.max(widest, rowWidth);
@@ -291,8 +345,10 @@ public final class TextEngine {
             CoreText.release(attrs);
             CoreText.release(str);
         }
-        return new TextLayout(text, size, weight, maxWidth, (float) widest, (float) top, count, fonts, glyphs, xs, ys,
+        TextLayout result = new TextLayout(text, size, weight, maxWidth, (float) widest, (float) top, count, fonts, glyphs, xs, ys,
                 indices, lineTable, stops, downstreamX, upstreamX);
+        result.sizes = sizes;
+        return result;
     }
 
     /**
@@ -311,37 +367,34 @@ public final class TextEngine {
      * freed with it, so their references are never kept.
      */
     private long canonical(long font) {
+        long hash = CoreText.hash(font);
+        java.util.ArrayList<Long> bucket = canonicalFonts.get(hash);
+        if (bucket == null) { bucket = new java.util.ArrayList<>(); canonicalFonts.put(hash, bucket); }
+        for (long kept : bucket) if (CoreText.equal(kept, font)) return kept;
+        CoreText.retain(font);
+        bucket.add(font);
+        fontMetrics.put(font, new FontMetrics(CoreText.fontSize(font), CoreText.underline(font), CoreText.thickness(font), CoreText.xHeight(font), CoreText.ascent(font)));
+        return font;
+    }
+
+    private long styledFont(float size, int weight, boolean mono, boolean italic) {
+        long key = ((long) Float.floatToIntBits(size) << 32) | weight | (mono ? 1L << 20 : 0) | (italic ? 1L << 21 : 0);
+        Long cached = systemFonts.get(key);
+        if (cached != null) return cached;
         long pool = ObjC.poolPush();
         try {
-            String key = ObjC.string(ObjC.send(font, "fontName")) + "@" + ObjC.sendDouble(font, "pointSize");
-            Long kept = canonicalFonts.get(key);
-            if (kept != null) {
-                return kept;
-            }
-            CoreText.retain(font); // CTFont and NSFont are the same objects
-            canonicalFonts.put(key, font);
-            return font;
-        } finally {
-            ObjC.poolPop(pool);
-        }
+            long font = ObjC.sendDoubles(ObjC.cls("NSFont"), mono ? "monospacedSystemFontOfSize:weight:" : "systemFontOfSize:weight:", size, nsWeight(weight));
+            long copy = italic ? CoreText.italic(font) : 0;
+            long resolved = canonical(copy == 0 ? font : copy);
+            if (copy != 0) CoreText.release(copy);
+            systemFonts.put(key, resolved);
+            return resolved;
+        } finally { ObjC.poolPop(pool); }
     }
 
     /** The system font, as NSFont gives it with its weights, cached. */
     private long systemFont(float size, int weight) {
-        long key = ((long) Float.floatToIntBits(size) << 32) | weight;
-        Long font = systemFonts.get(key);
-        if (font != null) {
-            return font;
-        }
-        long pool = ObjC.poolPush();
-        try {
-            long f = ObjC.sendDoubles(ObjC.cls("NSFont"), "systemFontOfSize:weight:", size, nsWeight(weight));
-            CoreText.retain(f); // NSFont and CTFont are the same objects
-            systemFonts.put(key, f);
-            return f;
-        } finally {
-            ObjC.poolPop(pool);
-        }
+        return styledFont(size, weight, false, false);
     }
 
     /** NSFontWeight for a CSS weight, as MyGO maps them. */

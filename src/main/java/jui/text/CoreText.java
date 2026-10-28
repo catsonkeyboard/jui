@@ -32,6 +32,16 @@ final class CoreText {
     private static final MemorySegment CF_ARRAY_GET_COUNT = ObjC.symbol(CF, "CFArrayGetCount");
     private static final MemorySegment CF_ARRAY_GET_VALUE_AT_INDEX = ObjC.symbol(CF, "CFArrayGetValueAtIndex");
     private static final MemorySegment CF_ATTRIBUTED_STRING_CREATE = ObjC.symbol(CF, "CFAttributedStringCreate");
+    private static final MemorySegment CF_MUTABLE_COPY = ObjC.symbol(CF, "CFAttributedStringCreateMutableCopy");
+    private static final MemorySegment CF_SET_ATTRIBUTE = ObjC.symbol(CF, "CFAttributedStringSetAttribute");
+    private static final MemorySegment CF_HASH = ObjC.symbol(CF, "CFHash");
+    private static final MemorySegment CF_EQUAL = ObjC.symbol(CF, "CFEqual");
+    private static final MemorySegment FONT_TRAITS = ObjC.symbol(CT, "CTFontCreateCopyWithSymbolicTraits");
+    private static final MemorySegment FONT_SIZE = ObjC.symbol(CT, "CTFontGetSize");
+    private static final MemorySegment FONT_UNDERLINE = ObjC.symbol(CT, "CTFontGetUnderlinePosition");
+    private static final MemorySegment FONT_THICKNESS = ObjC.symbol(CT, "CTFontGetUnderlineThickness");
+    private static final MemorySegment FONT_X_HEIGHT = ObjC.symbol(CT, "CTFontGetXHeight");
+    private static final MemorySegment FONT_ASCENT = ObjC.symbol(CT, "CTFontGetAscent");
 
     private static final MemorySegment CT_TYPESETTER_CREATE = ObjC.symbol(CT, "CTTypesetterCreateWithAttributedString");
     private static final MemorySegment CT_TYPESETTER_SUGGEST_LINE_BREAK = ObjC.symbol(CT, "CTTypesetterSuggestLineBreak");
@@ -132,6 +142,35 @@ final class CoreText {
     static long typesetter(long attributedString) {
         return Native.call(CT_TYPESETTER_CREATE, attributedString);
     }
+
+    static long mutableCopy(long attributed) { return Native.call(CF_MUTABLE_COPY, 0L, 0L, attributed); }
+    static long hash(long value) { return Native.call(CF_HASH, value); }
+    static boolean equal(long first, long second) {
+        try { return (boolean) Native.CF_EQUAL.invokeExact(CF_EQUAL, first, second); }
+        catch (Throwable failure) { throw Native.rethrow(failure); }
+    }
+    static long italic(long font) {
+        try { return (long) Native.FONT_TRAITS.invokeExact(FONT_TRAITS, font, 0.0, 0L, 1, 1); }
+        catch (Throwable failure) { throw Native.rethrow(failure); }
+    }
+    static long fontCopy(long font) {
+        try { return (long) Native.FONT_TRAITS.invokeExact(FONT_TRAITS, font, 0.0, 0L, 0, 0); }
+        catch (Throwable failure) { throw Native.rethrow(failure); }
+    }
+    static void fontAttribute(long attributed, int start, int end, long font) {
+        RANGE.set(JAVA_LONG, 0, start); RANGE.set(JAVA_LONG, 8, end - start);
+        try { Native.CF_SET_ATTRIBUTE.invokeExact(CF_SET_ATTRIBUTE, attributed, RANGE, FONT_ATTRIBUTE_NAME, font); }
+        catch (Throwable failure) { throw Native.rethrow(failure); }
+    }
+    private static float metric(MemorySegment function, long font) {
+        try { return (float) (double) Native.FONT_METRIC.invokeExact(function, font); }
+        catch (Throwable failure) { throw Native.rethrow(failure); }
+    }
+    static float fontSize(long font) { return metric(FONT_SIZE, font); }
+    static float underline(long font) { return metric(FONT_UNDERLINE, font); }
+    static float thickness(long font) { return metric(FONT_THICKNESS, font); }
+    static float xHeight(long font) { return metric(FONT_X_HEIGHT, font); }
+    static float ascent(long font) { return metric(FONT_ASCENT, font); }
 
     static long suggestLineBreak(long typesetter, long start, double width) {
         try {
