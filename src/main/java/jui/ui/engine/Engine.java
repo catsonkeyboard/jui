@@ -137,13 +137,13 @@ public final class Engine {
             }
             settleInputs();
             inheritTextStyle();
-            layout.layout(0, width, height);
+            layoutFrame(width, height);
             boolean again = afterLayout();
             int revealed = reveal(width, height);
             if ((revealed & REVEAL_ROUND) != 0) {
                 again = true; // a list moved: another round builds and lays out what reveal asked for
             } else if ((revealed & REVEAL_LAYOUT) != 0) {
-                layout.layout(0, width, height); // the offsets reveal set, in this frame
+                layoutFrame(width, height);
                 again |= afterLayout();
             }
             if (!again) {
@@ -269,12 +269,16 @@ public final class Engine {
      * reported), drops a composition while disabled, and shows the text.
      */
     public void textInput(int index, jui.ui.TextRef ref) {
+        textInput(index, ref, false);
+    }
+
+    public void textInput(int index, jui.ui.TextRef ref, boolean multiline) {
         Node n = pool.node(index);
         ElementState s = state(index);
         TextEdit e = s.edit;
         String value = ref.get();
         if (e == null) {
-            e = s.edit = new TextEdit(value);
+            e = s.edit = new TextEdit(value, multiline);
         } else if (!value.equals(e.synced)) {
             boolean composing = e.composing();
             // The app's value, over any edit since (as MyGO); in the frame the user's edit reached
@@ -285,6 +289,10 @@ public final class Engine {
             }
         } else if (e.dirty) {
             writeBack(index, e, ref);
+        }
+        if (e.multiline != multiline) {
+            if (e.composing()) host.discardMarkedText();
+            e = s.edit = new TextEdit(ref.get(), multiline);
         }
         s.ref = ref;
         s.onPaste = null; // the hooks hold while the builds that set them go on (as MyGO's rebuild)
@@ -315,7 +323,7 @@ public final class Engine {
             }
             TextEdit e = n.state.edit;
             e.readOnly = n.readOnly;
-            e.password = n.password;
+            e.password = n.password && !n.multiline;
             if ((off(n) || e.readOnly) && e.composing()) {
                 // Disabled or read-only, it takes no text: the composition goes (as MyGO).
                 e.setMarked("", 0, 0, -1, 0, now);
@@ -562,9 +570,7 @@ public final class Engine {
                     s.viewW = s.cw;
                     s.requestX = Float.NaN;
                 }
-                if (n.kind == Node.INPUT && s.edit != null && n.layout != null) {
-                    inputGeometry(n, s);
-                }
+                if (n.kind == Node.INPUT && s.edit != null) s.edit.revealCaret = false;
             }
         }
         states.prune(frame, passId);
@@ -652,6 +658,39 @@ public final class Engine {
         float cx = n.x + n.padLeft + n.border, cy = n.y + n.padTop + n.border;
         float cw = Math.max(0, n.w - n.padLeft - n.padRight - 2 * n.border);
         float ch = Math.max(0, n.h - n.padTop - n.padBottom - 2 * n.border);
+        e.configureLayout(text, n.resolvedSize, n.resolvedWeight, cw, ch);
+        if (n.multiline) {
+            l = n.layout = e.ensureLayout();
+            n.contentH = l.height + n.padTop + n.padBottom + 2 * n.border;
+            n.contentW = n.w;
+            float requested = Float.isNaN(n.scrollRequest) ? n.scrollY : n.scrollRequest;
+            float maximum = Math.max(0, n.contentH - n.h);
+            n.scrollY = Math.max(0, Math.min(maximum, requested));
+            int caretLine = l.lineAt(e.displayCaret(), e.caretUpstream);
+            if (e.revealCaret) {
+                float caretTop = l.lineTop(caretLine);
+                float caretBottom = caretTop + l.lineHeight(caretLine);
+                float before = n.scrollY;
+                if (caretTop < n.scrollY) n.scrollY = caretTop;
+                else if (caretBottom > n.scrollY + ch) n.scrollY = caretBottom - ch;
+                n.scrollY = Math.max(0, Math.min(maximum, n.scrollY));
+                if (before != n.scrollY) {
+                    s.wheelingY = false;
+                    s.animating = false;
+                }
+            }
+            n.scrollRequest = n.scrollY;
+            e.scrollX = n.scrollX = 0;
+            e.originX = n.inputX = cx;
+            e.originY = n.inputTop = cy - n.scrollY;
+            e.lineTop = e.originY + l.lineTop(caretLine);
+            e.lineH = n.inputLineH = l.lineHeight(caretLine);
+            e.clipX0 = n.x + n.border;
+            e.clipY0 = n.y + n.border;
+            e.clipX1 = n.x + n.w - n.border;
+            e.clipY1 = n.y + n.h - n.border;
+            return;
+        }
         float lineH = Math.max(text.lineHeight(n.resolvedSize, n.resolvedWeight), l.height);
         float top = cy + Math.max((ch - lineH) / 2, 0);
         if (input.focusedId != n.id) {
@@ -676,6 +715,20 @@ public final class Engine {
         n.inputX = e.originX;
         n.inputTop = top;
         n.inputLineH = lineH;
+    }
+
+    private void layoutInputs() {
+        for (int index = 0; index < pool.size(); index++) {
+            Node node = pool.node(index);
+            if (node.kind == Node.INPUT && node.state != null && node.state.edit != null && node.layout != null) {
+                inputGeometry(node, node.state);
+            }
+        }
+    }
+
+    private void layoutFrame(float width, float height) {
+        layout.layout(0, width, height);
+        layoutInputs();
     }
 
     /** Whether the node or one inside it has identity id. */
@@ -1165,7 +1218,7 @@ public final class Engine {
             }
             int m = reveal(id);
             if ((m & REVEAL_LAYOUT) != 0 && i + 1 < n) {
-                layout.layout(0, width, height);
+                layoutFrame(width, height);
             }
             moved |= m;
         }
@@ -1609,6 +1662,11 @@ public final class Engine {
         return pool.node(i).state.edit.scrollX;
     }
 
+    public float textScrollY(String label) {
+        int index = find(label);
+        return index == Node.NONE ? Float.NaN : pool.node(index).scrollY;
+    }
+
     /** A command of the Edit menu: for the text input, else as its key, for shortcuts. */
     public void editCommand(jui.ui.EditCommand c) {
         input.editCommand(c);
@@ -1666,9 +1724,19 @@ public final class Engine {
                 throw new IllegalStateException("text inputs need an engine made with a TextEngine");
             }
             // One line, unwrapped; as high as a line of Latin and Han, so it keeps its height as Chinese is typed.
-            n.layout = text.layout(n.text == null ? "" : n.text, n.resolvedSize, n.resolvedWeight, 0);
+            float wrapWidth = n.multiline && maxWidth != FlexLayout.UNLIMITED ? Math.max(0.01f, maxWidth) : 0;
+            n.layout = text.layout(n.text == null ? "" : n.text, n.resolvedSize, n.resolvedWeight, wrapWidth);
             out[0] = INPUT_WIDTH;
             out[1] = Math.max(text.lineHeight(n.resolvedSize, n.resolvedWeight), n.layout.height);
+            if (n.multiline) {
+                float base = text.lineHeight(n.resolvedSize, n.resolvedWeight);
+                if (n.areaMinLines > 0) {
+                    out[1] = Math.max(base * n.areaMinLines, Math.min(base * n.areaMaxLines, n.layout.height));
+                } else {
+                    out[1] = Math.max(3, n.state.edit.paragraphCount()) * base;
+                    if (n.inputStyled) out[1] = Math.max(out[1], 80 - n.padTop - n.padBottom - 2 * n.border);
+                }
+            }
             return;
         }
         if (n.kind != Node.TEXT || n.text == null) {

@@ -86,6 +86,24 @@ public final class TextEdit {
     private boolean hasGoal;
     private float goalX;
     private final int[] hit = new int[2];
+    private String countedText;
+    private int paragraphs;
+
+    public int paragraphCount() {
+        String shown = display();
+        if (countedText != shown) {
+            paragraphs = 1;
+            for (int index = 0; index < shown.length(); index++) {
+                char character = shown.charAt(index);
+                if (character == '\r' || character == '\n') {
+                    paragraphs++;
+                    if (character == '\r' && index + 1 < shown.length() && shown.charAt(index + 1) == '\n') index++;
+                }
+            }
+            countedText = shown;
+        }
+        return paragraphs;
+    }
 
     public void configureLayout(TextEngine engine, float size, int weight, float width, float height) {
         if (textEngine != engine || layoutSize != size || layoutWeight != weight || layoutWidth != width) {

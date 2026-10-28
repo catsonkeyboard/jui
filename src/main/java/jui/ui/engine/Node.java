@@ -126,6 +126,8 @@ public final class Node {
     public boolean inputFocused, caretShown;
     /** A text input's options in this frame (Element.readOnly). */
     public boolean readOnly, password, noInputMethod;
+    public boolean multiline, inputStyled;
+    public int areaMinLines, areaMaxLines;
 
     // Visual, colors as 0xRRGGBBAA.
     public int background, borderColor, shadowColor;
@@ -204,6 +206,8 @@ public final class Node {
         inputCaret = inputSelA = inputSelB = 0;
         inputMarkA = inputMarkB = -1;
         inputFocused = caretShown = readOnly = password = noInputMethod = false;
+        multiline = inputStyled = false;
+        areaMinLines = areaMaxLines = 0;
 
         background = borderColor = shadowColor = 0;
         radiusTL = radiusTR = radiusBR = radiusBL = 0;

@@ -384,6 +384,33 @@ public final class Ui {
         return e;
     }
 
+    public static Element textAreaBase(Context context, TextRef value) {
+        Element element = open(context, Node.INPUT, false, Align.STRETCH);
+        Node node = element.node();
+        if (node != null) {
+            node.multiline = true;
+            node.flags |= Node.FOCUSABLE | Node.HOVER | Node.DRAG | Node.TEXT_INPUT;
+            context.engine().textInput(element.index, value, true);
+            context.engine().makeScroll(element.index, false, true);
+        }
+        return element;
+    }
+
+    public static Element textArea(Context context, TextRef value) {
+        Element element = textAreaBase(context, value);
+        Node node = element.node();
+        if (node != null) {
+            Theme theme = context.theme();
+            element.padding(6, 10).radius(theme.radius());
+            node.inputStyled = true;
+            node.background = theme.surface().rgba();
+            node.border = 1;
+            node.borderColor = element.focused() ? theme.accent().rgba()
+                    : element.hovered() ? mix(theme.border(), theme.text(), 0.25f) : theme.border().rgba();
+        }
+        return element;
+    }
+
     /** a mixed a share t of the way to b, as 0xRRGGBBAA, without making a Color. */
     private static int mix(Color a, Color b, float t) {
         return mix(a.rgba(), b.rgba(), t);

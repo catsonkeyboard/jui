@@ -142,6 +142,19 @@ public final class Element {
         return this;
     }
 
+    public Element lines(int min, int max) {
+        Node current = node();
+        if (current != null) {
+            if (!current.multiline || min < 1 || max < min) {
+                Dev.fail("lines requires a text area and 1 <= min <= max");
+            } else {
+                current.areaMinLines = min;
+                current.areaMaxLines = max;
+            }
+        }
+        return this;
+    }
+
     /**
      * Has fn see a key pressed in a text input before the input takes it, as
      * it comes (as MyGO's OnTextKey): the keys that type no text — those

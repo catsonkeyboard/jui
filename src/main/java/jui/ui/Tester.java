@@ -202,6 +202,12 @@ public final class Tester {
         return engine.textScroll(s);
     }
 
+    public float textScrollY(String label) {
+        started();
+        find(label);
+        return engine.textScrollY(label);
+    }
+
     /** The pointer's shape, as last set. */
     public Cursor cursor() {
         return host.cursor;
