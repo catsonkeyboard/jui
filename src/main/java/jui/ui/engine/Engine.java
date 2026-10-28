@@ -668,16 +668,13 @@ public final class Engine {
             n.scrollY = Math.max(0, Math.min(maximum, requested));
             int caretLine = l.lineAt(e.displayCaret(), e.caretUpstream);
             if (e.revealCaret) {
+                s.wheelingY = false;
+                s.animating = false;
                 float caretTop = l.lineTop(caretLine);
                 float caretBottom = caretTop + l.lineHeight(caretLine);
-                float before = n.scrollY;
                 if (caretTop < n.scrollY) n.scrollY = caretTop;
                 else if (caretBottom > n.scrollY + ch) n.scrollY = caretBottom - ch;
                 n.scrollY = Math.max(0, Math.min(maximum, n.scrollY));
-                if (before != n.scrollY) {
-                    s.wheelingY = false;
-                    s.animating = false;
-                }
             }
             n.scrollRequest = n.scrollY;
             e.scrollX = n.scrollX = 0;

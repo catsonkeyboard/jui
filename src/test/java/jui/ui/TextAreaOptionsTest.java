@@ -4,6 +4,18 @@ import jui.testing.Check;
 import static jui.ui.Ui.*;
 
 public final class TextAreaOptionsTest {
+    public void testTabHookCanKeepFocusInTheArea() {
+        TextRef value = new TextRef("");
+        Tester tester = Tester.of(context -> {
+            textArea(context, value).label("area").onTextKey(key -> key.key() == Key.TAB);
+            button(context, "next");
+        }, 300, 240);
+        tester.key(Shortcut.of(Key.TAB));
+        Check.isTrue(tester.focused("area"), "first Tab enters the area");
+        tester.key(Shortcut.of(Key.TAB));
+        Check.isTrue(tester.focused("area"), "hook takes Tab before focus moves");
+    }
+
     public void testPasswordDoesNothingAndReadOnlyCopiesWholeLines() {
         TextRef value = new TextRef("one\ntwo");
         Tester tester = Tester.of(context -> textArea(context, value).readOnly(true).password().size(220, 100).label("area"), 300, 200);

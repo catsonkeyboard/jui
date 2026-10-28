@@ -41,4 +41,19 @@ public final class TextAreaEditTest {
         edit.command(EditCommand.UNDO, null, 4);
         Check.isTrue(edit.caretUpstream, "undo restores caret affinity");
     }
+
+    public void testReplacementRangeUsesTheUnnormalizedMarkedDocument() {
+        TextEdit edit = new TextEdit("abTAIL", true);
+        edit.select(2, 2);
+        edit.setMarked("\r\n", 2, 0, -1, 0, 0);
+        edit.replace(4, 8, "X", 1);
+        Check.equal("ab\nX", edit.text());
+        edit.command(EditCommand.UNDO, null, 2);
+        Check.equal("abTAIL", edit.text());
+
+        edit.select(2, 2);
+        edit.setMarked("x\r\ny", 4, 0, -1, 0, 3);
+        edit.replace(3, 5, "-", 4);
+        Check.equal("abx-yTAIL", edit.text());
+    }
 }

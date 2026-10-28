@@ -409,7 +409,9 @@ public final class TextEdit {
                 } else if (word) {
                     move(left ? TextBounds.prevWord(text, caret) : TextBounds.nextWord(text, caret), shift);
                 } else if (a != z && !shift) {
-                    move(left ? a : z, false);
+                    boolean edgeUpstream = left ? (anchor < caret ? anchorUpstream : caretUpstream)
+                            : (anchor > caret ? anchorUpstream : caretUpstream);
+                    movePosition(left ? a : z, multiline && edgeUpstream, false);
                 } else {
                     move(left ? TextBounds.before(stops, caret) : TextBounds.after(stops, caret), shift);
                 }
@@ -475,6 +477,15 @@ public final class TextEdit {
 
     /** Text committed over [start, end) of the shown text: the composition is committed first. */
     public void replace(int start, int end, String s, long now) {
+        if (multiline && compose.indexOf("\r\n") >= 0) {
+            int[] boundaries = TextBounds.graphemes(display());
+            int from = Math.max(0, Math.min(Math.min(start, end), length()));
+            int to = Math.max(from, Math.min(Math.max(start, end), length()));
+            from = TextBounds.floor(boundaries, from);
+            if (TextBounds.floor(boundaries, to) != to) to = TextBounds.after(boundaries, to);
+            start = normalizedMarkedIndex(from);
+            end = normalizedMarkedIndex(to);
+        }
         commitComposition();
         s = insertedText(s);
         int a = snap(Math.min(start, end)), z = snapUp(Math.max(start, end));
@@ -889,6 +900,13 @@ public final class TextEdit {
             return i;
         }
         return i >= caret + compose.length() ? i - compose.length() : caret;
+    }
+
+    private int normalizedMarkedIndex(int index) {
+        if (index <= caret) return index;
+        int local = Math.min(index - caret, compose.length());
+        return caret + insertedText(compose.substring(0, local)).length()
+                + Math.max(0, index - caret - compose.length());
     }
 
     /** i clamped to the text, down to a grapheme boundary. */

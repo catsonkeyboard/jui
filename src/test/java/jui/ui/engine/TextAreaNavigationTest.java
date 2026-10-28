@@ -52,4 +52,40 @@ public final class TextAreaNavigationTest {
         Check.equal(0, edit.caret());
         Check.isTrue(layout == edit.ensureLayout(), "motion does not reshape");
     }
+
+    public void testCollapsingASelectionRetainsItsVisualEdge() {
+        TextEdit edit = editor("abcdef ghijkl mnopqr", 45);
+        edit.select(0, 0);
+        edit.key(Key.END, 0, 0);
+        int boundary = edit.caret();
+        edit.key(Key.LEFT, Mod.SHIFT, 1);
+        edit.key(Key.RIGHT, 0, 2);
+        Check.equal(boundary, edit.caret());
+        Check.isTrue(edit.caretUpstream, "right collapses to the selected upstream edge");
+        edit.key(Key.RIGHT, Mod.SHIFT, 3);
+        edit.key(Key.RIGHT, Mod.SHIFT, 4);
+        edit.key(Key.LEFT, 0, 5);
+        Check.equal(boundary, edit.caret());
+        Check.isTrue(edit.caretUpstream, "left preserves the anchor's upstream edge");
+    }
+
+    public void testPageMotionAndEmacsAliasesUseVisualLines() {
+        TextEdit edit = editor("abcdef\n".repeat(20), 200);
+        TextLayout layout = edit.ensureLayout();
+        int distance = Math.max(1, (int) (100 / engine.lineHeight(13, 400)) - 1);
+        edit.select(75, 75);
+        edit.key(Key.PAGE_UP, 0, 0);
+        Check.equal(layout.lineStart(10 - distance) + 5, edit.caret());
+        edit.key(Key.PAGE_DOWN, Mod.SHIFT, 1);
+        Check.equal(75, edit.caret());
+        edit.key(Key.P, Mod.CTRL, 2);
+        Check.equal(68, edit.caret());
+        edit.key(Key.N, Mod.CTRL, 3);
+        Check.equal(75, edit.caret());
+        edit.key(Key.UP, Mod.CMD | Mod.SHIFT, 4);
+        Check.equal(75, edit.anchor());
+        Check.equal(0, edit.caret());
+        edit.key(Key.DOWN, Mod.CMD, 5);
+        Check.equal(edit.text().length(), edit.caret());
+    }
 }
