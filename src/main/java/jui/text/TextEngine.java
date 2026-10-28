@@ -59,6 +59,7 @@ public final class TextEngine {
     /** Glyphs rasterized, and the nanoseconds spent laying out and rasterizing. */
     public int rasterized;
     public long layoutNanos, rasterNanos;
+    public long shapedLines;
 
     /** {@code language} picks the glyphs of fonts that have several, as Han characters in Chinese and Japanese. */
     public TextEngine(String language) {
@@ -130,7 +131,59 @@ public final class TextEngine {
         return h * 0x9E3779B97F4A7C15L + Float.floatToIntBits(maxWidth);
     }
 
+    private TextLayout shapeParagraphs(String text, float size, int weight, float maxWidth) {
+        int capacity = text.length() + 8;
+        long[] fonts = new long[capacity];
+        short[] glyphs = new short[capacity];
+        float[] xs = new float[capacity], ys = new float[capacity];
+        int[] indices = new int[capacity];
+        float[] downstream = new float[text.length() + 1], upstream = new float[text.length() + 1];
+        TextLayout.LineTable lines = new TextLayout.LineTable();
+        int count = 0;
+        float top = 0, widest = 0;
+        for (int start = 0; ; ) {
+            int end = start;
+            while (end < text.length() && text.charAt(end) != '\n' && text.charAt(end) != '\r') end++;
+            int breakEnd = end;
+            if (breakEnd < text.length()) {
+                breakEnd++;
+                if (text.charAt(end) == '\r' && breakEnd < text.length() && text.charAt(breakEnd) == '\n') breakEnd++;
+            }
+            TextLayout paragraph = layout(text.substring(start, end), size, weight, maxWidth);
+            if (count + paragraph.count > fonts.length) {
+                int grown = Math.max(fonts.length * 2, count + paragraph.count);
+                fonts = Arrays.copyOf(fonts, grown);
+                glyphs = Arrays.copyOf(glyphs, grown);
+                xs = Arrays.copyOf(xs, grown);
+                ys = Arrays.copyOf(ys, grown);
+                indices = Arrays.copyOf(indices, grown);
+            }
+            System.arraycopy(paragraph.fonts, 0, fonts, count, paragraph.count);
+            System.arraycopy(paragraph.glyphs, 0, glyphs, count, paragraph.count);
+            System.arraycopy(paragraph.xs, 0, xs, count, paragraph.count);
+            for (int glyph = 0; glyph < paragraph.count; glyph++) {
+                ys[count + glyph] = paragraph.ys[glyph] + top;
+                indices[count + glyph] = paragraph.indices[glyph] + start;
+            }
+            paragraph.copyCarets(downstream, upstream, start);
+            for (int line = 0; line < paragraph.lines; line++) {
+                lines.add(start + paragraph.lineStart(line), start + paragraph.lineEnd(line),
+                        line == paragraph.lines - 1 ? breakEnd : start + paragraph.lineBreakEnd(line),
+                        count + paragraph.lineGlyphStart(line), count + paragraph.lineGlyphEnd(line),
+                        top + paragraph.lineTop(line), paragraph.lineHeight(line), paragraph.lineWidth(line));
+            }
+            count += paragraph.count;
+            top += paragraph.height;
+            widest = Math.max(widest, paragraph.width);
+            if (end == text.length()) break;
+            start = breakEnd;
+        }
+        return new TextLayout(text, size, weight, maxWidth, widest, top, count, fonts, glyphs, xs, ys,
+                indices, lines, TextBounds.graphemes(text), downstream, upstream);
+    }
+
     private TextLayout shape(String text, float size, int weight, float maxWidth) {
+        if (text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0) return shapeParagraphs(text, size, weight, maxWidth);
         long font = systemFont(size, weight);
         long str = CoreText.string(text);
         long attrs = CoreText.dictionary(
@@ -154,16 +207,8 @@ public final class TextEngine {
         double width = maxWidth > 0 ? maxWidth + 1.0 / 1024 : 1e7;
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment metrics = arena.allocate(24, 8);
+            int paragraphEnd = text.length(), breakEnd = text.length();
             for (int start = 0; ; ) {
-                int paragraphEnd = start;
-                while (paragraphEnd < text.length() && text.charAt(paragraphEnd) != '\n'
-                        && text.charAt(paragraphEnd) != '\r') paragraphEnd++;
-                int breakEnd = paragraphEnd;
-                if (breakEnd < text.length()) {
-                    breakEnd++;
-                    if (text.charAt(paragraphEnd) == '\r' && breakEnd < text.length()
-                            && text.charAt(breakEnd) == '\n') breakEnd++;
-                }
                 if (paragraphEnd == start) {
                     float emptyHeight = lineHeight(size, weight);
                     lineTable.add(start, start, breakEnd, count, count, (float) top, emptyHeight, 0);
@@ -178,6 +223,7 @@ public final class TextEngine {
                 if (end <= start) end = TextBounds.after(stops, start);
                 long n = end - start;
                 long line = CoreText.createLine(typesetter, start, n);
+                shapedLines++;
                 if (line == 0) {
                     break;
                 }

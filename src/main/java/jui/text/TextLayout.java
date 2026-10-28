@@ -57,6 +57,11 @@ public final class TextLayout {
         return count;
     }
 
+    void copyCarets(float[] downstream, float[] upstream, int offset) {
+        System.arraycopy(downstreamX, 0, downstream, offset, downstreamX.length);
+        System.arraycopy(upstreamX, 0, upstream, offset, upstreamX.length);
+    }
+
     /** Whether this layout was made from these parameters. */
     boolean is(String text, float size, int weight, float maxWidth) {
         return this.size == size && this.weight == weight && this.maxWidth == maxWidth && this.text.equals(text);
