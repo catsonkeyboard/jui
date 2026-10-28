@@ -115,6 +115,10 @@ public final class FfiCheck {
         } finally {
             ObjC.poolPop(pool);
         }
+        jui.text.TextEngine textEngine = new jui.text.TextEngine("zh-Hans");
+        jui.text.TextLayout lines = textEngine.layout("a😀\n中", 13, 400, 80);
+        expect(bad, "text line offset", lines.lines == 2 && lines.caretX(3) > 0 && lines.lineStart(1) == 4,
+                Integer.toString(lines.lines));
         return bad;
     }
 

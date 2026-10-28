@@ -15,6 +15,8 @@ import jui.ui.Rect;
 import jui.ui.TextRef;
 import jui.ui.Theme;
 import jui.ui.View;
+import jui.ui.Key;
+import jui.ui.Mod;
 import jui.ui.engine.Engine;
 
 import static jui.ui.Ui.box;
@@ -156,6 +158,90 @@ public final class AllocSpike {
         if (nativeImage && cardFrame > 32768) {
             System.out.printf("FAIL: a card frame allocates %.0f bytes, over 32 KB%n", cardFrame);
             System.exit(1);
+        }
+        measureAreas(text, nativeImage);
+    }
+
+    private static void measureAreas(TextEngine textEngine, boolean nativeImage) {
+        AreaScenario scenario = new AreaScenario(textEngine);
+        scenario.run();
+        Rect area = scenario.engine.bounds("area0");
+        scenario.engine.pointerDown(area.x() + 20, area.y() + 20, 0, 1, 0);
+        scenario.engine.pointerUp(area.x() + 20, area.y() + 20, 0, 0);
+        scenario.run();
+        scenario.engine.scroll(area.x() + 20, area.y() + 20, 0, -200, true, 0);
+        double areas = perFrame(scenario) / 4;
+        scenario.selection = true;
+        double selected = perFrame(scenario) / 4;
+        scenario.selection = false;
+        scenario.engine.keyDown(Key.END, Mod.CTRL, false);
+        scenario.run();
+        scenario.engine.textMark("ni", 2, 0, -1, 0);
+        double composing = perFrame(scenario) / 4;
+        scenario.engine.textUnmark();
+        scenario.run();
+        System.out.printf("AREAS mode=%s areas_frame=%.1f selected_frame=%.1f composing_frame=%.1f focused=%b%n",
+                nativeImage ? "native" : "jvm", areas, selected, composing, scenario.engine.textActive());
+        if (nativeImage && (areas > 0.5 || selected > 0.5 || composing > 0.5 || !scenario.engine.textActive())) {
+            throw new IllegalStateException("text area steady frames allocate");
+        }
+        long[] scrolling = new long[1000], editing = new long[1000];
+        String[] inserted = new String[1100];
+        for (int index = 0; index < inserted.length; index++) inserted[index] = "\n" + index;
+        for (int index = 0; index < inserted.length; index++) {
+            scenario.values[0].set(AreaScenario.SOURCE);
+            scenario.run();
+            scenario.engine.keyDown(Key.END, Mod.CTRL, false);
+            long start = System.nanoTime();
+            scenario.engine.textInsert(inserted[index], -1, 0);
+            scenario.engine.keyDown(Key.UP, 0, false);
+            scenario.run();
+            if (index >= 100) editing[index - 100] = System.nanoTime() - start;
+            start = System.nanoTime();
+            scenario.engine.scroll(area.x() + 20, area.y() + 20, 0, index % 2 == 0 ? -8 : 8, true, 0);
+            scenario.run();
+            if (index >= 100) scrolling[index - 100] = System.nanoTime() - start;
+        }
+        reportAreaTime("scroll", scrolling, nativeImage);
+        reportAreaTime("insert-up", editing, nativeImage);
+    }
+
+    private static void reportAreaTime(String name, long[] samples, boolean nativeImage) {
+        java.util.Arrays.sort(samples);
+        double median = samples[500] / 1e6, percentile = samples[950] / 1e6, maximum = samples[999] / 1e6;
+        System.out.printf("AREABENCH mode=%s case=%s utf16=5000 p50=%.3fms p95=%.3fms max=%.3fms%n",
+                nativeImage ? "native" : "jvm", name, median, percentile, maximum);
+        if (nativeImage && (percentile > 4 || maximum > 8)) throw new IllegalStateException("text area frame budget exceeded");
+    }
+
+    private static final class AreaScenario implements Runnable, View {
+        static final String SOURCE = "中英文 text area abcdefghijklmnopqrstuvwxyz\n".repeat(150).substring(0, 5000);
+        final TextRef[] values = {new TextRef(SOURCE), new TextRef(SOURCE), new TextRef(SOURCE), new TextRef(SOURCE)};
+        final String[] labels = {"area0", "area1", "area2", "area3"};
+        final TextEngine textEngine;
+        final Engine engine;
+        final Scene scene = new Scene();
+        final GlyphAtlas atlas = new GlyphAtlas(1024, 1024);
+        boolean selection;
+
+        AreaScenario(TextEngine textEngine) {
+            this.textEngine = textEngine;
+            engine = new Engine(textEngine, Theme.light(), () -> {});
+        }
+
+        public void build(Context context) {
+            for (int index = 0; index < values.length; index++) {
+                Element area = jui.ui.Ui.textArea(context.key(index), values[index]).size(320, 160)
+                        .label(labels[index]).readOnly(index == 3);
+                if (selection && index == 0) area.setTextSelection(0, values[index].get().length());
+            }
+        }
+
+        public void run() {
+            engine.buildAndLayout(this, 400, 760);
+            scene.begin(2, textEngine, atlas);
+            engine.paint(scene);
+            if (atlas.isFull()) throw new IllegalStateException("text area atlas filled");
         }
     }
 

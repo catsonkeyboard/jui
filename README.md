@@ -326,7 +326,7 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - M3 遗留的一项，按 Tab 时滚进视野：在文件列表里点一下搜索框，再一直按 Tab，焦点逐行往下走，走到视野底部后列表跟着滚动；Shift+Tab 反向；回车或空格选中当前行。
 
 **推迟到后面的**
-- 只读、密码框、`OnPaste`/`OnTextKey`、设置选区的 API、关闭输入法、多行文本框；
+- 只读、密码框、`onPaste`/`onTextKey`、设置选区、关闭输入法已由后续的输入框选项补齐；多行文本框见后面的专节。
 - 菜单里的“粘贴并匹配样式”“删除”，以及菜单标题的本地化（M5 的应用菜单）；
 - 右键菜单（M5 的 `contextMenu`）；
 - 设计 6.12 给编辑器预留的“元素接管文本输入”和富文本片段，留给编辑器的设计。
@@ -423,13 +423,47 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - 命令框：开着中文输入法也直接打出字母；
 - Edit 菜单的 Paste and Match Style（⌥⇧⌘V）和 Delete。
 
+## 多行文本框（2026-10-29）
+
+按[计划二](docs/plans/2026-10-28-text-area.md)实现普通多行输入，行为对照 MyGO `8049993`，不是大文件编辑器。
+
+- `textArea(c, TextRef)` 和无外观的 `textAreaBase`；复用只读、placeholder、选区、`onPaste`、`onTextKey`、关闭输入法、Edit 菜单和撤销。`password()` 在多行框上无效。
+- 自动软换行；Enter 和 Shift+Enter 插入换行，不报告 `submitted()`。Tab 移焦点；需要“回车发送”时由 `onTextKey` 处理。
+- 默认按至少三个硬段的行高给自然高度；带样式框默认至少80 DIP。`lines(1,4)` 从一行自动增高到四行预算，上限之后内部滚动；显式高度和行数预算不受默认80 DIP限制。
+- 上下移动按视觉行并保持目标列；Home/End、⌘方向键、Ctrl的Emacs键、跨行拖选、双击选词、三击选视觉行。软换行处区分上一行末尾和下一行开头。
+- 滚轮和纵向滚动条可离开光标位置，闪烁帧不把视野拉回；编辑或移动光标时才最少滚动揭示它。外部替换文本保留滚动位置，超出新范围才夹取。
+- 多行选区、空行/换行短块、组字下划线和候选框坐标；原生范围使用源UTF-16下标，CRLF和emoji不会让下标偏移。
+- 只绘制可见行和上下各一行，离屏字形不访问图集。整文以String存储，复用未改变硬段的排版结果，仍即时测量全部段落；没有虚拟布局、rope或富文本，不承诺大文档编辑性能。
+
+示例（`./build.sh native-demo TextArea`）：固定高度备注、自动增高消息框（回车发送、Shift+回车换行）、可选择复制的只读预览。
+
+原生示例已构建并启动；截图暂缺：当前执行环境的屏幕录制权限检查为false，窗口截图失败。未据此标记外观或原生交互已核对。
+
+**与 MyGO 的差异**：修正软换行处Home/End跳到下一行的问题；80 DIP只作默认自然高度；翻页按内容视口计算；用户插入的独立CR也归一为LF，外部原文和组字保留源下标；离屏输入法矩形沿用j-ui夹在控件边缘的策略。
+
+**验证结果**：423 个测试通过；`alloc`、`listbench`、`ffi-check` 全部通过。native 多行框在普通滚动后、长选区和组字不变的帧均为每控件0 B；JVM为56 B。Apple M5 Pro / 64 GiB / macOS 26.6.1 上，5000 UTF-16单位的重复中英段落、四个320×160框、预热后1000次：
+
+| native 场景（事件＋构建/绘制） | p50 | p95 | max |
+|---|---:|---:|---:|
+| 文本不变滚动 | 0.045 ms | 0.054 ms | 0.181 ms |
+| 插入LF后立即↑，再更新 | 0.346 ms | 0.455 ms | 1.246 ms |
+
+两者均通过本轮p95≤4 ms、max≤8 ms的局部门槛，不代表大文档或完整应用外壳验收。列表门槛p95为0.253 ms、max为1.488 ms，FFI在JVM和native均通过。整体审查及修复见[审查记录](docs/reviews/2026-10-29-text-area-review.md)；原生交互仍以下面的手动核对为准。
+
+**还需要手动核对**（`./build.sh native-demo TextArea`）：
+- 第二行及软换行末端的拼音组字、候选框位置、取消和提交；
+- 跨行拖选、Shift方向键、Home/End、⌘C/⌘V、⌘Z；
+- 滚动离开光标后等待闪烁，视野不回跳；拖动纵向滚动条；
+- 消息框Enter发送、Shift+Enter换行、增高到上限后内部滚动；
+- 只读框的选择复制、关闭输入法的按键路径。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
 
 ```bash
 ./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
-./build.sh demo            # 卡片示例，在 JVM 上运行；Counter、Todo（M2）、Files（M3，M4 加了搜索框）、Scroll（滚动和列表的后续）、Form（输入框的选项）是其他示例的名字
+./build.sh demo            # 卡片示例，在 JVM 上运行；其他示例：Counter、Todo、Files、Scroll、Form、TextArea
 ./build.sh native-demo     # 同上，编译成 native image（build/<name>-demo）后运行，也接受示例名
 ./build.sh alloc           # 实测 UI API 每帧的分配（native image 和 JVM）
 ./build.sh listbench       # 1 万行列表的滚动帧耗时（native image，M3 的门槛）
@@ -454,7 +488,7 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 | `jui/platform/mac/MacWindow.java` | 窗口和自绘视图（layer-backed NSView + `updateLayer`） | `internal/darwin/surface.go` |
 | `jui/text/CoreText.java` | Core Foundation、Core Text、Core Graphics 的 FFM 绑定 | `internal/text/coretext_darwin.go` |
 | `jui/text/TextEngine.java` | 排版（typesetter、字体回退、断行）和字形光栅化 | 同上 |
-| `jui/text/TextLayout.java` | 排版结果：每个字形的字体、编号、位置 | `internal/text/layout.go` |
+| `jui/text/TextLayout.java` | 字形和视觉行、UTF-16索引、二维命中、亲和性与逐行选区 | `internal/text/layout.go` |
 | `jui/text/GlyphAtlas.java` | 字形图集：货架式打包、记录改动区域 | `internal/scene` 的图集 |
 | `jui/render/metal/MetalRenderer.java` | CAMetalLayer、预编译着色器库、图集纹理、实例化绘制 | `internal/gpu/metal/metal.go` |
 | `jui/render/Scene.java` | 一帧要画的方框、阴影、字形和描边，每个 112 字节，带最内层裁剪的圆角矩形 | `internal/scene` |
@@ -484,6 +518,7 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 | `jui/examples/FilesDemo.java` | M3 验收示例：1 万篇笔记的文件列表；M4 加了搜索框 | — |
 | `jui/examples/ScrollDemo.java` | 滚动和列表后续的示例：横向卡片条、跟随末尾的日志、描边的勾号 | — |
 | `jui/examples/FormDemo.java` | 输入框选项的示例：只读、密码、回车发送、拒绝长粘贴、关闭输入法 | — |
+| `jui/examples/TextAreaDemo.java` | 多行备注、自动增高消息框、只读多行预览 | — |
 | `jui/text/TextBounds.java` | 字素簇和词的边界 | `internal/text/word.go`、`ui/textbuffer.go` |
 | `jui/ui/engine/TextEdit.java` | 单行编辑：文字、选区、组字、按键、命令、撤销 | `ui/editor*.go` |
 | `jui/ui/engine/Host.java` | 引擎交给平台的事：剪贴板、指针形状、输入法 | `host` |
