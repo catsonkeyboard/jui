@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 
 import jui.text.TextBounds;
 import jui.text.TextLayout;
+import jui.text.TextEngine;
 import jui.ui.EditCommand;
 import jui.ui.Key;
 import jui.ui.Mod;
@@ -24,6 +25,9 @@ public final class TextEdit {
     private static final long COALESCE = 1_000_000_000L;
 
     private String text;
+    public final boolean multiline;
+    public boolean caretUpstream, anchorUpstream;
+    public boolean revealCaret;
     private int anchor, caret;
     /** The text's grapheme cluster boundaries. */
     private int[] stops;
@@ -54,6 +58,7 @@ public final class TextEdit {
     private static final class Step {
         String beforeText, afterText;
         int beforeAnchor, beforeCaret, afterAnchor, afterCaret;
+        boolean beforeAnchorUpstream, beforeCaretUpstream, afterAnchorUpstream, afterCaretUpstream;
     }
 
     private final ArrayDeque<Step> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
@@ -73,10 +78,52 @@ public final class TextEdit {
     public float originX, lineTop, lineH;
     public float clipX0, clipY0, clipX1, clipY1;
     public float scrollX;
+    public float originY;
+    private TextEngine textEngine;
+    private float layoutSize, layoutWidth, viewportHeight;
+    private int layoutWeight;
+    private String layoutSource;
+    private boolean hasGoal;
+    private float goalX;
+    private final int[] hit = new int[2];
+
+    public void configureLayout(TextEngine engine, float size, int weight, float width, float height) {
+        if (textEngine != engine || layoutSize != size || layoutWeight != weight || layoutWidth != width) {
+            layoutSource = null;
+        }
+        textEngine = engine;
+        layoutSize = size;
+        layoutWeight = weight;
+        layoutWidth = width;
+        viewportHeight = height;
+    }
+
+    public TextLayout ensureLayout() {
+        if (textEngine != null) {
+            String shown = password ? mask() : display();
+            if (layoutSource != shown || layout == null) {
+                layout = textEngine.layout(shown, layoutSize, layoutWeight, multiline ? Math.max(0.01f, layoutWidth) : 0);
+                layoutSource = shown;
+            }
+        }
+        return layout;
+    }
+
+    public boolean wantsKey(Key key, int mods) {
+        if (readOnly) return wantsReadOnly(key, mods);
+        if (multiline && (key == Key.UP || key == Key.DOWN || key == Key.PAGE_UP || key == Key.PAGE_DOWN)) return true;
+        return wants(key, mods);
+    }
 
     /** An edit of text, on one line, the caret and the anchor at its end. */
     public TextEdit(String text) {
-        this.text = singleLine(text);
+        this(text, false);
+    }
+
+    public TextEdit(String text, boolean multiline) {
+        this.multiline = multiline;
+        this.revealCaret = multiline;
+        this.text = multiline ? (text == null ? "" : text) : singleLine(text);
         this.stops = TextBounds.graphemes(this.text);
         this.anchor = this.caret = this.text.length();
         this.synced = text == null ? "" : text;
@@ -107,6 +154,9 @@ public final class TextEdit {
         commitComposition();
         this.anchor = snap(anchor);
         this.caret = snap(caret);
+        anchorUpstream = caretUpstream = false;
+        revealCaret = multiline;
+        hasGoal = false;
         coalesce = false;
     }
 
@@ -115,6 +165,9 @@ public final class TextEdit {
         commitComposition();
         anchor = 0;
         caret = text.length();
+        anchorUpstream = caretUpstream = false;
+        revealCaret = multiline;
+        hasGoal = false;
         coalesce = false;
     }
 
@@ -259,6 +312,10 @@ public final class TextEdit {
         boolean shift = (mods & Mod.SHIFT) != 0;
         int m = mods & ~Mod.SHIFT;
         int n = text.length();
+        if (multiline && m == Mod.CTRL && (key == Key.HOME || key == Key.END)) {
+            move(key == Key.HOME ? 0 : n, shift);
+            return false;
+        }
         if (m == Mod.CTRL) {
             switch (key) {
                 case B -> { key = Key.LEFT; m = 0; }
@@ -267,11 +324,13 @@ public final class TextEdit {
                 case N -> { key = Key.DOWN; m = 0; }
                 case H -> { key = Key.BACKSPACE; m = 0; }
                 case D -> { key = Key.DELETE; m = 0; }
-                case A -> { move(0, shift); return false; }
-                case E -> { move(n, shift); return false; }
+                case A -> { move(multiline ? TextBounds.paragraphStart(text, caret) : 0, shift); return false; }
+                case E -> { move(multiline ? TextBounds.paragraphEnd(text, caret) : n, shift); return false; }
                 case K -> {
                     anchor = caret;
-                    deleteRange(caret, n, false, now);
+                    int end = multiline ? TextBounds.paragraphEnd(text, caret) : n;
+                    if (multiline && end == caret) end = TextBounds.breakEnd(text, end);
+                    deleteRange(caret, end, false, now);
                     return false;
                 }
                 default -> { return false; }
@@ -279,6 +338,51 @@ public final class TextEdit {
         }
         boolean word = m == Mod.ALT;
         int a = selStart(), z = selEnd();
+        if (multiline && ensureLayout() != null) {
+            int line = layout.lineAt(caret, caretUpstream);
+            switch (key) {
+                case UP, DOWN, PAGE_UP, PAGE_DOWN -> {
+                    if (m == Mod.CMD) {
+                        move(key == Key.UP || key == Key.PAGE_UP ? 0 : n, shift);
+                    } else {
+                        int distance = key == Key.PAGE_UP || key == Key.PAGE_DOWN
+                                ? Math.max(1, (int) (viewportHeight / textEngine.lineHeight(layoutSize, layoutWeight)) - 1) : 1;
+                        vertical(key == Key.UP || key == Key.PAGE_UP ? -distance : distance, shift);
+                    }
+                    return false;
+                }
+                case HOME, END -> {
+                    movePosition(key == Key.HOME ? layout.lineStart(line) : layout.lineEnd(line),
+                            key == Key.END && layout.softEnd(line), shift);
+                    return false;
+                }
+                case LEFT, RIGHT -> {
+                    boolean left = key == Key.LEFT;
+                    if (m == Mod.CMD) {
+                        movePosition(left ? layout.lineStart(line) : layout.lineEnd(line), !left && layout.softEnd(line), shift);
+                        return false;
+                    }
+                    if (!word && (a == z || shift)) {
+                        if (left && !caretUpstream && line > 0 && caret == layout.lineStart(line) && layout.softEnd(line - 1)) {
+                            movePosition(caret, true, shift);
+                        } else if (!left && caretUpstream && caret == layout.lineEnd(line) && layout.softEnd(line)) {
+                            movePosition(caret, false, shift);
+                        } else {
+                            int target = left ? TextBounds.before(stops, caret) : TextBounds.after(stops, caret);
+                            movePosition(target, !left && target == layout.lineEnd(line) && layout.softEnd(line), shift);
+                        }
+                        return false;
+                    }
+                }
+                case BACKSPACE -> {
+                    if (m == Mod.CMD && a == z) {
+                        deleteRange(layout.lineStart(line), caret, false, now);
+                        return false;
+                    }
+                }
+                default -> { }
+            }
+        }
         switch (key) {
             case LEFT, RIGHT -> {
                 boolean left = key == Key.LEFT;
@@ -315,6 +419,10 @@ public final class TextEdit {
                 }
             }
             case ENTER -> {
+                if (multiline) {
+                    insert("\n", now);
+                    return false;
+                }
                 return true;
             }
             default -> { } // printable keys: their text comes as text input
@@ -326,7 +434,7 @@ public final class TextEdit {
 
     /** Text typed or committed: it replaces the composition if there is one, else the selection. */
     public void insert(String s, long now) {
-        s = singleLine(s);
+        s = insertedText(s);
         if (!compose.isEmpty()) {
             // The input method commits: in the composition's undo step.
             if (!compositionActive) {
@@ -350,7 +458,7 @@ public final class TextEdit {
     /** Text committed over [start, end) of the shown text: the composition is committed first. */
     public void replace(int start, int end, String s, long now) {
         commitComposition();
-        s = singleLine(s);
+        s = insertedText(s);
         int a = snap(Math.min(start, end)), z = snapUp(Math.max(start, end));
         if (!compositionActive) {
             record(false, now);
@@ -367,7 +475,8 @@ public final class TextEdit {
      * empty text cancels the composition.
      */
     public void setMarked(String s, int selStart, int selLength, int replStart, int replLength, long now) {
-        s = s == null ? "" : singleLine(s);
+        s = s == null ? "" : multiline ? s : singleLine(s);
+        revealCaret = multiline;
         if (compose.isEmpty() || replStart >= 0) {
             int a, z;
             if (replStart >= 0) {
@@ -431,7 +540,7 @@ public final class TextEdit {
         String c = compose;
         compose = "";
         display = null;
-        replaceRange(caret, caret, c);
+        replaceRange(caret, caret, insertedText(c));
     }
 
     /** The shown text's length. */
@@ -498,7 +607,9 @@ public final class TextEdit {
             }
             case PASTE, PASTE_AND_MATCH_STYLE -> {
                 if (clipboard != null && !clipboard.isEmpty()) {
+                    if (multiline) coalesce = false;
                     insert(clipboard, now);
+                    if (multiline) coalesce = false;
                 }
             }
             case DELETE -> {
@@ -581,13 +692,14 @@ public final class TextEdit {
             undo.clear();
             redo.clear();
         }
-        text = singleLine(s); // a line break the app gives shows as a space: the input is one line
+        text = multiline ? (s == null ? "" : s) : singleLine(s);
         synced = s == null ? "" : s;
         stops = TextBounds.graphemes(text);
         compose = "";
         display = null;
         compositionActive = false;
         coalesce = false;
+        anchorUpstream = caretUpstream = false;
         anchor = snap(anchor);
         caret = snap(caret);
         Step last = undo.peekLast();
@@ -604,10 +716,32 @@ public final class TextEdit {
 
     private void move(int to, boolean extend) {
         caret = snap(to);
+        caretUpstream = false;
+        revealCaret = multiline;
         if (!extend) {
             anchor = caret;
+            anchorUpstream = caretUpstream;
         }
         coalesce = false;
+        hasGoal = false;
+    }
+
+    private void movePosition(int index, boolean upstream, boolean extend) {
+        move(index, extend);
+        caretUpstream = upstream;
+        if (!extend) anchorUpstream = upstream;
+    }
+
+    private void vertical(int distance, boolean extend) {
+        if (!hasGoal) goalX = layout.caretX(caret, caretUpstream);
+        int target = layout.lineAt(caret, caretUpstream) + distance;
+        if (target < 0) movePosition(0, false, extend);
+        else if (target >= layout.lines) movePosition(text.length(), false, extend);
+        else {
+            int index = layout.indexInLine(target, goalX);
+            movePosition(index, index == layout.lineEnd(target) && layout.softEnd(target), extend);
+        }
+        hasGoal = true;
     }
 
     private void deleteRange(int a, int z, boolean typing, long now) {
@@ -625,6 +759,9 @@ public final class TextEdit {
         stops = TextBounds.graphemes(text);
         display = null;
         anchor = caret = a + s.length();
+        anchorUpstream = caretUpstream = false;
+        revealCaret = multiline;
+        hasGoal = false;
         if (!text.equals(old)) {
             dirty = true;
         }
@@ -641,6 +778,8 @@ public final class TextEdit {
         st.beforeText = st.afterText = text;
         st.beforeAnchor = st.afterAnchor = anchor;
         st.beforeCaret = st.afterCaret = caret;
+        st.beforeAnchorUpstream = st.afterAnchorUpstream = anchorUpstream;
+        st.beforeCaretUpstream = st.afterCaretUpstream = caretUpstream;
         undo.addLast(st);
         if (undo.size() > MAX_UNDO) {
             undo.removeFirst();
@@ -657,6 +796,8 @@ public final class TextEdit {
             st.afterText = text;
             st.afterAnchor = anchor;
             st.afterCaret = caret;
+            st.afterAnchorUpstream = anchorUpstream;
+            st.afterCaretUpstream = caretUpstream;
         }
     }
 
@@ -676,6 +817,9 @@ public final class TextEdit {
         display = null;
         anchor = back ? st.beforeAnchor : st.afterAnchor;
         caret = back ? st.beforeCaret : st.afterCaret;
+        anchorUpstream = back ? st.beforeAnchorUpstream : st.afterAnchorUpstream;
+        caretUpstream = back ? st.beforeCaretUpstream : st.afterCaretUpstream;
+        revealCaret = multiline;
     }
 
     /** An index of the shown text in the committed text: inside the composition, the caret. */
@@ -704,5 +848,10 @@ public final class TextEdit {
             return "";
         }
         return s.replace("\r\n", "\n").replace('\n', ' ').replace('\r', ' ');
+    }
+
+    private String insertedText(String value) {
+        if (!multiline) return singleLine(value);
+        return value == null ? "" : value.replace("\r\n", "\n").replace('\r', '\n');
     }
 }

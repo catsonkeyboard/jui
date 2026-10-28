@@ -235,7 +235,7 @@ final class Input {
         }
         // A text input with focus takes the keys it wants before any shortcut (design §7.3, as MyGO).
         TextEdit edit = focusedEdit();
-        if (edit != null && (edit.readOnly ? TextEdit.wantsReadOnly(key, mods) : TextEdit.wants(key, mods))) {
+        if (edit != null && edit.wantsKey(key, mods)) {
             long now = engine.clockNow();
             if (edit.composing()) {
                 edit.unmark(now); // macOS sends no keys while composing; other sources may
@@ -538,7 +538,7 @@ final class Input {
         if (s == null || s.onTextKey == null) {
             return false;
         }
-        boolean wants = e.readOnly ? TextEdit.wantsReadOnly(key, mods) : TextEdit.wants(key, mods);
+        boolean wants = e.wantsKey(key, mods);
         if (!wants && claimedBy(mods, key, true)) {
             return false;
         }

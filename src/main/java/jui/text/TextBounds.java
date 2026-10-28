@@ -78,6 +78,25 @@ public final class TextBounds {
         return isWordChar(a) != isWordChar(b) || standsAlone(a) || standsAlone(b);
     }
 
+    public static int paragraphStart(String text, int index) {
+        int position = Math.max(0, Math.min(index, text.length()));
+        while (position > 0 && text.charAt(position - 1) != '\n' && text.charAt(position - 1) != '\r') position--;
+        return position;
+    }
+
+    public static int paragraphEnd(String text, int index) {
+        int position = Math.max(0, Math.min(index, text.length()));
+        while (position < text.length() && text.charAt(position) != '\n' && text.charAt(position) != '\r') position++;
+        return position;
+    }
+
+    public static int breakEnd(String text, int index) {
+        int position = index;
+        if (position < text.length() && text.charAt(position) == '\r') position++;
+        if (position < text.length() && text.charAt(position) == '\n') position++;
+        return position;
+    }
+
     /** The end of the word after i, skipping what is between (as MyGO's nextWord). */
     public static int nextWord(String s, int i) {
         boolean word = false;
@@ -124,7 +143,7 @@ public final class TextBounds {
         int start = i;
         for (int next = at; start > 0; ) {
             int r = s.codePointBefore(start);
-            if (r == '\n' || wordBoundary(r, next)) {
+            if (r == '\n' || r == '\r' || wordBoundary(r, next)) {
                 break;
             }
             next = r;
@@ -133,7 +152,7 @@ public final class TextBounds {
         int end = i;
         for (int prev = at; end < n; ) {
             int r = s.codePointAt(end);
-            if (r == '\n' || end > i && wordBoundary(prev, r)) {
+            if (r == '\n' || r == '\r' || end > i && wordBoundary(prev, r)) {
                 break;
             }
             prev = r;
