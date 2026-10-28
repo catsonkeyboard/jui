@@ -649,6 +649,8 @@ public final class TextEdit {
         commitComposition();
         compositionActive = false;
         coalesce = false;
+        hasGoal = false;
+        revealCaret = multiline;
         int i = snap(index);
         pressClicks = Math.min(Math.max(clicks, 1), 3);
         if (pressClicks == 1) {
@@ -670,6 +672,8 @@ public final class TextEdit {
     /** The pointer held after a press moved to index: by characters, or by whole words after a double click. */
     public void drag(int index) {
         int i = snap(index);
+        hasGoal = false;
+        revealCaret = multiline;
         if (pressClicks == 1) {
             caret = i;
         } else if (pressClicks == 2) {
@@ -685,6 +689,41 @@ public final class TextEdit {
                 caret = wordEnd;
             }
         }
+    }
+
+    public void pressAt(float x, float y, int clicks, boolean shift) {
+        commitComposition();
+        ensureLayout();
+        if (!multiline) {
+            press(fromShown(layout.indexAt(x)), clicks, shift);
+            return;
+        }
+        layout.hitTest(x, y, hit);
+        int index = hit[0];
+        boolean upstream = hit[1] != 0;
+        press(index, clicks, shift);
+        if (clicks >= 3) {
+            int line = layout.lineAt(index, upstream);
+            anchor = layout.lineStart(line);
+            caret = layout.lineEnd(line);
+            anchorUpstream = false;
+            caretUpstream = layout.softEnd(line);
+        } else if (clicks == 1) {
+            caretUpstream = upstream;
+            if (!shift) anchorUpstream = upstream;
+        }
+    }
+
+    public void dragAt(float x, float y) {
+        ensureLayout();
+        if (!multiline) {
+            drag(fromShown(layout.indexAt(x)));
+            return;
+        }
+        if (pressClicks >= 3) return;
+        layout.hitTest(x, y, hit);
+        drag(hit[0]);
+        caretUpstream = hit[1] != 0;
     }
 
     // The app's change.

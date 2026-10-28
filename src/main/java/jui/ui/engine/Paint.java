@@ -121,6 +121,10 @@ final class Paint {
      * blinking caret, one device pixel wide.
      */
     private static void input(Node n, Scene scene, Theme theme, float o) {
+        if (n.multiline) {
+            textArea(n, scene, theme, o);
+            return;
+        }
         jui.text.TextLayout l = n.layout;
         scene.pushClip(n.x + n.border, n.y + n.border, n.w - 2 * n.border, n.h - 2 * n.border);
         int color = fade(n.resolvedColor, o);
@@ -143,6 +147,47 @@ final class Paint {
                 float s = scene.scale(), w = Math.max(Math.round(s), 1) / s;
                 scene.box(n.inputX + l.caretX(n.inputCaret), top, w, lineH, 0, fade(theme.accent().rgba(), o));
             }
+        }
+        scene.popClip();
+    }
+
+    private static final float[] INPUT_RECT = new float[4];
+
+    private static void textArea(Node node, Scene scene, Theme theme, float opacity) {
+        jui.text.TextLayout layout = node.layout;
+        scene.pushClip(node.x + node.border, node.y + node.border, node.w - 2 * node.border, node.h - 2 * node.border);
+        float contentWidth = Math.max(0.01f, node.w - node.padLeft - node.padRight - 2 * node.border);
+        if (node.text.isEmpty() && node.placeholder != null) {
+            jui.text.TextLayout placeholder = scene.layout(node.placeholder, node.resolvedSize, node.resolvedWeight, contentWidth);
+            scene.text(placeholder, node.inputX, node.inputTop, fade(theme.textMuted().rgba(), opacity));
+        }
+        int first = Math.max(0, layout.lineForY(node.y + node.border - node.inputTop) - 1);
+        int end = Math.min(layout.lines, layout.lineForY(node.y + node.h - node.border - node.inputTop) + 2);
+        if (node.inputFocused) {
+            for (int line = first; line < end; line++) {
+                if (layout.selectionRect(node.inputSelA, node.inputSelB, line, INPUT_RECT)) {
+                    scene.box(node.inputX + INPUT_RECT[0], node.inputTop + INPUT_RECT[1], INPUT_RECT[2], INPUT_RECT[3],
+                            0, fade(theme.selection().rgba(), opacity));
+                }
+            }
+        }
+        int color = fade(node.resolvedColor, opacity);
+        scene.text(layout, node.inputX, node.inputTop, color, first, end);
+        if (node.inputMarkA >= 0) {
+            for (int line = first; line < end; line++) {
+                if (layout.selectionRect(node.inputMarkA, node.inputMarkB, line, INPUT_RECT)) {
+                    scene.box(node.inputX + INPUT_RECT[0], node.inputTop + INPUT_RECT[1] + INPUT_RECT[3] - 2,
+                            INPUT_RECT[2], 1, 0, color);
+                }
+            }
+        }
+        if (node.inputFocused && node.caretShown && !node.disabled) {
+            TextEdit edit = node.state.edit;
+            int line = layout.lineAt(node.inputCaret, edit.caretUpstream);
+            float width = Math.max(Math.round(scene.scale()), 1) / scene.scale();
+            scene.box(node.inputX + layout.caretX(node.inputCaret, edit.caretUpstream),
+                    node.inputTop + layout.lineTop(line), width, layout.lineHeight(line), 0,
+                    fade(theme.accent().rgba(), opacity));
         }
         scene.popClip();
     }

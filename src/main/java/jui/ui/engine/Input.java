@@ -112,7 +112,7 @@ final class Input {
                 s.dragY += dy;
                 TextEdit e = s.edit;
                 if (pressButton == 0 && (pressFlags & Node.TEXT_INPUT) != 0 && e != null && e.layout != null) {
-                    e.drag(e.fromShown(e.layout.indexAt(x - e.originX))); // selects as the pointer moves (as MyGO's editor.drag)
+                    e.dragAt(x - e.originX, y - e.originY);
                 }
             }
             if ((pressFlags & (Node.HOVER | Node.DRAG)) != 0) {
@@ -179,7 +179,7 @@ final class Input {
                         e.unmark(engine.clockNow()); // the press commits it; then the input method forgets it
                         engine.host().discardMarkedText();
                     }
-                    e.press(e.fromShown(e.layout.indexAt(x - e.originX)), count, (mods & jui.ui.Mod.SHIFT) != 0);
+                    e.pressAt(x - e.originX, y - e.originY, count, (mods & jui.ui.Mod.SHIFT) != 0);
                     blinkStart = engine.clockNow();
                 }
             }

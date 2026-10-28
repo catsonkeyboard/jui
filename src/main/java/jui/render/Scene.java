@@ -84,9 +84,16 @@ public final class Scene {
      * position within a pixel left of its pen.
      */
     public void text(TextLayout layout, float x, float y, int color) {
+        text(layout, x, y, color, 0, layout.lines);
+    }
+
+    public void text(TextLayout layout, float x, float y, int color, int firstLine, int endLine) {
+        if (firstLine >= endLine || layout.lines == 0) return;
         int n = TextEngine.positions(layout.size, scale);
         int shade = TextEngine.shadeOf(color);
-        for (int i = 0; i < layout.glyphCount(); i++) {
+        int firstGlyph = layout.lineGlyphStart(Math.max(0, firstLine));
+        int endGlyph = layout.lineGlyphEnd(Math.min(layout.lines, endLine) - 1);
+        for (int i = firstGlyph; i < endGlyph; i++) {
             double pen = (x + layout.x(i)) * scale;
             double whole = Math.floor(pen);
             int sub = Math.min(n - 1, (int) Math.floor((pen - whole) * n));
