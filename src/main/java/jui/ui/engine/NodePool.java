@@ -16,6 +16,7 @@ public final class NodePool {
 
     /** Starts a frame: every node is free again. */
     public void reset() {
+        for (int index = 0; index < used; index++) node(index).contextMenu = null;
         int keep = (used + CHUNK - 1) / CHUNK + 1;
         for (int i = keep; i < chunkCount; i++) {
             chunks[i] = null;
