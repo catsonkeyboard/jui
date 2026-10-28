@@ -15,6 +15,8 @@ import jui.ui.engine.Engine;
 public final class Window implements MacWindow.Input, jui.ui.engine.Host {
     private final Engine engine;
     private final MacWindow mac;
+    private boolean closed;
+    private long menuGeneration;
     private final jui.platform.mac.MacPasteboard pasteboard = jui.platform.mac.MacPasteboard.general();
 
     private Window(WindowOptions options) {
@@ -38,6 +40,7 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
 
     /** Asks for a frame; any thread may call it. */
     public void invalidate() {
+        if (closed) return;
         if (!MacApp.onMainThread()) {
             MacApp.post(this::invalidate);
             return;
@@ -75,7 +78,36 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
 
     /** Closes the window. */
     public void close() {
+        windowClosed();
         mac.close();
+    }
+
+    @Override
+    public void windowClosed() {
+        if (closed) return;
+        closed = true;
+        engine.closeMenus();
+    }
+
+    @Override
+    public void cancelMenu() {
+        menuGeneration++;
+        if (mac != null) mac.cancelMenu();
+    }
+
+    @Override
+    public void popupMenu(jui.platform.MenuModel model, float x, float y, java.util.function.IntConsumer result) {
+        cancelMenu();
+        long generation = menuGeneration;
+        MacApp.post(() -> {
+            if (closed || generation != menuGeneration) { result.accept(0); return; }
+            try {
+                mac.popupMenu(model, x, y, choice -> result.accept(closed || generation != menuGeneration ? 0 : choice));
+            } catch (RuntimeException | Error failure) {
+                result.accept(0);
+                throw failure;
+            }
+        });
     }
 
     // Input from the window's view, for the engine.

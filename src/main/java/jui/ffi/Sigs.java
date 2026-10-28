@@ -130,6 +130,10 @@ public final class Sigs {
     /** void (id, SEL, SEL, id, NSTimeInterval): performSelector:withObject:afterDelay:. */
     public static final FunctionDescriptor PERFORM_AFTER = down(FunctionDescriptor.ofVoid(
             JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_DOUBLE));
+    public static final FunctionDescriptor PERFORM_AFTER_MODES = down(FunctionDescriptor.ofVoid(
+            JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_DOUBLE, JAVA_LONG));
+    public static final FunctionDescriptor POPUP_MENU = down(FunctionDescriptor.of(JAVA_BOOLEAN,
+            JAVA_LONG, JAVA_LONG, JAVA_LONG, CG_POINT, JAVA_LONG));
     /** CGRect (id, SEL, CGRect, id): convertRect:toView:, convertRect:fromView:. */
     public static final FunctionDescriptor RECT_RECT_W = down(FunctionDescriptor.of(CG_RECT,
             JAVA_LONG, JAVA_LONG, CG_RECT, JAVA_LONG));

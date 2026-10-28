@@ -51,6 +51,8 @@ public final class MacWindow {
 
         void appearanceChanged(boolean dark);
 
+        default void windowClosed() {}
+
         /** A scroll at (x, y): dy above 0 moves the content up; precise for a trackpad, else a wheel's DIPs. */
         void scroll(double x, double y, double dx, double dy, boolean precise, int mods);
 
@@ -122,6 +124,9 @@ public final class MacWindow {
     /** NSRunLoopCommonModes, a Foundation NSString constant: its value is read from the symbol. */
     private static final long COMMON_MODES = ObjC.symbol(ObjC.framework("Foundation"), "NSRunLoopCommonModes")
             .reinterpret(8).get(java.lang.foreign.ValueLayout.JAVA_LONG, 0);
+    private static final long TIMER_MODES = ObjC.retain(ObjC.array(COMMON_MODES));
+    private MacMenus menus;
+    private boolean closed, disposed;
 
     /** The app's text engine, shared by its windows. */
     private final TextEngine text;
@@ -255,6 +260,9 @@ public final class MacWindow {
 
     /** Closes the window. */
     public void close() {
+        if (disposed) return;
+        disposed = true;
+        didClose();
         cancelTimer();
         send(displayLink, "invalidate");
         ObjC.release(displayLink);
@@ -264,6 +272,22 @@ public final class MacWindow {
         BY_DELEGATE.remove(delegate);
         ObjC.release(delegate); // the window does not retain its delegate: ours was the only reference
     }
+
+    private void didClose() {
+        if (closed) return;
+        closed = true;
+        cancelTimer();
+        if (menus != null) menus.close();
+        if (input != null) input.windowClosed();
+    }
+
+    public void popupMenu(jui.platform.MenuModel model, float x, float y, java.util.function.IntConsumer result) {
+        if (closed) { result.accept(0); return; }
+        if (menus == null) menus = new MacMenus();
+        menus.popup(model, x, y, view, result);
+    }
+
+    public void cancelMenu() { if (menus != null) menus.cancel(); }
 
     /** The content view: for tests. */
     long view() {
@@ -314,6 +338,7 @@ public final class MacWindow {
      * one another, the display link draws one a refresh.
      */
     public void requestFrame() {
+        if (closed) return;
         if (linkRunning) {
             due = true;
             return;
@@ -330,7 +355,7 @@ public final class MacWindow {
     /** Draws a frame after delayNanos, in place of any timer armed before. */
     public void armTimer(long delayNanos) {
         cancelTimer();
-        ObjC.performAfter(view, "juiTimer:", 0, Math.max(0, delayNanos) / 1e9);
+        if (!closed) ObjC.performAfter(view, "juiTimer:", 0, Math.max(0, delayNanos) / 1e9, TIMER_MODES);
     }
 
     public void cancelTimer() {
@@ -403,6 +428,7 @@ public final class MacWindow {
     }
 
     private void draw() {
+        if (closed) return;
         lastFrameNanos = System.nanoTime();
         double[] bounds = ObjC.sendRect(view, "bounds");
         double scale = ObjC.sendDouble(window, "backingScaleFactor");
@@ -425,7 +451,7 @@ public final class MacWindow {
         if (first) {
             firstCommitMicros = Libc.nowMicros();
             if (handler != 0) {
-                ObjC.performAfter(view, "juiPollFrame:", 0, 0.001);
+                ObjC.performAfter(view, "juiPollFrame:", 0, 0.001, TIMER_MODES);
             }
         }
     }
@@ -453,9 +479,7 @@ public final class MacWindow {
         pointerInside = true;
         switch (kind) {
             case DOWN -> {
-                if (button == 0 && (mods & jui.ui.Mod.CTRL) != 0) {
-                    ctrlClick = true;
-                }
+                if (button == 0) ctrlClick = (mods & jui.ui.Mod.CTRL) != 0;
                 send(window, "makeFirstResponder:", view);
                 input.pointerDown(p[0], p[1], ctrlClick && button == 0 ? 1 : button, (int) send(event, "clickCount"), mods);
             }
@@ -638,10 +662,11 @@ public final class MacWindow {
 
     /** Waits on the run loop, never blocking it, for the first frame. */
     private void pollFrame() {
+        if (closed) return;
         if (firstFrameDoneMicros != 0 || ++polls > 5000) {
             onFirstFrame.accept(firstFrameDoneMicros);
         } else {
-            ObjC.performAfter(view, "juiPollFrame:", 0, 0.001);
+            if (!closed) ObjC.performAfter(view, "juiPollFrame:", 0, 0.001, TIMER_MODES);
         }
     }
 
@@ -784,6 +809,10 @@ public final class MacWindow {
                 .register();
         viewSuperclass = ObjC.superclass(viewClass);
         delegateClass = ObjCClass.define("JUIWindowDelegate", "NSObject")
+                .method1("windowWillClose:", (self, cmd, note) -> {
+                    MacWindow window = BY_DELEGATE.get(self);
+                    if (window != null) window.didClose();
+                })
                 .method1("windowDidBecomeKey:", (self, cmd, note) -> focusChanged(self, true))
                 .method1("windowDidResignKey:", (self, cmd, note) -> focusChanged(self, false))
                 .method1("windowDidChangeScreen:", (self, cmd, note) -> {

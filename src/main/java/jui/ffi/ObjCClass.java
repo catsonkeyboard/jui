@@ -79,15 +79,19 @@ public final class ObjCClass {
         long call(long self, long cmd, double x, double y);
     }
 
+    public interface BoolWordPointWord {
+        boolean call(long self, long cmd, long item, double x, double y, long view);
+    }
+
     /** The upcall targets: the static methods below, with their signatures. */
     static final String[] TARGET_NAMES = {
         "void0", "bool0", "void1", "bool1", "voidSize",
-        "range0", "word0", "textRange", "textRanges", "wordRange", "rectRange", "wordPoint"
+        "range0", "word0", "textRange", "textRanges", "wordRange", "rectRange", "wordPoint", "boolWordPointWord"
     };
     static final FunctionDescriptor[] TARGET_SIGS = {
         Sigs.IMP_V, Sigs.IMP_B, Sigs.IMP_V_W, Sigs.IMP_B_W, Sigs.IMP_V_SIZE,
         Sigs.IMP_RANGE, Sigs.IMP_W, Sigs.IMP_V_W_RANGE, Sigs.IMP_V_W_RANGE2, Sigs.IMP_W_RANGE_W,
-        Sigs.IMP_RECT_RANGE_W, Sigs.IMP_W_POINT
+        Sigs.IMP_RECT_RANGE_W, Sigs.IMP_W_POINT, Sigs.POPUP_MENU
     };
 
     static MethodHandle target(int i) throws ReflectiveOperationException {
@@ -107,6 +111,7 @@ public final class ObjCClass {
     private static final Map<Long, WordRange> WORD_RANGE = new ConcurrentHashMap<>();
     private static final Map<Long, RectRange> RECT_RANGE = new ConcurrentHashMap<>();
     private static final Map<Long, WordPoint> WORD_POINT = new ConcurrentHashMap<>();
+    private static final Map<Long, BoolWordPointWord> BOOL_WORD_POINT_WORD = new ConcurrentHashMap<>();
 
     // What a method returning a struct gives back: its handler writes the arrays, which are copied
     // into this memory (methods are called on the main thread, one at a time).
@@ -212,6 +217,10 @@ public final class ObjCClass {
     /** A method {@code NSUInteger (id, SEL, NSPoint)}. */
     public ObjCClass wordPointMethod(String selector, WordPoint handler) {
         return add(selector, WORD_POINT, handler, 11, "Q@:{CGPoint=dd}");
+    }
+
+    public ObjCClass boolWordPointWordMethod(String selector, BoolWordPointWord handler) {
+        return add(selector, BOOL_WORD_POINT_WORD, handler, 12, "B@:@{CGPoint=dd}@");
     }
 
     /** Declares that the class adopts a protocol, before it is registered; fails for an unknown protocol. */
@@ -347,6 +356,15 @@ public final class ObjCClass {
         } catch (Throwable t) {
             report(t);
             return ObjC.NOT_FOUND;
+        }
+    }
+
+    static boolean boolWordPointWord(long self, long cmd, long item, MemorySegment point, long view) {
+        try {
+            return BOOL_WORD_POINT_WORD.get(cmd).call(self, cmd, item, point.get(JAVA_DOUBLE, 0), point.get(JAVA_DOUBLE, 8), view);
+        } catch (Throwable failure) {
+            report(failure);
+            return false;
         }
     }
 

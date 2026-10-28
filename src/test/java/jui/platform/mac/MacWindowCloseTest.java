@@ -15,6 +15,17 @@ import static java.lang.foreign.ValueLayout.JAVA_LONG;
 
 /** What a window lets go of when it closes. */
 public final class MacWindowCloseTest {
+    public void testSystemAndExplicitCloseNotifyOnlyOnce() {
+        ObjC.send(ObjC.cls("NSApplication"), "sharedApplication");
+        MacWindowInputTest.Recorder recorder = new MacWindowInputTest.Recorder();
+        MacWindow window = MacWindow.open("close notification", 200, 150, 0xFFFFFF, null, (scene, width, height) -> {}, recorder);
+        ObjC.send(window.delegate(), "windowWillClose:", 0);
+        window.armTimer(0);
+        window.close();
+        window.close();
+        Check.equal(1, recorder.closed);
+    }
+
     private static final SymbolLookup OBJC = SymbolLookup.libraryLookup("/usr/lib/libobjc.A.dylib", Arena.global());
     private static final MethodHandle INIT_WEAK = Linker.nativeLinker().downcallHandle(
             OBJC.find("objc_initWeak").orElseThrow(), FunctionDescriptor.of(JAVA_LONG, ADDRESS, JAVA_LONG));

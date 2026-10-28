@@ -308,6 +308,25 @@ public final class ObjC {
         }
     }
 
+    public static void performAfter(long obj, String selector, long arg, double seconds, long modes) {
+        try {
+            Native.PERFORM_AFTER_MODES.invokeExact(MSG_SEND, obj, sel("performSelector:withObject:afterDelay:inModes:"),
+                    sel(selector), arg, seconds, modes);
+        } catch (Throwable failure) {
+            throw Native.rethrow(failure);
+        }
+    }
+
+    public static boolean popupMenu(long menu, String selector, long item, double x, double y, long view) {
+        POINT_ARG.set(JAVA_DOUBLE, 0, x);
+        POINT_ARG.set(JAVA_DOUBLE, 8, y);
+        try {
+            return (boolean) Native.POPUP_MENU.invokeExact(MSG_SEND, menu, sel(selector), item, POINT_ARG, view);
+        } catch (Throwable failure) {
+            throw Native.rethrow(failure);
+        }
+    }
+
     /**
      * Calls the superclass's {@code setFrameSize:} from an override. The
      * superclass comes from the class that defines the override, never from

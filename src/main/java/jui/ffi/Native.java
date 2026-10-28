@@ -57,6 +57,8 @@ public final class Native {
     static final MethodHandle INIT_WINDOW = handle(Sigs.INIT_WINDOW);
     static final MethodHandle SET_CLEAR_COLOR = handle(Sigs.SET_CLEAR_COLOR);
     static final MethodHandle PERFORM_AFTER = handle(Sigs.PERFORM_AFTER);
+    static final MethodHandle PERFORM_AFTER_MODES = handle(Sigs.PERFORM_AFTER_MODES);
+    static final MethodHandle POPUP_MENU = handle(Sigs.POPUP_MENU);
     static final MethodHandle REPLACE_REGION = handle(Sigs.REPLACE_REGION);
     static final MethodHandle SET_SCISSOR = handle(Sigs.SET_SCISSOR);
     static final MethodHandle RECT_RECT_W = handle(Sigs.RECT_RECT_W);

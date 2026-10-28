@@ -25,6 +25,7 @@ public final class FfiCheck {
     private static String text;
     private static final long[] got = new long[4];
     private static final long[] rangeValue = new long[2];
+    private static int menuWake;
 
     private static synchronized long define() {
         if (cls == 0) {
@@ -58,6 +59,9 @@ public final class FfiCheck {
                         out[3] = 22.5;
                     })
                     .wordPointMethod("juiIndexAtPoint:", (self, cmd, x, y) -> (long) (x * 10 + y))
+                    .boolWordPointWordMethod("juiMenuProbe:atLocation:inView:",
+                            (self, cmd, item, x, y, view) -> item == 7 && x == 12.5 && y == -3.25 && view == 9)
+                    .method1("juiMenuProbeWake:", (self, cmd, arg) -> menuWake++)
                     .register();
         }
         return cls;
@@ -107,6 +111,9 @@ public final class FfiCheck {
 
                 long index = ObjC.sendWordPoint(obj, "juiIndexAtPoint:", 3, 4);
                 expect(bad, "index at a point", index == 34, Long.toString(index));
+                expect(bad, "popup menu ABI true", ObjC.popupMenu(obj, "juiMenuProbe:atLocation:inView:", 7, 12.5, -3.25, 9), "BOOL/point/words");
+                expect(bad, "popup menu ABI false", !ObjC.popupMenu(obj, "juiMenuProbe:atLocation:inView:", 8, 12.5, -3.25, 9), "BOOL false");
+                menuTimer(obj, bad);
             } finally {
                 ObjC.release(obj);
             }
@@ -120,6 +127,21 @@ public final class FfiCheck {
         expect(bad, "text line offset", lines.lines == 2 && lines.caretX(3) > 0 && lines.lineStart(1) == 4,
                 Integer.toString(lines.lines));
         return bad;
+    }
+
+    private static void menuTimer(long target, List<String> bad) {
+        long common = ObjC.symbol(ObjC.framework("Foundation"), "NSRunLoopCommonModes").reinterpret(8).get(JAVA_LONG, 0);
+        long mode = ObjC.nsString("NSEventTrackingRunLoopMode");
+        var core = ObjC.framework("CoreFoundation");
+        jui.ffi.Native.call(core.find("CFRunLoopAddCommonMode").orElseThrow(),
+                jui.ffi.Native.call(core.find("CFRunLoopGetMain").orElseThrow()), mode);
+        int before = menuWake;
+        ObjC.performAfter(target, "juiMenuProbeWake:", 0, 0, ObjC.array(common));
+        long loop = ObjC.send(ObjC.cls("NSRunLoop"), "mainRunLoop");
+        long date = ObjC.send(ObjC.cls("NSDate"), "distantPast");
+        long deadline = System.nanoTime() + 500_000_000;
+        while (menuWake == before && System.nanoTime() < deadline) ObjC.send(loop, "runMode:beforeDate:", mode, date);
+        expect(bad, "common-mode delayed selector", menuWake == before + 1, Integer.toString(menuWake - before));
     }
 
     private static void expect(List<String> bad, String what, boolean ok, String got) {

@@ -12,6 +12,7 @@ public final class MacKeysTest {
         Check.equal(Key.LEFT, MacKeys.key(0x7B, ""));
         Check.equal(Key.F1, MacKeys.key(0x7A, ""));
         Check.equal(Key.F12, MacKeys.key(0x6F, ""));
+        Check.equal(Key.CONTEXT_MENU, MacKeys.key(0x6E, ""));
     }
 
     public void testOtherKeysByTheirCharacter() {

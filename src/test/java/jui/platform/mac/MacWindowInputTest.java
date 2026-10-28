@@ -57,6 +57,8 @@ public final class MacWindowInputTest {
         double scrollDy;
         boolean scrollPrecise;
         int scrolls;
+        int closed;
+        @Override public void windowClosed() { closed++; }
         @Override
         public void scroll(double x, double y, double dx, double dy, boolean precise, int mods) {
             scrollDy = dy;
@@ -88,6 +90,27 @@ public final class MacWindowInputTest {
         } finally {
             ObjC.poolPop(pool);
             w.close();
+        }
+    }
+
+    public void testControlClickWithoutReleaseDoesNotPoisonTheNextClick() throws Throwable {
+        ObjC.send(ObjC.cls("NSApplication"), "sharedApplication");
+        Recorder recorder = new Recorder();
+        MacWindow window = MacWindow.open("ctrl click", 200, 150, 0xFFFFFF, null, (scene, width, height) -> {}, recorder);
+        long pool = ObjC.poolPush();
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment point = arena.allocate(POINT);
+            for (long flags : new long[] {1L << 18, 0}) {
+                long event = (long) MOUSE_EVENT.invokeExact(ObjC.cls("NSEvent"),
+                        ObjC.sel("mouseEventWithType:location:modifierFlags:timestamp:windowNumber:context:eventNumber:clickCount:pressure:"),
+                        1L, point, flags, 0.0, window.windowNumber(), 0L, 0L, 1L, 1.0f);
+                ObjC.send(window.view(), "mouseDown:", event);
+            }
+            Check.isTrue(recorder.events.contains("down 0.0 150.0 1 1 " + Mod.CTRL), recorder.events.toString());
+            Check.isTrue(recorder.events.contains("down 0.0 150.0 0 1 0"), recorder.events.toString());
+        } finally {
+            ObjC.poolPop(pool);
+            window.close();
         }
     }
 
