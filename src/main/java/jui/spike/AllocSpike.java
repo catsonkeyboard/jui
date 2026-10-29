@@ -175,7 +175,9 @@ public final class AllocSpike {
             throw new IllegalStateException("mixed-font fixture changed");
         double steady = perFrame(workload);
         EditorWorkload grown = new EditorWorkload(textEngine, 32);
+        long growthStart = System.nanoTime();
         grown.run();
+        long growthNanos = System.nanoTime() - growthStart;
         int generations = grown.atlas.generation();
         double afterGrowth = perFrame(grown);
         Engine engine = new Engine(textEngine, Theme.light(), () -> {});
@@ -192,8 +194,9 @@ public final class AllocSpike {
         double custom = (perFrame(() -> {
             engine.buildAndLayout(view, 800, 600); scene.begin(2, textEngine, atlas); engine.paint(scene);
         }) - emptyPainted) / clients.length;
-        System.out.printf("EDITORS mode=%s custom_frame=%.1f rich_frame=%.0f after_growth_frame=%.0f growths=%d atlas=%dx%d%n",
-                nativeImage ? "native" : "jvm", custom, steady, afterGrowth, generations, grown.atlas.width, grown.atlas.height);
+        System.out.printf("EDITORS mode=%s custom_frame=%.1f rich_frame=%.0f after_growth_frame=%.0f growths=%d atlas=%dx%d peak_atlas_bytes=%d growth_frame_ms=%.3f%n",
+                nativeImage ? "native" : "jvm", custom, steady, afterGrowth, generations, grown.atlas.width, grown.atlas.height,
+                grown.atlas.pixels().byteSize(), growthNanos / 1e6);
         if (generations < 2 || nativeImage && (custom > .5 || steady > .5 || afterGrowth > .5 || steady > 32768))
             throw new IllegalStateException("editor steady-frame allocation gate failed");
         long[] scroll = new long[1000], edit = new long[1000];

@@ -159,7 +159,7 @@ public final class EditorSurface implements TextInputClient {
         switch (event.kind()) {
             case COMMAND -> { return command(event.command()); }
             case SCROLL -> {
-                float previous = scrollY; scrollY -= event.dy(); reveal = false; ensure(); return scrollY != previous;
+                float previous = scrollY; scrollY += event.dy(); reveal = false; ensure(); return scrollY != previous;
             }
             case POINTER_DOWN -> {
                 if (event.button() != 0) return false;

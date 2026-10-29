@@ -7,7 +7,8 @@ public final class TextClientTest {
     static final class Client implements TextInputClient {
         String value = "A😀中";
         int anchor = 4, caret = 1, markedStart = -1, markedEnd, unmarks, resizes;
-        public int length() { return value.length(); }
+        boolean throwQuery, badActual;
+        public int length() { if (throwQuery) throw new IllegalStateException("client query failed"); return value.length(); }
         public String text(int start, int end, int[] actual) {
             actual[0] = start == 2 ? 1 : start;
             actual[1] = end == 2 ? 3 : end;
@@ -30,7 +31,7 @@ public final class TextClientTest {
         public void unmarkText() { markedStart = -1; unmarks++; }
         public boolean boundsFor(int start, int end, float[] out) {
             Check.isTrue(resizes > 0, "resize precedes queries");
-            out[0] = start * 8; out[1] = 7; out[2] = 1; out[3] = 16; out[4] = start; out[5] = end;
+            out[0] = start * 8; out[1] = 7; out[2] = 1; out[3] = 16; out[4] = badActual ? Float.NaN : start; out[5] = end;
             return true;
         }
         public int indexAt(float x, float y) { return Math.min(value.length(), Math.max(0, (int) (x / 8))); }
@@ -57,6 +58,23 @@ public final class TextClientTest {
         Check.equal("A你", client.value);
         Check.equal(2, tester.engine().textLength());
         tester.frame(); Check.equal(1, client.resizes);
+    }
+
+    public void testClientQueryExceptionsInvalidRangesAndThreadGuard() throws InterruptedException {
+        Client client = new Client();
+        Tester tester = Tester.of(context -> canvas(context).size(180, 90).handleTextInput(client).autoFocus(), 300, 200);
+        tester.frame();
+        client.throwQuery = true;
+        Check.fails(IllegalStateException.class, () -> tester.engine().textLength());
+        client.throwQuery = false; Check.equal(4, tester.engine().textLength());
+        client.badActual = true;
+        Check.fails(IllegalStateException.class, () -> tester.engine().textRect(0, 0, new float[6]));
+        client.badActual = false;
+        Throwable[] failure = new Throwable[1];
+        Thread thread = new Thread(() -> { try { tester.engine().textLength(); } catch (Throwable caught) { failure[0] = caught; } });
+        thread.start(); thread.join();
+        Check.isTrue(failure[0] instanceof IllegalStateException, "client callbacks stay on UI thread");
+        Check.equal(4, tester.engine().textLength());
     }
 
     public void testDetachSwapBlurAndCloseCommitExactlyOnce() {
@@ -115,5 +133,19 @@ public final class TextClientTest {
         Check.isTrue(tester.engine().textRect(0, 2, rect), "password caret available");
         Check.near(0, rect[5]); Check.near(2, rect[4]);
         Check.equal("ni", tester.engine().textIn(0, 100));
+    }
+
+    public void testOrdinaryMenuDoesNotBelongToUnrelatedFocusedClient() {
+        Client[] focused = {new Client()};
+        int[] chosen = {0};
+        Tester tester = Tester.of(context -> {
+            canvas(context).size(180, 90).handleTextInput(focused[0]).autoFocus();
+            Element target = button(context, "ordinary");
+            contextMenu(context, target, menu -> { if (menu.item("action").chosen()) chosen[0]++; });
+        }, 300, 200);
+        tester.frame(); tester.rightClick("ordinary");
+        focused[0] = new Client(); tester.frame();
+        Check.isTrue(tester.menu() != null, "unrelated client replacement must not cancel ordinary menu");
+        tester.chooseMenuItem("action"); Check.equal(1, chosen[0]);
     }
 }

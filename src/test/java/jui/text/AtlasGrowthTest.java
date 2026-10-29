@@ -29,8 +29,33 @@ public final class AtlasGrowthTest {
         GlyphAtlas fixed = new GlyphAtlas(8, 8);
         Check.equal(null, fixed.get(engine, layout.font(0), layout.glyph(0), 2, 0, 1, 0));
         Check.isTrue(fixed.isFull(), "fixed capacity unchanged");
+        GlyphAtlas narrow = new GlyphAtlas(8, 256);
+        TextLayout ordinary = engine.layout("W", 20, 400, 0);
+        Check.equal(null, narrow.get(engine, ordinary.font(0), ordinary.glyph(0), 2, 0, 1, 0));
+        Check.equal(8, narrow.width);
         GlyphAtlas capped = new GlyphAtlas(8, 8, 32);
         Check.equal(null, capped.get(engine, layout.font(0), layout.glyph(0), 2, 0, 1, 0));
         Check.equal(32, capped.width); Check.isTrue(capped.isFull(), "growth has a hard limit");
+    }
+
+    public void testCapacityAndFontIdentityLimits() throws Exception {
+        GlyphAtlas atlas = new GlyphAtlas(32, 32, 4096);
+        var grow = GlyphAtlas.class.getDeclaredMethod("grow"); grow.setAccessible(true);
+        while ((boolean) grow.invoke(atlas)) {}
+        Check.equal(4096, atlas.width); Check.equal(4096L * 4096, atlas.pixels().byteSize());
+        var key = GlyphAtlas.class.getDeclaredMethod("key", long.class, int.class, float.class, int.class, int.class);
+        key.setAccessible(true);
+        for (long font = 0; font < 65536; font++) key.invoke(atlas, font, 1, 2f, 0, 0);
+        try { key.invoke(atlas, 65536L, 1, 2f, 0, 0); throw new AssertionError("font IDs must not alias"); }
+        catch (java.lang.reflect.InvocationTargetException failure) {
+            Check.isTrue(failure.getCause() instanceof IllegalStateException, "clear ID exhaustion error");
+        }
+    }
+
+    public void testOversizedGlyphIsAnExplicitFailure() {
+        TextEngine engine = new TextEngine("en");
+        TextLayout huge = engine.layout("W", 3000, 400, 0);
+        GlyphAtlas atlas = new GlyphAtlas(32, 32, 4096);
+        Check.fails(IllegalStateException.class, () -> atlas.get(engine, huge.font(0), huge.glyph(0), 2, 0, 1, 0));
     }
 }

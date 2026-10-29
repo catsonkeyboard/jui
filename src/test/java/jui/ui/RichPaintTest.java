@@ -18,4 +18,17 @@ public final class RichPaintTest {
         Check.near(0, scene.instance(scene.count() - 1)[18]);
         Check.isTrue(tester.find("red BIG").height() >= 28, "rich sizes affect layout");
     }
+
+    public void testDecorationUsesFontMetricsAcrossPaintBoundaryInsideLigature() {
+        Spans spans = Spans.of(Span.text("f"), Span.text("i").strikethrough());
+        jui.text.TextLayout[] measured = new jui.text.TextLayout[1];
+        Tester tester = Tester.of(context -> {
+            measured[0] = context.layoutText(spans, 14, 400, 300);
+            richText(context, spans).fontSize(14);
+        }, 300, 100);
+        tester.frame();
+        float[] strike = tester.scene().instance(tester.scene().count() - 1);
+        Check.near(0, strike[18]);
+        Check.isTrue(strike[1] < measured[0].lineBaseline(0) - 1, "strike stays above baseline even inside ligature");
+    }
 }

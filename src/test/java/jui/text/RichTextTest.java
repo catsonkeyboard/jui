@@ -6,6 +6,38 @@ import jui.ui.Span;
 import jui.ui.Spans;
 
 public final class RichTextTest {
+    public void testFontBucketsAndShapeHashCollisionsCompareRealValues() throws Exception {
+        TextEngine engine = new TextEngine("en");
+        long normal = engine.layout("a", 14, 400, 0).font(0), bold = engine.layout("a", 14, 700, 0).font(0);
+        Check.isTrue(!CoreText.equal(normal, bold), "font traits differ");
+        var field = TextEngine.class.getDeclaredField("canonicalFonts"); field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        var buckets = (java.util.Map<Long, java.util.ArrayList<Long>>) field.get(engine);
+        buckets.get(CoreText.hash(bold)).addFirst(normal);
+        var canonical = TextEngine.class.getDeclaredMethod("canonical", long.class); canonical.setAccessible(true);
+        Check.equal(bold, ((Long) canonical.invoke(engine, bold)).longValue());
+        Spans first = Spans.of(Span.text("Aa")), second = Spans.of(Span.text("BB"));
+        Check.equal(first.shapeHash(), second.shapeHash());
+        Check.isTrue(!first.sameShape(second), "hash is not identity");
+        Check.isTrue(engine.layout(first, 14, 400, 0) != engine.layout(second, 14, 400, 0), "collision cannot reuse wrong text");
+    }
+
+    public void testDecorationsOnPaintOnlyPartOfSharedCluster() {
+        TextEngine engine = new TextEngine("en");
+        TextLayout base = engine.layout("f", 14, 400, 0);
+        TextLayout.LineTable table = new TextLayout.LineTable();
+        table.add(0, 2, 2, 0, 1, 0, base.height, base.width);
+        table.baselines[0] = base.lineBaseline(0);
+        float[] carets = {0, base.width / 2, base.width};
+        TextLayout shared = new TextLayout("fi", 14, 400, 0, base.width, base.height, 1,
+                base.fonts, base.glyphs, base.xs, base.ys, new int[] {0}, table, new int[] {0, 1, 2}, carets, carets);
+        jui.render.Scene scene = new jui.render.Scene();
+        scene.begin(2, engine, new GlyphAtlas(128, 128));
+        scene.richText(shared, Spans.of(Span.text("f"), Span.text("i").strikethrough()), 0, 0, 0x000000FF, 1);
+        float actual = scene.instance(scene.count() - 1)[1];
+        Check.near(base.lineBaseline(0) - engine.metrics(base.font(0)).xHeight() / 2, actual);
+    }
+
     public void testImmutableSpansAndGlobalGraphemeBoundaries() {
         Span[] values = {Span.text("Hello "), Span.text("中😀").bold()};
         Spans spans = Spans.of(values);

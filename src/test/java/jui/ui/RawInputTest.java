@@ -6,6 +6,26 @@ import jui.testing.Check;
 import static jui.ui.Ui.*;
 
 public final class RawInputTest {
+    public void testKeyUpModifiersAndUnconsumedScroll() {
+        List<InputEvent.Kind> events = new ArrayList<>();
+        ScrollState scroll = new ScrollState();
+        Tester tester = Tester.of(context -> scroll(context, scroll).height(80).children(() ->
+                canvas(context).height(300).label("raw").focusable().autoFocus().handleInput(event -> {
+                    events.add(event.kind());
+                    if (event.kind() == InputEvent.Kind.KEY_UP) {
+                        Check.equal(Key.A, event.key()); Check.equal(Mod.SHIFT, event.mods()); Check.near(300, event.height());
+                    }
+                    return false;
+                })), 240, 180);
+        tester.frame();
+        tester.engine().modifiersChanged(Mod.SHIFT);
+        tester.engine().keyUp(Key.A, Mod.SHIFT);
+        tester.scroll(10, 10, 0, 30);
+        Check.isTrue(events.contains(InputEvent.Kind.MODIFIERS_CHANGED), "modifier notification");
+        Check.isTrue(events.contains(InputEvent.Kind.KEY_UP), "key-up notification");
+        Check.isTrue(events.contains(InputEvent.Kind.SCROLL) && scroll.y() > 0, "false lets parent scroll");
+    }
+
     public void testTakenTabAndShortcutPriority() {
         List<Key> keys = new ArrayList<>();
         int[] shortcut = {0};

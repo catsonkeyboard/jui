@@ -112,7 +112,9 @@ final class TextClientAdapter {
         if (!available) return false;
         if (!Float.isFinite(bounds[0]) || !Float.isFinite(bounds[1]) || !Float.isFinite(bounds[2])
                 || !Float.isFinite(bounds[3]) || bounds[2] < 0 || bounds[3] < 0 || bounds[4] < 0
-                || bounds[5] < bounds[4] || bounds[5] > length) throw new IllegalStateException("invalid text bounds");
+                || !Float.isFinite(bounds[4]) || !Float.isFinite(bounds[5]) || bounds[4] != Math.rint(bounds[4])
+                || bounds[5] != Math.rint(bounds[5]) || bounds[5] < bounds[4] || bounds[5] > length)
+            throw new IllegalStateException("invalid text bounds");
         float actualStart = bounds[4], actualEnd = bounds[5];
         out[0] = owner.x + bounds[0]; out[1] = owner.y + bounds[1]; out[2] = bounds[2]; out[3] = bounds[3];
         if (out.length > 4) out[4] = actualEnd;

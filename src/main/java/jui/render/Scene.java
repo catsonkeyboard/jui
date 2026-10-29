@@ -147,7 +147,14 @@ public final class Scene {
                 else {
                     float position = 0, thickness = 1 / scale, xHeight = 0;
                     for (int glyph = layout.lineGlyphStart(line); glyph < layout.lineGlyphEnd(line); glyph++) {
-                        if (layout.index(glyph) < start || layout.index(glyph) >= last) continue;
+                        int cluster = layout.index(glyph);
+                        if (cluster >= last) continue;
+                        if (cluster < start) {
+                            int next = glyph + 1;
+                            while (next < layout.lineGlyphEnd(line) && layout.index(next) == cluster) next++;
+                            int clusterEnd = next < layout.lineGlyphEnd(line) ? layout.index(next) : lineEnd;
+                            if (clusterEnd <= start) continue;
+                        }
                         TextEngine.FontMetrics metrics = text.metrics(layout.font(glyph));
                         position = Math.max(position, -metrics.underline());
                         thickness = Math.max(thickness, metrics.thickness());

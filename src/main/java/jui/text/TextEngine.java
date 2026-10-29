@@ -29,10 +29,8 @@ public final class TextEngine {
     private final long language;
     private final Map<Long, Long> systemFonts = new HashMap<>();
     /**
-     * One font for each PostScript name and size. Core Text makes new
-     * fallback fonts for each typesetter (PingFang for Han characters, say),
-     * and the glyph atlas keys on the font: without one font each, every new
-     * text would rasterize its glyphs again, until the atlas is full.
+     * Fonts bucketed by CFHash and compared with CFEqual, so equivalent
+     * fallback copies share atlas entries without merging distinct traits.
      */
     private final Map<Long, java.util.ArrayList<Long>> canonicalFonts = new HashMap<>();
     private final LongMap<FontMetrics> fontMetrics = new LongMap<>();
@@ -362,9 +360,8 @@ public final class TextEngine {
     }
 
     /**
-     * The font kept for font's PostScript name and size: the first such font
-     * seen, retained, as the glyph atlas keys on it. Others are the run's own,
-     * freed with it, so their references are never kept.
+     * The retained canonical font with equal Core Text semantics. Temporary
+     * run fonts are not kept after their lines are released.
      */
     private long canonical(long font) {
         long hash = CoreText.hash(font);
@@ -469,6 +466,10 @@ public final class TextEngine {
             double s = scale, x = dx;
             // Smoothing spreads a glyph up to a pixel further.
             int pad = smoothing ? 2 : 1;
+            double pixelWidth = Math.ceil((rx + rw) * s + x) - Math.floor(rx * s + x) + 2 * pad;
+            double pixelHeight = Math.ceil(-ry * s) - Math.floor(-(ry + rh) * s) + 2 * pad;
+            if (!Double.isFinite(pixelWidth) || !Double.isFinite(pixelHeight) || pixelWidth > 2048 || pixelHeight > 2048)
+                throw new IllegalStateException("glyph exceeds the 2048-pixel raster limit");
             // Core Graphics' y goes up: the box from ry to ry+rh above the
             // baseline is from -(ry+rh) to -ry below it.
             int left = (int) Math.floor(rx * s + x) - pad;
@@ -476,9 +477,6 @@ public final class TextEngine {
             int top = (int) Math.floor(-(ry + rh) * s) - pad;
             int bottom = (int) Math.ceil(-ry * s) + pad;
             int w = right - left, h = bottom - top;
-            if (w > 2048 || h > 2048) {
-                return null;
-            }
             if (pixels.byteSize() < (long) w * h) {
                 pixels = Arena.ofAuto().allocate(Math.max((long) w * h, pixels.byteSize() * 2));
             }

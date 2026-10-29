@@ -145,7 +145,7 @@ final class MenuState {
             born = owner.born;
             edit = owner.edit;
             client = node.textClient;
-            this.connection = connection;
+            this.connection = connection != null && connection.owner == owner ? connection : null;
             explicit = node.contextMenu != null;
             this.x = x;
             this.y = y;

@@ -13,14 +13,15 @@ import jui.util.LongMap;
  * glyph is kept for its font, size in pixels, position within a pixel and
  * shade, as MyGO's glyph keys are.
  *
- * <p>A spike's atlas: it neither grows nor forgets glyphs (MyGO repacks,
- * grows and frees what frames stop drawing).
+ * <p>The two-argument constructor has fixed capacity. An explicit maximum
+ * enables position-preserving growth up to 4096; no eviction or repacking.
  */
 public final class GlyphAtlas {
     public int width, height;
     private MemorySegment pixels;
     private Arena arena;
     private final int maxSize;
+    private final boolean scalable;
     private int generation;
     public int generation() { return generation; }
     /** Glyphs by key (see key): a frame looks up every glyph it draws, without allocating. */
@@ -39,15 +40,20 @@ public final class GlyphAtlas {
     }
 
     public GlyphAtlas(int width, int height) {
-        this(width, height, Math.max(width, height));
+        this(width, height, Math.max(width, height), false);
     }
 
     public GlyphAtlas(int width, int height, int maxSize) {
+        this(width, height, maxSize, true);
+    }
+
+    private GlyphAtlas(int width, int height, int maxSize, boolean scalable) {
         if (width < 1 || height < 1 || maxSize < Math.max(width, height) || maxSize > 4096)
             throw new IllegalArgumentException("invalid atlas dimensions");
         this.width = width;
         this.height = height;
         this.maxSize = maxSize;
+        this.scalable = scalable;
         this.arena = Arena.ofAuto();
         this.pixels = arena.allocate((long) width * height);
     }
@@ -138,6 +144,7 @@ public final class GlyphAtlas {
     }
 
     private boolean grow() {
+        if (!scalable) return false;
         int nextWidth = Math.min(maxSize, width * 2), nextHeight = Math.min(maxSize, height * 2);
         if (nextWidth == width && nextHeight == height) return false;
         Arena nextArena = Arena.ofAuto();

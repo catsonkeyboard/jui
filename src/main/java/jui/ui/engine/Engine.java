@@ -57,6 +57,7 @@ public final class Engine {
     public boolean isClosed() { return closed; }
     TextClientAdapter activeTextConnection() { return input.activeCustom(); }
     public void beginCallback() {
+        if (Libc.pthreadMainNp() == 0) throw new IllegalStateException("UI callbacks require the UI thread");
         if (callbackDepth != 0) throw new IllegalStateException("UI callbacks cannot reenter dispatch");
         callbackDepth++;
     }
@@ -1810,6 +1811,8 @@ public final class Engine {
 
     /** Paints the last layout into scene, which the caller began at its scale. */
     public void paint(jui.render.Scene scene) {
+        if (callbackDepth != 0) throw new IllegalStateException("UI callbacks cannot reenter painting");
+        if (closed) return;
         if (pool.size() > 0) {
             long ring = input.focusVisible && input.windowFocused ? input.focusedId : 0;
             Paint.paint(pool, 0, scene, theme, 1, false, ring);

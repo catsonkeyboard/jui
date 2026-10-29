@@ -4,6 +4,15 @@ import jui.testing.Check;
 import jui.ui.*;
 
 public final class EditorPrimitivesDemoTest {
+    public void testApplicationScrollUsesFrameworkDirection() {
+        EditorPrimitivesDemo demo = new EditorPrimitivesDemo();
+        Tester tester = Tester.of(demo::view, 800, 650);
+        tester.frame(); demo.editor.reset("line\n".repeat(100)); tester.frame();
+        float previous = demo.editor.scrollY();
+        tester.scroll("自有编辑面", 0, -40);
+        Check.isTrue(demo.editor.scrollY() < previous, "negative scroll moves toward document start");
+    }
+
     public void testApplicationEditorTypingCompositionAndUndo() {
         EditorPrimitivesDemo demo = new EditorPrimitivesDemo();
         Tester tester = Tester.of(demo::view, 800, 650);
