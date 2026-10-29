@@ -54,4 +54,13 @@ public final class WrapLayoutTest {
         Check.near(30, top(tt, "b0"));                      // the first line at the bottom
         Check.near(20, top(tt, "b1"));                      // the second above it
     }
+
+    public void testWrapReverseSwapsCrossMargins() { // MyGO's flipCross swaps the sides before mirroring
+        Tester tt = Tester.of(c -> row(c).size(100, 50).wrap().alignItems(Align.CENTER).label("r")
+                .children(() -> box(c).size(20, 20).margin(10, 0, 0, 0).label("b0")), 300, 300);
+        Check.near(10, top(tt, "b0"));                      // plainly: its 10 of top margin above it
+        tt = Tester.of(c -> row(c).size(100, 50).wrapReverse().alignItems(Align.CENTER).label("r")
+                .children(() -> box(c).size(20, 20).margin(10, 0, 0, 0).label("b0")), 300, 300);
+        Check.near(30, top(tt, "b0"));                      // reversed: flush with the bottom, the margin above it
+    }
 }

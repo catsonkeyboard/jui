@@ -569,6 +569,10 @@ public final class FlexLayout {
             pos += ms == Ui.AUTO ? auto : ms;
             float sz = n.flexTarget, cs = n.crossSize;
             float cms = row ? n.marTop : n.marLeft, cme = row ? n.marBottom : n.marRight;
+            if (p.wrapReverse) {
+                // MyGO's flipCross swaps the cross margins' sides before the line is mirrored.
+                float swap = cms; cms = cme; cme = swap;
+            }
             Align a = alignOf(p, n);
             boolean fixedCross = row ? !Float.isNaN(resolved(n.height, n.heightPercent, innerH))
                     : !Float.isNaN(resolved(n.width, n.widthPercent, innerW));
