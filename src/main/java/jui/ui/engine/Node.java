@@ -22,6 +22,8 @@ public final class Node {
     public static final int RAW_INPUT = 4096;
     /** Marks the backdrop of a modal, which scopes the focus and takes Escape. */
     public static final int MODAL = 8192;
+    /** Marks the panel of a popover, which Escape closes and a press outside dismisses. */
+    public static final int ESCAPABLE = 16384;
     public jui.ui.InputHandler inputHandler;
     public jui.ui.TextInputClient textClient;
     public boolean textClientDeclared;
@@ -77,6 +79,8 @@ public final class Node {
     public float gapX, gapY;
     /** Placed in the parent's padding box by its insets (NaN unset), out of the flow; and not shown. */
     public boolean absolute, invisible;
+    /** A node this one is placed on, as a popover's panel on its anchor (FlexLayout). */
+    public int placeOn = -1;
     /** Clips what it holds to its padding box. */
     public boolean clip;
     /** A scroll container's offset (in from its state, out clamped), the offset asked for (NaN none), and its content's height. */
@@ -204,6 +208,7 @@ public final class Node {
         listExtraY = 0;
         top = right = bottom = left = Float.NaN;
         padTop = padRight = padBottom = padLeft = 0;
+        placeOn = -1;
         marTop = marRight = marBottom = marLeft = 0;
         border = 0;
         justify = Justify.START;

@@ -333,6 +333,49 @@ public final class Ui {
     }
 
     /**
+     * A panel over the window below anchor while open is true, as wide as
+     * the anchor at least, start-aligned with it; where that would overflow
+     * the window it goes above the anchor, or slides along it. A press
+     * outside it and the anchor, or Escape, closes it, which dismissed()
+     * reports once; the anchor going away closes it too. Style the panel on
+     * what this returns; build nothing while it is closed. Its margin is
+     * its gap from the anchor.
+     */
+    public static Element popover(Context c, Element anchor, BoolRef open, Runnable content) {
+        Theme t = c.theme();
+        jui.ui.engine.Engine en = c.engine();
+        if (!open.get() || anchor == null) {
+            if (open.get()) {
+                open.set(false);                             // the anchor went away
+            }
+            return box(c).invisible();
+        }
+        Element panel = box(c).absolute().margin(4, 0, 0, 0).padding(4).gap(4)
+                .radius(t.radius() + 2).background(t.background()).border(1, t.border())
+                .shadow(0, 6, 20, 0, Color.rgba(0x000000, 0.18f)).label("popover");
+        Node pn = panel.node();
+        pn.flags |= Node.CLICKABLE | Node.ESCAPABLE;         // presses on it stay in it
+        pn.placeOn = anchor.index;
+        panel.minWidth(anchor.bounds().width());
+        jui.ui.engine.ElementState ps = en.state(panel.index);
+        ps.anchorId = anchor.node().id;
+        if (ps.escaped > 0 || ps.outside > 0) {
+            ps.escaped = 0;
+            ps.outside = 0;
+            open.set(false);
+            en.markDismissed(panel.index);
+            return panel;
+        }
+        int saved = en.enter(panel.index);
+        try {
+            content.run();
+        } finally {
+            en.exit(saved);
+        }
+        return panel;
+    }
+
+    /**
      * A list of count rows that builds only those in view: row builds row i,
      * as one element. Rows may be of any height. A row's identity is its
      * key when the state has keys (ListState.keys), else a key set in row

@@ -40,6 +40,9 @@ public final class ElementState {
     public long modalReturn;
     /** The modal this element's root showed was dismissed in this pass. */
     public boolean dismissed;
+    /** A popover's anchor, and the presses outside it that arrived since the last pass. */
+    public long anchorId;
+    public int outside;
     /** A scroll container's offset, its content's height and its content box's height as committed; an offset asked for (NaN none). */
     public float scrollY, contentH, viewH;
     public float requestY = Float.NaN;

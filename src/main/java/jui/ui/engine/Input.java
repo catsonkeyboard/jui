@@ -47,9 +47,10 @@ final class Input {
     long dragId;
     boolean dragHorizontal;
     private float dragFrom, dragReach, dragStart, dragTravel;
-    /** The open modals of the last commit, outermost first: the last is the topmost. */
-    long[] modals = new long[4];
-    int modalCount;
+    /** The open overlays of the last commit (modals and popovers), outermost first: the last is the topmost. */
+    long[] overlays = new long[4];
+    int[] overlayFlags = new int[4];
+    int overlayCount;
 
 
     // Focus: the focused identity (0 for none), whether its ring shows, and the window's key state.
@@ -230,6 +231,18 @@ final class Input {
                 }
             }
         }
+        // A popover closes on a press outside it and its anchor (as MyGO's PressedOutside);
+        // a modal's backdrop takes the press itself instead.
+        if (button == 0 && overlayCount > 0 && (overlayFlags[overlayCount - 1] & Node.MODAL) == 0) {
+            long panel = overlays[overlayCount - 1];
+            ElementState s = engine.states().get(panel);
+            long press = target >= 0 ? hits.ids[target] : 0;
+            if (!within(press, panel) && (s == null || s.anchorId == 0 || !within(press, s.anchorId))) {
+                if (s != null) {
+                    s.outside++;
+                }
+            }
+        }
         updateCursor();
         engine.requestFrame();
     }
@@ -301,10 +314,10 @@ final class Input {
             return;
         }
         // An open modal takes Escape first (as MyGO's overlay shortcut): the topmost one closes.
-        if (key == jui.ui.Key.ESCAPE && mods == 0 && modalCount > 0) {
+        if (key == jui.ui.Key.ESCAPE && mods == 0 && overlayCount > 0) {
             TextEdit esc = focusedEdit();
             if (esc == null || !esc.composing()) {
-                ElementState top = engine.states().get(modals[modalCount - 1]);
+                ElementState top = engine.states().get(overlays[overlayCount - 1]);
                 if (top != null) {
                     top.escaped++;
                 }
@@ -694,22 +707,40 @@ final class Input {
         return false;
     }
 
-    /** Begins collecting this frame's open modals (Engine.commit). */
-    void modalsBegin() {
-        modalCount = 0;
-    }
-
-    /** An open modal, in build order (Engine.commit). */
-    void modalOpen(long id) {
-        if (modalCount == modals.length) {
-            modals = java.util.Arrays.copyOf(modals, modalCount * 2);
+    /** Whether id is ancestor's own self, or what it holds: 0 is nothing's. */
+    private boolean within(long id, long ancestor) {
+        for (int i = hits.indexOf(id); i >= 0; i = hits.parent[i]) {
+            if (hits.ids[i] == ancestor) {
+                return true;
+            }
         }
-        modals[modalCount++] = id;
+        return false;
     }
 
-    /** The topmost open modal, or 0 for none. */
+    /** Begins collecting this frame's open overlays (Engine.commit). */
+    void overlaysBegin() {
+        overlayCount = 0;
+    }
+
+    /** An open overlay, in build order with its node flags (Engine.commit). */
+    void overlayOpen(long id, int flags) {
+        if (overlayCount == overlays.length) {
+            overlays = java.util.Arrays.copyOf(overlays, overlayCount * 2);
+            overlayFlags = java.util.Arrays.copyOf(overlayFlags, overlayCount * 2);
+        }
+        overlays[overlayCount] = id;
+        overlayFlags[overlayCount] = flags;
+        overlayCount++;
+    }
+
+    /** The topmost open modal, or 0 for none: what the focus is scoped to. */
     private long topModal() {
-        return modalCount == 0 ? 0 : modals[modalCount - 1];
+        for (int i = overlayCount - 1; i >= 0; i--) {
+            if ((overlayFlags[i] & Node.MODAL) != 0) {
+                return overlays[i];
+            }
+        }
+        return 0;
     }
 
     /** Whether the focusable at focusOrder index i lies in the modal that scopes the focus. */

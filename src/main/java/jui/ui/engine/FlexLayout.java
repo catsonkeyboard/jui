@@ -435,6 +435,26 @@ public final class FlexLayout {
                 h = !Float.isNaN(n.top) && !Float.isNaN(n.bottom) ? ph - n.top - n.bottom - mt - mb : contentHeight(c, w);
             }
             h = clamp(h, n.minHeight, n.maxHeight);
+            if (n.placeOn >= 0 && n.placeOn < pool.size()) {
+                Node target = pool.node(n.placeOn);
+                // The room it stays in: the root's box, the window.
+                Node root = p;
+                while (root.parent != Node.NONE) {
+                    root = pool.node(root.parent);
+                }
+                // Below the anchor, start-aligned; where that overflows the window, above it or slid in.
+                float x = target.x + ml;
+                if (x + w > root.x + root.w) {
+                    x = Math.max(root.x, root.x + root.w - w);
+                }
+                float y = target.y + target.h + mt;
+                if (y + h > root.y + root.h) {
+                    y = Math.max(root.y, Math.min(target.y - mb - h, root.y + root.h - h));
+                }
+                set(n, x, y, w, h);
+                place(c);
+                continue;
+            }
             float x = !Float.isNaN(n.left) ? n.left + ml : !Float.isNaN(n.right) ? pw - n.right - w - mr : ml;
             float y = !Float.isNaN(n.top) ? n.top + mt : !Float.isNaN(n.bottom) ? ph - n.bottom - h - mb : mt;
             set(n, bx + x, by + y, w, h);

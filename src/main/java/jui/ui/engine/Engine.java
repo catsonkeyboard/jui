@@ -552,6 +552,7 @@ public final class Engine {
                 s.changed = false;
                 s.dismissed = false;
                 s.escaped = 0;
+                s.outside = 0;
                 s.dragX = s.dragY = 0;
                 s.keyCount = 0;
             }
@@ -621,7 +622,7 @@ public final class Engine {
      */
     private void commit() {
         if (clientBindings != null) clientBindings.clear();
-        input.modalsBegin();
+        input.overlaysBegin();
         hits.clear();
         commitHits(0, -1, Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY,
                 Float.POSITIVE_INFINITY, -1);
@@ -639,8 +640,8 @@ public final class Engine {
                 s.cw = Math.max(0, n.w - n.padLeft - n.padRight - 2 * n.border);
                 s.ch = Math.max(0, n.h - n.padTop - n.padBottom - 2 * n.border);
                 s.disabledLast = n.disabled;
-                if ((n.flags & Node.MODAL) != 0 && !n.invisible) {
-                    input.modalOpen(n.id); // the open modals of this frame, the last the topmost
+                if ((n.flags & (Node.MODAL | Node.ESCAPABLE)) != 0 && !n.invisible) {
+                    input.overlayOpen(n.id, n.flags); // the open overlays of this frame, the last the topmost
                 }
                 s.inputHandler = n.inputHandler;
                 s.textClient = n.textClient;
