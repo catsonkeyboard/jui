@@ -64,6 +64,7 @@ public final class Native {
     static final MethodHandle PERFORM_AFTER_MODES = handle(Sigs.PERFORM_AFTER_MODES);
     static final MethodHandle POPUP_MENU = handle(Sigs.POPUP_MENU);
     static final MethodHandle REPLACE_REGION = handle(Sigs.REPLACE_REGION);
+    static final MethodHandle GET_TEXTURE_BYTES = handle(Sigs.GET_TEXTURE_BYTES);
     static final MethodHandle SET_SCISSOR = handle(Sigs.SET_SCISSOR);
     static final MethodHandle RECT_RECT_W = handle(Sigs.RECT_RECT_W);
     static final MethodHandle RECT_RECT = handle(Sigs.RECT_RECT);

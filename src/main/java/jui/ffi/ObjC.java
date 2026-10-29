@@ -199,6 +199,13 @@ public final class ObjC {
         }
     }
 
+    public static void textureBytes(long texture, long bytes, long bytesPerRow, long width, long height) {
+        REGION_ARG.set(JAVA_LONG, 0, 0); REGION_ARG.set(JAVA_LONG, 8, 0); REGION_ARG.set(JAVA_LONG, 16, 0);
+        REGION_ARG.set(JAVA_LONG, 24, width); REGION_ARG.set(JAVA_LONG, 32, height); REGION_ARG.set(JAVA_LONG, 40, 1);
+        try { Native.GET_TEXTURE_BYTES.invokeExact(MSG_SEND, texture, sel("getBytes:bytesPerRow:fromRegion:mipmapLevel:"), bytes, bytesPerRow, REGION_ARG, 0L); }
+        catch (Throwable failure) { throw Native.rethrow(failure); }
+    }
+
     /** A message returning a CGRect, as {x, y, width, height}. */
     public static double[] sendRect(long obj, String sel) {
         try {

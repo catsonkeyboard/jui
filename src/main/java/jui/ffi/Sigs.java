@@ -100,6 +100,8 @@ public final class Sigs {
     /** void (id, SEL, MTLRegion, NSUInteger, const void *, NSUInteger): replaceRegion:mipmapLevel:withBytes:bytesPerRow:. */
     public static final FunctionDescriptor REPLACE_REGION = down(FunctionDescriptor.ofVoid(
             JAVA_LONG, JAVA_LONG, MTL_REGION, JAVA_LONG, JAVA_LONG, JAVA_LONG));
+    public static final FunctionDescriptor GET_TEXTURE_BYTES = down(FunctionDescriptor.ofVoid(
+            JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG, MTL_REGION, JAVA_LONG));
 
     // objc_msgSend with floats or structs, which travel in other registers.
     /** CGRect (id, SEL): bounds, frame. */

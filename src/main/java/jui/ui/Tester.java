@@ -17,7 +17,7 @@ public final class Tester {
     private final View view;
     private float width, height;
     private final TextEngine text = new TextEngine("zh-Hans");
-    private final GlyphAtlas atlas = new GlyphAtlas(1024, 1024);
+    private final GlyphAtlas atlas = new GlyphAtlas(1024, 1024, 4096);
     private final Scene scene = new Scene();
     private final Engine engine;
     /** The tester's platform: a clipboard in memory, the cursor last set. */

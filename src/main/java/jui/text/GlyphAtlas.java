@@ -17,8 +17,12 @@ import jui.util.LongMap;
  * grows and frees what frames stop drawing).
  */
 public final class GlyphAtlas {
-    public final int width, height;
-    private final MemorySegment pixels;
+    public int width, height;
+    private MemorySegment pixels;
+    private Arena arena;
+    private final int maxSize;
+    private int generation;
+    public int generation() { return generation; }
     /** Glyphs by key (see key): a frame looks up every glyph it draws, without allocating. */
     private final LongMap<Entry> entries = new LongMap<>();
     /** A small number for each font, which keys take in place of its 64-bit reference. */
@@ -35,9 +39,17 @@ public final class GlyphAtlas {
     }
 
     public GlyphAtlas(int width, int height) {
+        this(width, height, Math.max(width, height));
+    }
+
+    public GlyphAtlas(int width, int height, int maxSize) {
+        if (width < 1 || height < 1 || maxSize < Math.max(width, height) || maxSize > 4096)
+            throw new IllegalArgumentException("invalid atlas dimensions");
         this.width = width;
         this.height = height;
-        this.pixels = Arena.global().allocate((long) width * height);
+        this.maxSize = maxSize;
+        this.arena = Arena.ofAuto();
+        this.pixels = arena.allocate((long) width * height);
     }
 
     public MemorySegment pixels() {
@@ -70,6 +82,7 @@ public final class GlyphAtlas {
             return Entry.EMPTY;
         }
         int[] at = place(b.width(), b.height());
+        while (at == null && grow()) at = place(b.width(), b.height());
         if (at == null) {
             if (!full) {
                 full = true;
@@ -98,6 +111,7 @@ public final class GlyphAtlas {
     private long key(long font, int glyph, float scale, int sub, int shade) {
         Integer id = fontIds.get(font);
         if (id == null) {
+            if (fontIds.size() >= 65536) throw new IllegalStateException("atlas font IDs exhausted");
             id = fontIds.size();
             fontIds.put(font, id);
         }
@@ -120,6 +134,18 @@ public final class GlyphAtlas {
         out[3] = dirtyY1 - dirtyY0;
         dirtyX0 = dirtyY0 = Integer.MAX_VALUE;
         dirtyX1 = dirtyY1 = 0;
+        return true;
+    }
+
+    private boolean grow() {
+        int nextWidth = Math.min(maxSize, width * 2), nextHeight = Math.min(maxSize, height * 2);
+        if (nextWidth == width && nextHeight == height) return false;
+        Arena nextArena = Arena.ofAuto();
+        MemorySegment next = nextArena.allocate((long) nextWidth * nextHeight);
+        for (int row = 0; row < height; row++) MemorySegment.copy(pixels, (long) row * width, next, (long) row * nextWidth, width);
+        arena = nextArena; pixels = next; width = nextWidth; height = nextHeight;
+        generation++;
+        dirtyX0 = dirtyY0 = 0; dirtyX1 = width; dirtyY1 = height;
         return true;
     }
 

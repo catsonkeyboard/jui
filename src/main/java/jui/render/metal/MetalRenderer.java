@@ -58,8 +58,9 @@ public final class MetalRenderer {
     private final MemorySegment[] contents = new MemorySegment[BUFFERS];
     private final int[] capacities = new int[BUFFERS];
     private final MemorySegment globals = Arena.global().allocate(16, 16);
-    private final GlyphAtlas atlas = new GlyphAtlas(ATLAS_SIZE, ATLAS_SIZE);
-    private final long atlasTexture;
+    private final GlyphAtlas atlas;
+    private long atlasTexture;
+    private int atlasGeneration = -1;
     private final int[] dirty = new int[4];
     private int frame;
     private int drawn;
@@ -71,6 +72,11 @@ public final class MetalRenderer {
     public final String libraryKind;
 
     public MetalRenderer(long superlayer) {
+        this(superlayer, new GlyphAtlas(ATLAS_SIZE, ATLAS_SIZE, 4096));
+    }
+
+    private MetalRenderer(long superlayer, GlyphAtlas atlas) {
+        this.atlas = atlas;
         long pool = ObjC.poolPush();
         try {
             device = Native.call(CREATE_SYSTEM_DEFAULT_DEVICE);
@@ -101,10 +107,7 @@ public final class MetalRenderer {
                 allocate(i, CAPACITY);
             }
 
-            // The glyph atlas: coverage, a byte a pixel.
-            long desc = send(cls("MTLTextureDescriptor"), "texture2DDescriptorWithPixelFormat:width:height:mipmapped:",
-                    PIXEL_FORMAT_R8_UNORM, ATLAS_SIZE, ATLAS_SIZE, 0);
-            atlasTexture = send(device, "newTextureWithDescriptor:", desc);
+            uploadAtlas();
         } catch (Throwable t) {
             throw t instanceof RuntimeException r ? r : new RuntimeException(t);
         } finally {
@@ -160,9 +163,42 @@ public final class MetalRenderer {
                 return false;
             }
 
+            long commands = encode(scene, send(drawable, "texture"), pw, ph, clear);
+            if (onCompleted != 0) send(commands, "addCompletedHandler:", onCompleted);
+            if (synced) {
+                send(commands, "commit");
+                send(commands, "waitUntilScheduled");
+                send(drawable, "present");
+            } else {
+                send(commands, "presentDrawable:", drawable);
+                send(commands, "commit");
+            }
+            return true;
+        } finally { ObjC.poolPop(pool); }
+    }
+
+    private void uploadAtlas() {
+        if (atlasGeneration != atlas.generation()) {
+            long desc = send(cls("MTLTextureDescriptor"), "texture2DDescriptorWithPixelFormat:width:height:mipmapped:",
+                    PIXEL_FORMAT_R8_UNORM, atlas.width, atlas.height, 0);
+            long replacement = send(device, "newTextureWithDescriptor:", desc);
+            if (replacement == 0) throw new IllegalStateException("cannot grow atlas texture");
+            ObjC.replaceRegion(replacement, 0, 0, atlas.width, atlas.height, atlas.pixels().address(), atlas.width);
+            long previous = atlasTexture;
+            atlasTexture = replacement;
+            atlasGeneration = atlas.generation();
+            ObjC.release(previous);
+            atlas.takeDirty(dirty);
+        } else if (atlas.takeDirty(dirty)) {
+            long at = atlas.pixels().address() + (long) dirty[1] * atlas.width + dirty[0];
+            ObjC.replaceRegion(atlasTexture, dirty[0], dirty[1], dirty[2], dirty[3], at, atlas.width);
+        }
+    }
+
+    private long encode(Scene scene, long target, long pw, long ph, int clear) {
             long pass = send(cls("MTLRenderPassDescriptor"), "renderPassDescriptor");
             long color = send(send(pass, "colorAttachments"), "objectAtIndexedSubscript:", 0);
-            send(color, "setTexture:", send(drawable, "texture"));
+            send(color, "setTexture:", target);
             send(color, "setLoadAction:", LOAD_ACTION_CLEAR);
             send(color, "setStoreAction:", STORE_ACTION_STORE);
             ObjC.setClearColor(color, ((clear >> 16) & 0xFF) / 255.0, ((clear >> 8) & 0xFF) / 255.0,
@@ -177,12 +213,7 @@ public final class MetalRenderer {
             int n = scene.writeTo(contents[slot], capacities[slot]);
             globals.set(JAVA_FLOAT, 0, pw);
             globals.set(JAVA_FLOAT, 4, ph);
-            // Glyphs new to the atlas go up in one rectangle. They land where
-            // no glyph was, so frames in flight never see a texel change.
-            if (atlas.takeDirty(dirty)) {
-                long at = atlas.pixels().address() + (long) dirty[1] * atlas.width + dirty[0];
-                ObjC.replaceRegion(atlasTexture, dirty[0], dirty[1], dirty[2], dirty[3], at, atlas.width);
-            }
+            uploadAtlas();
 
             long commands = send(queue, "commandBuffer");
             long encoder = send(commands, "renderCommandEncoderWithDescriptor:", pass);
@@ -215,23 +246,63 @@ public final class MetalRenderer {
                 drawn += end - start;
             }
             send(encoder, "endEncoding");
-            if (onCompleted != 0) {
-                send(commands, "addCompletedHandler:", onCompleted);
+            return commands;
+    }
+
+    public static void checkAtlasGrowth() {
+        long pool = ObjC.poolPush();
+        long superlayer = ObjC.create("CALayer");
+        MetalRenderer renderer = null;
+        long firstTarget = 0, secondTarget = 0;
+        try (Arena arena = Arena.ofConfined()) {
+            GlyphAtlas atlas = new GlyphAtlas(32, 32, 512);
+            renderer = new MetalRenderer(superlayer, atlas);
+            jui.text.TextEngine text = new jui.text.TextEngine("zh-Hans");
+            Scene original = new Scene();
+            original.begin(2, text, atlas);
+            original.text("W", 8, 8, 13, 400, 0xFFFFFFFF, 0);
+            firstTarget = renderer.readbackTarget(128, 96);
+            secondTarget = renderer.readbackTarget(128, 96);
+            long before = renderer.encode(original, firstTarget, 128, 96, 0);
+            if (send(before, "retainedReferences") == 0) throw new IllegalStateException("command buffers must retain resources");
+            long oldTexture = renderer.atlasTexture;
+            jui.text.TextLayout more = text.layout("abcdefghijklmnopqrstuvwxyz0123456789中文字体图集扩容", 24, 700, 0);
+            for (int index = 0; index < more.glyphCount(); index++) atlas.get(text, more.font(index), more.glyph(index), 2, 0, 1, 0);
+            long after = renderer.encode(original, secondTarget, 128, 96, 0);
+            if (atlas.generation() < 2 || oldTexture == renderer.atlasTexture || atlas.isFull())
+                throw new IllegalStateException("GPU growth probe did not grow twice");
+            send(before, "commit"); send(after, "commit");
+            send(before, "waitUntilCompleted"); send(after, "waitUntilCompleted");
+            if (send(before, "status") != 4 || send(after, "status") != 4 || send(before, "error") != 0 || send(after, "error") != 0)
+                throw new IllegalStateException("GPU atlas probe failed");
+            MemorySegment first = arena.allocate(128 * 96 * 4), second = arena.allocate(128 * 96 * 4);
+            ObjC.textureBytes(firstTarget, first.address(), 128 * 4, 128, 96);
+            ObjC.textureBytes(secondTarget, second.address(), 128 * 4, 128, 96);
+            boolean ink = false;
+            for (long offset = 0; offset < first.byteSize(); offset += 4) {
+                if (first.get(JAVA_BYTE, offset) != 0) ink = true;
             }
-            if (synced) {
-                // Present once the GPU has the frame: it shows when Core
-                // Animation commits this transaction, with the window's resize.
-                send(commands, "commit");
-                send(commands, "waitUntilScheduled");
-                send(drawable, "present");
-            } else {
-                send(commands, "presentDrawable:", drawable);
-                send(commands, "commit");
-            }
-            return true;
+            if (!ink || first.mismatch(second) != -1) throw new IllegalStateException("old glyph changed after GPU atlas growth");
+            System.out.printf("GPU atlas growth ok generations=%d retainedReferences=true pixels=equal nonzero=true%n", atlas.generation());
         } finally {
-            ObjC.poolPop(pool);
+            ObjC.release(firstTarget); ObjC.release(secondTarget);
+            if (renderer != null) {
+                for (long buffer : renderer.buffers) ObjC.release(buffer);
+                ObjC.release(renderer.atlasTexture); ObjC.release(renderer.pipeline);
+                ObjC.release(renderer.queue); ObjC.release(renderer.layer); ObjC.release(renderer.device);
+            }
+            ObjC.release(superlayer); ObjC.poolPop(pool);
         }
+    }
+
+    private long readbackTarget(int width, int height) {
+        long descriptor = send(cls("MTLTextureDescriptor"), "texture2DDescriptorWithPixelFormat:width:height:mipmapped:",
+                PIXEL_FORMAT_BGRA8_UNORM, width, height, 0);
+        send(descriptor, "setStorageMode:", 0);
+        send(descriptor, "setUsage:", 5);
+        long texture = send(device, "newTextureWithDescriptor:", descriptor);
+        if (texture == 0) throw new IllegalStateException("cannot create offscreen target");
+        return texture;
     }
 
     /** Makes buffer slot a buffer of capacity instances, in memory the CPU and GPU share. */
