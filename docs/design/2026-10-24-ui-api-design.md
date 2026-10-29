@@ -309,7 +309,7 @@ public static FloatRef localFloat(Element e, String name, float initial);
 | 弹出面板 | `popover(c, Element anchor, BoolRef open, Runnable content)` | `ui.Popover` | M5 |
 | 右键菜单 | `contextMenu(c, Element target, Consumer<Menu> items)`（使用系统原生菜单） | `ui.ContextMenu` | M5（2026-10-29已提前实现） |
 | 标签页 | `tabs(c, IntRef selected, String... titles)` | `ui.Tabs` | M5 |
-| 自定义绘制 | `element.draw(Painter.Draw)`，见 6.12 | `Draw` | M6 |
+| 自定义绘制 | `element.draw(Painter.Draw)`，见 6.12 | `Draw` | M6（计划四提前实现最小公开Painter，不代表完整M6） |
 
 **无外观的基础控件**（同 MyGO 的 Base）：`buttonBase`、`toggleBase`、`textInputBase` 等只处理指针、键盘、焦点和数据绑定，外观完全交给返回的元素。带样式的内置控件都建立在它们之上，第三方也可以基于它们做自己的设计。
 
@@ -349,7 +349,7 @@ static void spoiler(Context c, String s) {
 canvas(c).fill().draw((Painter p, Rect r) -> {
     for (Edge e : graph.edges()) p.line(e.x1(), e.y1(), e.x2(), e.y2(), 1, t.border());
     for (Node n : graph.nodes())  p.circle(n.x(), n.y(), 6, t.accent());
-    p.text("中心笔记", cx, cy, 12, t.text());
+    p.text("中心笔记", cx, cy, 12, 400, t.text(), 0);
 });
 ```
 
@@ -357,10 +357,16 @@ canvas(c).fill().draw((Painter p, Rect r) -> {
 - 可用的绘制操作：矩形和圆角矩形、圆、线段（新增的着色器图元）、文字、裁剪。
 - 需要动画时调用 `p.animationFrame()` 请求下一帧。
 
-**给编辑器预留的底层能力**（编辑器以后单独设计，这里先定接口方向）：
-- 元素可以接管文本输入（`handleTextInput`），收到插入文字、组字（输入法的拼音阶段）、编辑命令；
-- 元素要报告光标位置，供输入法定位候选框；
-- `TextEngine` 要增加：按坐标找字符位置、按字符位置求光标矩形、带多种样式的富文本片段。
+**计划四已实现的编辑器底层能力**（完整编辑器仍单独设计）：
+- `canvas`不持有文档；`handleTextInput(TextInputClient)`由应用拥有文字、marked、选区及undo。范围是UTF-16半开区间，selection为anchor/caret，bounds为局部DIP加actualStart/actualEnd；resize先于原生查询。换client、blur、prune、关闭都让旧连接永久失效。
+- `handleInput(InputHandler)`同步交付raw键、keyup、修饰键、指针、滚动和Edit命令。快捷键先于raw，IME组字独占；raw取走非组字按键也抑制原生文字阶段。DOWN捕获MOVE/UP，失效发CANCEL；InputEvent仅当前回调有效。内置输入框继续使用onTextKey/onPaste。
+- `Context.layoutText(String/Spans, size, weight, maxWidth)`共用TextEngine，Context和InputEvent提供剪贴板服务；不得自行创建另一套TextEngine或保留跨帧Element。自有client没有自动默认编辑菜单。
+- `draw`的Rect及坐标为border-box局部DIP，自动clip到边框内侧并继承opacity；finally恢复clip，只能pop自己的clip。dev Painter句柄过期检查，production借用句柄仍禁止跨回调保存。
+- `TextLayout`提供二维hitTest、line/selection/caretRect、软换行亲和性、逐glyph实际字号及line baseline。不可变Span/Spans、`richText`与Painter.richText共同排版，不将Span拆成box。
+- 富文本支持system/mono、字号/字重、可用原生italic、颜色、圆角背景、下划线和删除线；paint样式不改变shape key。背景整行高；连字跨颜色边界取cluster起点色，装饰按区段几何。不含CJK合成斜体、完整bidi、inline链接/对象、可选择richText或富格式剪贴板。
+- 图集支持位置不变的有界增长（1024到4096），generation驱动Metal整图上传，旧command保留旧texture；两参数GlyphAtlas保持固定容量。没有图集逐出/重排或字体缓存无限变体回收，不把这些记为M6已完成。
+
+接口和实施裁定详见[计划四](../plans/2026-10-29-editor-primitives.md)与[整体审查](../reviews/2026-10-29-editor-primitives-review.md)。原生启动、GPU读回和自动化测试都不等同于用户手动输入法/外观验收。
 
 ### 6.13 多线程
 

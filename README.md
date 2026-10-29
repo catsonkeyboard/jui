@@ -42,7 +42,7 @@
 
 - **排版**：Core Text 的 typesetter 负责断行，再从每个 run 的属性里取出实际用到的字体，中文会自动回退到苹方。设置了 `zh-Hans` 语言属性来选中文字形，系统字体通过 `NSFont` 取，字重准确。
 - **光栅化**：用 Core Graphics 的纯透明度位图上下文画字形，开启字体平滑，并按文字颜色的亮度分 4 档。子像素位置按 `min(5, ⌈100/(3·px)⌉)` 量化，基线对齐到整像素。
-- **绘制**：字形放进一张 1024×1024 的 R8 图集，只上传改动的区域。字形四边形和像素网格对齐，着色器直接按像素读取覆盖率。
+- **绘制**：窗口的 R8 字形图集从 1024×1024 起步，支持坐标不变地扩至 4096×4096，平时只上传改动区域，扩容时整图上传。字形四边形和像素网格对齐，着色器直接按像素读取覆盖率。
 
 ### 已验证可行的点
 
@@ -66,9 +66,9 @@
 ### 还没验证的
 
 - 彩色字形（emoji）：需要再加一张彩色图集，目前直接跳过不画。
-- 图集满了以后的扩容和回收：MyGO 会重新打包、扩容，并释放不再使用的字形；这里没有做。
+- 图集逐出、回收和重排尚未实现；计划四只补上了有上限的扩容，到上限仍明确报告 full。
 - 和 AppKit 自己画的文字逐像素对比：MyGO 做过，这里只是肉眼看起来一致。
-- 输入法、文本编辑、从右到左的文字。
+- 完整从右到左的视觉编辑；输入法和普通文本编辑的后续验证见 M4 及多行文本框专节。
 - 拖动改变窗口大小时的同步呈现路径：代码已经写了，没有手动拖动测试过。
 - Intel Mac：GraalVM 的 FFM 不支持 macOS x64。
 
@@ -329,7 +329,7 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - 只读、密码框、`onPaste`/`onTextKey`、设置选区、关闭输入法已由后续的输入框选项补齐；多行文本框见后面的专节。
 - 菜单里的“粘贴并匹配样式”“删除”已由输入框选项补齐；菜单标题的本地化仍留到M5的应用菜单；
 - 原生右键菜单已由后面的计划三专节补齐，只提前完成M5的这一项；
-- 设计 6.12 给编辑器预留的“元素接管文本输入”和富文本片段，留给编辑器的设计。
+- 设计 6.12 给编辑器预留的“元素接管文本输入”和富文本片段，已由计划四接入，见后文；不等于完整编辑器交付。
 
 ## 滚动、列表和布局的后续（2026-10-27）
 
@@ -416,7 +416,7 @@ ALLOC mode=jvm empty_frame=0 handles=0.0 lambdas=0.0 temprefs=32.0 key_long=32.0
 - **滚动帧耗时**（`./build.sh listbench`）：p95 0.21 ms，最大 0.33 ms。
 - **签名检查**（`./build.sh ffi-check`）：通过。
 
-**还需要手动核对的**（`./build.sh native-demo Form`）
+**已由用户手动核对通过**（`./build.sh native-demo Form`；此前反馈全部正常，本轮未冒充重新手测）
 - 只读输入框：能选中、⌘C，菜单里的粘贴无效；
 - 密码框：显示圆点，拼音组字，⌘C 无效，“显示密码”切换；
 - 消息框：回车发送并清空，Shift+回车不发送；粘贴超过 200 个字符时被拒绝并提示；
@@ -495,13 +495,48 @@ contextMenu(c, target, menu -> {
 
 **还需要手动核对**：原生菜单位置和子菜单；Ctrl+单击取消后下一次普通单击；Shift+F10/菜单键；中文组字及跨行选区内/外右键；Copy/Paste/Cut/Undo；菜单打开期间定时帧继续；关闭窗口及多窗口互不串线。本轮没有把计划二或本节的原生人工项标记为通过。
 
+## 编辑器底层能力（计划四，2026-10-29）
+
+按[计划四](docs/plans/2026-10-29-editor-primitives.md)提供自有编辑表面需要的公开能力，不直接交付完整编辑器。示例：`./build.sh native-demo EditorPrimitives`。
+
+**应用自有文档与绘制**
+- `canvas`是无外观box；`handleTextInput(TextInputClient)`连接系统文字服务，不创建TextRef、缓冲区或undo。文档、选区、组字和编辑策略由应用持有；marked text在自有文档内。
+- UTF-16半开范围；selection输出anchor/caret，保留反向选区；text输出实际start/end。bounds输出`{x,y,w,h,actualStart,actualEnd}`，坐标相对元素border box的局部DIP。所有回调在UI线程，禁止重入构建或绘制。
+- 首次提交及尺寸改变调用`resized`，平移/祖先滚动由adapter转换坐标。失焦、禁用、换client、解绑、prune、blur和关闭使旧连接失效；重新激活创建新连接，marked释放时unmark并discard。
+- `handleInput(InputHandler)`同步交付键、keyup、修饰键、指针、滚动和Edit命令；DOWN取走后捕获MOVE/UP，取消发CANCEL。返回false继续祖先/默认路由；事件句柄仅在当前回调有效。
+- 自有表面的快捷键先于raw按键；IME组字期间键由IME独占。非组字期间raw取走按键，同时抑制macOS的interpret及无IME直接插字，避免Vim式模式漏字。内置输入框保留onTextKey/onPaste路径，不允许覆盖handleInput/handleTextInput。
+- `Context.layoutText(String/Spans, size, weight, maxWidth)`共用窗口TextEngine；Context/InputEvent提供剪贴板服务。自有client没有自动默认编辑菜单，显式contextMenu可调用应用自己的编辑函数；主Edit菜单通过COMMAND路由。
+- `draw(Painter.Draw)`提供局部Rect、矩形/圆/线、文字/富文本、clip/popClip和animationFrame；继承opacity和clip，自动限制在自身边框内侧。只能弹出自己的clip，异常时恢复；dev过期Painter报错，production为借用池化句柄，均不可跨回调保存。
+
+**富文本与图集**
+
+```java
+static final Spans PREVIEW = Spans.of(
+    Span.text("标题 ").fontSize(24).bold(),
+    Span.text("code").monospace().italic()
+        .background(Color.rgb(0xE2E8F0)).radius(3),
+    Span.text(" 下划线").underline()
+);
+richText(c, PREVIEW);
+```
+
+- Span/Spans不可变、长期持有；拼接不能拆字素或代理对。共同换行、共享baseline，保留源UTF-16及CRLF；颜色/背景/装饰不进入shape key，改变paint样式复用排版，未改硬段也可复用。
+- 支持system/monospace、字号/字重、可用原生italic、颜色、圆角背景、下划线及删除线。背景按视觉行全高绘制，先背景、再glyph、后装饰；只处理可见行及上下各一行。
+- 跨paint边界的单个连字glyph取cluster起点颜色，不强行拆连字；装饰仍按区段几何。没有CJK合成斜体、链接、inline对象、完整bidi、普通文字选择或富格式剪贴板；彩色emoji仍未绘制。
+- 字体canonical按CFHash分桶、CFEqual核对，不再只比较字体名/字号；glyph使用实际font size量化。字体沿用既有retain缓存策略，本轮未新增字体缓存dispose/逐出，不宣称可无限变字号而不增长。
+- `GlyphAtlas(w,h)`继续固定容量；带最大值的构造才允许增长。窗口/Tester从1024扩到4096，entry坐标不变，CPU像素可由arena回收；扩容增加generation并整图上传。Metal旧command保留旧texture，新texture完整上传后编码；没有eviction/repack。单glyph仍限2048物理像素，超限明确抛错而非当成空字形；字体编号耗尽也报错，不能截断别名。
+
+**验证**：全套487测试通过；native分配、列表、FFI及离屏GPU读回的最终结果见[整体审查记录](docs/reviews/2026-10-29-editor-primitives-review.md)。自动化读回验证自己的生产Scene/pipeline，不是系统窗口截图，也不替代人工验收。不把本轮记为M6全部完成。
+
+**仍需人工核对**：自有表面的拼音候选框、提交/取消、切焦点及关闭；中文/emoji跨行选区；取走J与IME开关；Edit/右键复制粘贴及撤销；混合字体baseline、mono/italic与装饰。计划二、三的人工待办不因本轮自动化通过而消失。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
 
 ```bash
 ./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
-./build.sh demo            # 卡片示例，在 JVM 上运行；其他示例：Counter、Todo、Files、Scroll、Form、TextArea、ContextMenu
+./build.sh demo            # 卡片示例，在 JVM 上运行；其他示例：Counter、Todo、Files、Scroll、Form、TextArea、ContextMenu、EditorPrimitives
 ./build.sh native-demo     # 同上，编译成 native image（build/<name>-demo）后运行，也接受示例名
 ./build.sh alloc           # 实测 UI API 每帧的分配（native image 和 JVM）
 ./build.sh listbench       # 1 万行列表的滚动帧耗时（native image，M3 的门槛）

@@ -7,7 +7,7 @@ public final class TextClientTest {
     static final class Client implements TextInputClient {
         String value = "A😀中";
         int anchor = 4, caret = 1, markedStart = -1, markedEnd, unmarks, resizes;
-        boolean throwQuery, badActual;
+        boolean throwQuery, badActual, throwMutation;
         public int length() { if (throwQuery) throw new IllegalStateException("client query failed"); return value.length(); }
         public String text(int start, int end, int[] actual) {
             actual[0] = start == 2 ? 1 : start;
@@ -21,6 +21,7 @@ public final class TextClientTest {
             int end = range == null ? markedStart >= 0 ? markedEnd : Math.max(anchor, caret) : range.end();
             value = value.substring(0, start) + text + value.substring(end);
             anchor = caret = start + text.length(); markedStart = -1;
+            if (throwMutation) throw new IllegalStateException("client mutation failed after changing document");
         }
         public void setMarkedText(TextRange range, String text, TextRange selected) {
             replaceText(range, text);
@@ -75,6 +76,37 @@ public final class TextClientTest {
         thread.start(); thread.join();
         Check.isTrue(failure[0] instanceof IllegalStateException, "client callbacks stay on UI thread");
         Check.equal(4, tester.engine().textLength());
+        client.throwMutation = true;
+        Check.fails(IllegalStateException.class, () -> tester.engine().textInsert("x", -1, 0));
+        client.throwMutation = false;
+        Check.equal("Ax", client.value); Check.equal(2, tester.engine().textLength());
+    }
+
+    public void testLocalGeometryUnderScrollAndResize() {
+        Client client = new Client(); ScrollState scroll = new ScrollState();
+        Tester tester = Tester.of(context -> scroll(context, scroll).fillWidth().height(80).padding(12).children(() ->
+                canvas(context).height(180).label("own").handleTextInput(client).autoFocus()), 300, 200);
+        tester.frame(); scroll.scrollTo(40); tester.frame();
+        Rect element = tester.find("own"); float[] bounds = new float[6];
+        tester.engine().textRect(1, 3, bounds);
+        Check.near(element.x() + 8, bounds[0]); Check.near(element.y() + 7, bounds[1]);
+        Check.equal(1, tester.engine().textIndexAt(element.x() + 8, element.y() + 7));
+        Check.isTrue(scroll.y() > 0, "ancestor scrolled");
+        int previous = client.resizes; tester.resize(400, 200);
+        tester.frame(); Check.equal(previous + 1, client.resizes); tester.frame(); Check.equal(previous + 1, client.resizes);
+    }
+
+    public void testDisabledClientReleasesCompositionAndDuplicateBindingFails() {
+        Client client = new Client(); boolean[] disabled = {false};
+        Tester tester = Tester.of(context -> canvas(context).size(180, 90).handleTextInput(client).autoFocus().disabled(disabled[0]), 300, 200);
+        tester.frame(); tester.compose("ni", 2); disabled[0] = true; tester.frame();
+        Check.equal(1, client.unmarks); Check.isTrue(!tester.textInputActive(), "disabled client inactive");
+        Check.equal(1, ((jui.ui.engine.Host.Memory) tester.engine().host()).discards);
+        Tester duplicate = Tester.of(context -> {
+            canvas(context).size(100, 50).handleTextInput(client);
+            canvas(context).size(100, 50).handleTextInput(client);
+        }, 300, 200);
+        Check.fails(IllegalStateException.class, duplicate::frame);
     }
 
     public void testDetachSwapBlurAndCloseCommitExactlyOnce() {

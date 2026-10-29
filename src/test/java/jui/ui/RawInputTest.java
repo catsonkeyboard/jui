@@ -6,6 +6,26 @@ import jui.testing.Check;
 import static jui.ui.Ui.*;
 
 public final class RawInputTest {
+    public void testCaptureCancelsOnDetachBlurPruneAndHandlerFailure() {
+        int[] cancelled = {0}; boolean[] bound = {true}, visible = {true}, failMove = {false};
+        InputHandler handler = event -> {
+            if (event.kind() == InputEvent.Kind.POINTER_CANCEL) cancelled[0]++;
+            if (event.kind() == InputEvent.Kind.POINTER_MOVE && failMove[0]) throw new IllegalStateException("move failed");
+            return true;
+        };
+        Tester tester = Tester.of(context -> {
+            if (visible[0]) canvas(context.key("same")).size(100, 80).handleInput(bound[0] ? handler : null);
+        }, 300, 200);
+        tester.press(20, 20); bound[0] = false; tester.frame(); Check.equal(1, cancelled[0]);
+        bound[0] = true; tester.frame(); tester.press(20, 20);
+        tester.engine().windowFocusChanged(false); Check.equal(2, cancelled[0]);
+        tester.engine().windowFocusChanged(true); tester.press(20, 20);
+        visible[0] = false; tester.frame(); Check.equal(3, cancelled[0]);
+        visible[0] = true; tester.frame(); tester.press(20, 20); failMove[0] = true;
+        Check.fails(IllegalStateException.class, () -> tester.move(250, 150)); Check.equal(4, cancelled[0]);
+        failMove[0] = false; tester.release(250, 150); Check.equal(4, cancelled[0]);
+    }
+
     public void testKeyUpModifiersAndUnconsumedScroll() {
         List<InputEvent.Kind> events = new ArrayList<>();
         ScrollState scroll = new ScrollState();
