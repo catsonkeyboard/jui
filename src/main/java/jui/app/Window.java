@@ -50,6 +50,12 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
         }
     }
 
+    /** The window's engine, for the app's menu bar to report a choice in (MacWindow.Input). */
+    @Override
+    public jui.ui.engine.Engine engine() {
+        return engine;
+    }
+
     /**
      * Runs change on the main thread, then draws a frame; any thread may
      * call it, as threads that scan or index do when they are done.

@@ -16,14 +16,14 @@ public final class MacApp {
 
     private static final long ACTIVATION_POLICY_REGULAR = 0;
 
-    /** Runs the app; {@code whenReady} runs once it has finished launching. */
-    public static void run(Runnable whenReady) {
+    /** Runs the app; {@code whenReady} runs once it has finished launching; appMenu, when not
+     *  null, gives the app's own menus in the menu bar (App.menu). */
+    public static void run(Runnable whenReady, java.util.function.Consumer<jui.ui.Menu> appMenu) {
         ObjC.framework("AppKit");
         long pool = ObjC.poolPush();
         long app = send(cls("NSApplication"), "sharedApplication");
         send(app, "setActivationPolicy:", ACTIVATION_POLICY_REGULAR);
-        installMenu(app);
-
+        installMenu(app, appMenu);
         long delegateClass = ObjCClass.define("JUIAppDelegate", "NSObject")
                 .method1("applicationDidFinishLaunching:", (self, cmd, note) -> {
                     activate(app);
@@ -85,22 +85,42 @@ public final class MacApp {
             send(app, "activateIgnoringOtherApps:", 1);
         }
     }
+    /** Runs the app; {@code whenReady} runs once it has finished launching. */
+    public static void run(Runnable whenReady) {
+        run(whenReady, null);
+    }
 
+    /** The window whose key window's menu bar choices are reported in; the last one to take it. */
+    private static MacWindow focused;
+
+    /** The key window changed, as the window's delegate heard it. */
+    static void focusedWindow(MacWindow window) {
+        focused = window;
+    }
+
+    /** The focused window's engine, or null with no window: where a menu bar choice is reported. */
+    static jui.ui.engine.Engine focusedEngine() {
+        return focused == null ? null : focused.engine();
+    }
     /**
      * The main menu: the app's, with Quit, and Edit, whose commands go to
      * the first responder, the window's view, which gives them to the text
      * input with focus (design §6.7). Edit's items are always enabled, as
      * MyGO's; English titles until the app menu of M5.
      */
-    static void installMenu(long app) {
+    static void installMenu(long app, java.util.function.Consumer<jui.ui.Menu> appMenu) {
         long bar = ObjC.create("NSMenu");
         long appItem = ObjC.create("NSMenuItem");
         send(bar, "addItem:", appItem);
-        long appMenu = ObjC.create("NSMenu");
+        long appSubmenu = ObjC.create("NSMenu");
         long quit = send(send(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
                 ObjC.nsString("Quit"), ObjC.sel("terminate:"), ObjC.nsString("q"));
-        send(appMenu, "addItem:", quit);
-        send(appItem, "setSubmenu:", appMenu);
+        send(appSubmenu, "addItem:", quit);
+        send(appItem, "setSubmenu:", appSubmenu);
+
+        if (appMenu != null) {
+            MacMenus.bar(appMenu).install(bar);               // the app's own menus, before Edit
+        }
 
         long editItem = ObjC.create("NSMenuItem");
         send(bar, "addItem:", editItem);

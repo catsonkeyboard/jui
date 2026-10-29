@@ -311,7 +311,7 @@ public final class MacWindowTextTest {
         long pool = ObjC.poolPush();
         try {
             long app = ObjC.send(ObjC.cls("NSApplication"), "sharedApplication");
-            MacApp.installMenu(app);
+            MacApp.installMenu(app, null);
             long bar = ObjC.send(app, "mainMenu");
             long edit = 0;
             for (long k = 0, n = ObjC.send(bar, "numberOfItems"); k < n; k++) {
@@ -338,6 +338,38 @@ public final class MacWindowTextTest {
             // Paste and Match Style is ⌥⇧⌘V (as MyGO).
             Check.equal((1L << 20) | (1L << 19) | (1L << 17), ObjC.send(ObjC.send(edit, "itemAtIndex:", 6L), "keyEquivalentModifierMask"));
             Check.isTrue(!ObjC.sendBool(edit, "autoenablesItems"), "items always enabled (as MyGO)");
+        } finally {
+            ObjC.poolPop(pool);
+        }
+    }
+
+    public void testTheAppsOwnMenusSitInTheBar() {
+        long pool = ObjC.poolPush();
+        try {
+            long app = ObjC.send(ObjC.cls("NSApplication"), "sharedApplication");
+            MacApp.installMenu(app, m -> {
+                m.submenu("File", f -> {
+                    f.item("New").shortcut(jui.ui.Shortcut.cmd(jui.ui.Key.N));
+                    f.separator();
+                });
+            });
+            long bar = ObjC.send(app, "mainMenu");
+            long file = 0, edit = 0;
+            for (long k = 0, n = ObjC.send(bar, "numberOfItems"); k < n; k++) {
+                long sub = ObjC.send(ObjC.send(bar, "itemAtIndex:", k), "submenu");
+                if (sub != 0 && "File".equals(ObjC.string(ObjC.send(sub, "title")))) {
+                    file = sub;
+                }
+                if (sub != 0 && "Edit".equals(ObjC.string(ObjC.send(sub, "title")))) {
+                    edit = sub;
+                }
+            }
+            Check.isTrue(file != 0, "the app's submenu is in the bar");
+            Check.isTrue(edit != 0, "the standard Edit menu still is");
+            Check.equal(2, ObjC.send(file, "numberOfItems")); // New, a separator
+            Check.equal("New", ObjC.string(ObjC.send(ObjC.send(file, "itemAtIndex:", 0L), "title")));
+            Check.equal("n", ObjC.string(ObjC.send(ObjC.send(file, "itemAtIndex:", 0L), "keyEquivalent")));
+            Check.isTrue(ObjC.send(file, "delegate") != 0, "its content refreshes as the submenu opens");
         } finally {
             ObjC.poolPop(pool);
         }

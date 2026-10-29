@@ -26,7 +26,14 @@ final class MacMenus {
                             MenuModel.Item item = popup.model.find(id);
                             if (item != null && item.enabled() && item.kind() == MenuModel.Kind.ITEM) popup.chosen = id;
                         }
-                    }).register();
+                    })
+                    .method1("juiBarItem:", (self, command, sender) -> {
+                        Bar bar = Bar.BARS.get(self);
+                        if (bar != null) {
+                            bar.chosen((int) ObjC.send(sender, "tag"));
+                        }
+                    })
+                    .register();
         }
         return targetClass;
     }
@@ -92,36 +99,46 @@ final class MacMenus {
     private static long build(java.util.List<MenuModel.Item> items, long target) {
         long menu = ObjC.create("NSMenu");
         try {
-            ObjC.send(menu, "setAutoenablesItems:", 0);
-            for (MenuModel.Item item : items) {
-                if (item.kind() == MenuModel.Kind.SEPARATOR) {
-                    ObjC.send(menu, "addItem:", ObjC.send(ObjC.cls("NSMenuItem"), "separatorItem"));
-                    continue;
-                }
-                String key = item.shortcut() == null ? "" : equivalent(item.shortcut().key());
-                boolean submenu = item.kind() == MenuModel.Kind.SUBMENU;
-                long nativeItem = ObjC.send(ObjC.send(ObjC.cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
-                        ObjC.nsString(item.label()), submenu ? 0 : ObjC.sel("juiContextMenuItem:"), ObjC.nsString(key));
-                try {
-                    ObjC.send(nativeItem, "setTag:", item.id());
-                    ObjC.send(nativeItem, "setEnabled:", item.enabled() ? 1 : 0);
-                    ObjC.send(nativeItem, "setState:", item.checked() ? 1 : 0);
-                    ObjC.send(nativeItem, "setKeyEquivalentModifierMask:", modifiers(item.shortcut()));
-                    if (submenu) {
-                        long child = build(item.children(), target);
-                        try { ObjC.send(nativeItem, "setSubmenu:", child); }
-                        finally { ObjC.release(child); }
-                    } else ObjC.send(nativeItem, "setTarget:", target);
-                    ObjC.send(menu, "addItem:", nativeItem);
-                } finally {
-                    ObjC.release(nativeItem);
-                }
-            }
+            fill(menu, items, target, "juiContextMenuItem:");
             return menu;
         } catch (RuntimeException | Error failure) {
             ObjC.release(menu);
             throw failure;
         }
+    }
+
+    /** The menu's items from the model, each acting on the target by the selector. */
+    private static void fill(long menu, java.util.List<MenuModel.Item> items, long target, String action) {
+        ObjC.send(menu, "setAutoenablesItems:", 0);
+        for (MenuModel.Item item : items) {
+            if (item.kind() == MenuModel.Kind.SEPARATOR) {
+                ObjC.send(menu, "addItem:", ObjC.send(ObjC.cls("NSMenuItem"), "separatorItem"));
+                continue;
+            }
+            String key = item.shortcut() == null ? "" : equivalent(item.shortcut().key());
+            boolean submenu = item.kind() == MenuModel.Kind.SUBMENU;
+            long nativeItem = ObjC.send(ObjC.send(ObjC.cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
+                    ObjC.nsString(item.label()), submenu ? 0 : ObjC.sel(action), ObjC.nsString(key));
+            try {
+                ObjC.send(nativeItem, "setTag:", item.id());
+                ObjC.send(nativeItem, "setEnabled:", item.enabled() ? 1 : 0);
+                ObjC.send(nativeItem, "setState:", item.checked() ? 1 : 0);
+                ObjC.send(nativeItem, "setKeyEquivalentModifierMask:", modifiers(item.shortcut()));
+                if (submenu) {
+                    long child = build(item.children(), target);
+                    try { ObjC.send(nativeItem, "setSubmenu:", child); }
+                    finally { ObjC.release(child); }
+                } else ObjC.send(nativeItem, "setTarget:", target);
+                ObjC.send(menu, "addItem:", nativeItem);
+            } finally {
+                ObjC.release(nativeItem);
+            }
+        }
+    }
+
+    /** The app's own menus for the menu bar, from App.menu's builder. */
+    static Bar bar(java.util.function.Consumer<jui.ui.Menu> build) {
+        return new Bar(build);
     }
 
     private static long modifiers(Shortcut shortcut) {
@@ -145,5 +162,81 @@ final class MacMenus {
             case BACKSLASH -> "\\"; case BACKQUOTE -> "`";
             default -> "";
         };
+    }
+
+    /** The app's menus in the menu bar: one target for all their items, each submenu's content
+     *  rebuilt as it opens, a choice reported in the focused window's engine (App.menu). */
+    static final class Bar {
+        private static final Map<Long, Bar> BARS = new HashMap<>();
+        private static final Map<Long, Bar> DELEGATES = new HashMap<>();
+        private static long delegateClass;
+
+        private final java.util.function.Consumer<jui.ui.Menu> build;
+        private final long target;
+        private final long delegate;
+        private final java.util.List<Long> submenus = new java.util.ArrayList<>();
+        private MenuModel model;
+
+        Bar(java.util.function.Consumer<jui.ui.Menu> build) {
+            this.build = build;
+            target = ObjC.send(ObjC.send(targetClass(), "alloc"), "init");
+            delegate = ObjC.send(ObjC.send(barDelegateClass(), "alloc"), "init");
+            BARS.put(target, this);
+            DELEGATES.put(delegate, this);
+            model = jui.ui.Menu.build(build, java.util.List.of(), null).model();
+        }
+
+        /** The bar's item for each of the model's top-level submenus, added to the menu bar. */
+        void install(long bar) {
+            for (MenuModel.Item item : model.items()) {
+                if (item.kind() != MenuModel.Kind.SUBMENU) {
+                    continue;
+                }
+                long nativeItem = ObjC.send(ObjC.send(ObjC.cls("NSMenuItem"), "alloc"),
+                        "initWithTitle:action:keyEquivalent:", ObjC.nsString(item.label()), 0, ObjC.nsString(""));
+                long submenu = ObjC.create("NSMenu");
+                ObjC.send(submenu, "setTitle:", ObjC.nsString(item.label()));
+                ObjC.send(submenu, "setAutoenablesItems:", 0);
+                ObjC.send(submenu, "setDelegate:", delegate);  // its content refreshes as it opens
+                fill(submenu, item.children(), target, "juiBarItem:");
+                ObjC.send(nativeItem, "setSubmenu:", submenu);
+                ObjC.send(bar, "addItem:", nativeItem);
+                ObjC.release(nativeItem);
+                submenus.add(submenu);
+            }
+        }
+
+        /** An item was chosen (or its key equivalent pressed): the app hears in the focused window. */
+        void chosen(int id) {
+            jui.ui.engine.Engine engine = MacApp.focusedEngine();
+            MenuModel.Item item = model.find(id);
+            if (engine != null && item != null && item.enabled() && item.kind() == MenuModel.Kind.ITEM) {
+                engine.appMenuChose(build, item);
+            }
+        }
+
+        /** Rebuilds a submenu's items as it opens, from the builder as the app has it now. */
+        private void refresh(long menu) {
+            model = jui.ui.Menu.build(build, java.util.List.of(), null).model();
+            for (int i = 0; i < submenus.size() && i < model.items().size(); i++) {
+                if (submenus.get(i) == menu && model.items().get(i).kind() == MenuModel.Kind.SUBMENU) {
+                    ObjC.send(menu, "removeAllItems");
+                    fill(menu, model.items().get(i).children(), target, "juiBarItem:");
+                }
+            }
+        }
+
+        private static long barDelegateClass() {
+            if (delegateClass == 0) {
+                delegateClass = ObjCClass.define("JUIMenuBarDelegate", "NSObject")
+                        .method1("menuNeedsUpdate:", (self, command, menu) -> {
+                            Bar bar = DELEGATES.get(self);
+                            if (bar != null) {
+                                bar.refresh(menu);
+                            }
+                        }).register();
+            }
+            return delegateClass;
+        }
     }
 }

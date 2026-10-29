@@ -71,6 +71,10 @@ public final class Engine {
      */
     private long focusRequest;
     private boolean focusRequestThisFrame;
+    /** The app menu bar's builder and the item it chose, run in the next pass (App.menu). */
+    private java.util.function.Consumer<jui.ui.Menu> appMenuBuild;
+    private jui.platform.MenuModel.Item appMenuChoice;
+
 
     // The build in progress.
     private boolean building;
@@ -146,6 +150,17 @@ public final class Engine {
                 if (menus.hasWork()) {
                     settleInputs();
                     consumed |= menus.resolve();
+                }
+                if (appMenuBuild != null) {
+                    // The app's menu bar chose an item: its builder runs again, chosen() reporting it.
+                    java.util.function.Consumer<jui.ui.Menu> build = appMenuBuild;
+                    jui.platform.MenuModel.Item choice = appMenuChoice;
+                    appMenuBuild = null;
+                    appMenuChoice = null;
+                    if (jui.ui.Menu.build(build, java.util.List.of(), choice).chosen()) {
+                        settleInputs();
+                        consumed = true;
+                    }
                 }
                 if (pass == 0) {
                     input.dropKey();
@@ -335,6 +350,19 @@ public final class Engine {
     public void requestFocus(long id) {
         focusRequest = id;
         focusRequestThisFrame = false;
+    }
+
+    /**
+     * The app's menu bar chose an item: the builder runs again in this frame's
+     * next pass, its chosen() reporting the choice to the app.
+     */
+    public void appMenuChose(java.util.function.Consumer<jui.ui.Menu> build, jui.platform.MenuModel.Item choice) {
+        if (closed) {
+            return;
+        }
+        appMenuBuild = build;
+        appMenuChoice = choice;
+        requestFrame.run();
     }
 
     /**

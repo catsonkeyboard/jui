@@ -55,7 +55,11 @@ public final class MacWindow {
 
         default void windowClosed() {}
 
-        /** A scroll at (x, y): dy above 0 moves the content up; precise for a trackpad, else a wheel's DIPs. */
+        /** The window's engine, for the app's menu bar to report a choice in; null for a view without one. */
+        default jui.ui.engine.Engine engine() {
+            return null;
+        }
+
         void scroll(double x, double y, double dx, double dy, boolean precise, int mods);
 
         // Text input, for the view's NSTextInputClient: ranges count UTF-16 units of the shown text
@@ -297,6 +301,11 @@ public final class MacWindow {
     }
 
     public void cancelMenu() { if (menus != null) menus.cancel(); }
+
+    /** The window's engine, as its input gives it: for the app's menu bar. */
+    jui.ui.engine.Engine engine() {
+        return input == null ? null : input.engine();
+    }
 
     /** The content view: for tests. */
     long view() {
@@ -683,6 +692,9 @@ public final class MacWindow {
         MacWindow w = BY_DELEGATE.get(delegate);
         if (w != null && w.input != null) {
             w.input.windowFocusChanged(focused);
+            if (focused) {
+                MacApp.focusedWindow(w); // the app's menu bar reports its choices in this one
+            }
         }
     }
 
