@@ -9,6 +9,8 @@ import jui.text.TextEngine;
 import jui.ui.BoolRef;
 import jui.ui.Context;
 import jui.ui.DoubleRef;
+import jui.ui.FloatRef;
+import jui.ui.IntRef;
 import jui.ui.Element;
 import jui.ui.ListState;
 import jui.ui.Rect;
@@ -28,6 +30,11 @@ import static jui.ui.Ui.row;
 import static jui.ui.Ui.text;
 import static jui.ui.Ui.textInput;
 import static jui.ui.Ui.contextMenu;
+import static jui.ui.Ui.column;
+import static jui.ui.Ui.modal;
+import static jui.ui.Ui.popover;
+import static jui.ui.Ui.split;
+import static jui.ui.Ui.tabs;
 
 /**
  * Measures what frames of the UI API allocate on this thread (design §8),
@@ -130,13 +137,27 @@ public final class AllocSpike {
         double inputs = (perFrame(inputsFrame) - emptyPainted) / INPUTS;
         boolean focusedInput = te.textActive();
 
+        // The M5 shell in a frame that does not change: a split of two panes with tabs in one,
+        // a closed modal and a closed popover, then the modal open with buttons in it. All state
+        // is static and every lambda capture-free, so what allocates is the framework's.
+        Runnable shellFrame = () -> {
+            te.buildAndLayout(AllocSpike::shell, 800, 600);
+            scene.begin(2, text, atlas);
+            te.paint(scene);
+        };
+        double shellClosed = perFrame(shellFrame) - emptyPainted;
+        OPEN.set(true);
+        double shellOpen = perFrame(shellFrame) - emptyPainted;
+        OPEN.set(false);
+
         boolean nativeImage = "runtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode"));
         System.out.printf("ALLOC mode=%s empty_frame=%.0f handles=%.1f lambdas=%.1f temprefs=%.1f"
                         + " key_long=%.1f key_object=%.1f shell_frame=%.0f text_frame=%.0f text_instances=%d"
                         + " card_frame=%.0f controls_frame=%.1f controls_hover_frame=%.1f list_frame=%.1f list_rows=%d"
-                        + " inputs_frame=%.1f input_focused=%b%n",
+                        + " inputs_frame=%.1f input_focused=%b m5_shell_closed=%.0f m5_shell_open=%.0f%n",
                 nativeImage ? "native" : "jvm", empty, handles, lambdas, temprefs, keyLong, keyObject, shell,
-                textFrame, textInstances, cardFrame, controls, controlsHover, listFrame, inView, inputs, focusedInput);
+                textFrame, textInstances, cardFrame, controls, controlsHover, listFrame, inView, inputs, focusedInput,
+                shellClosed, shellOpen);
         // Design §8, checked where it ships: the framework allocates nothing
         // per element, and a whole frame stays within 32 KB.
         if (nativeImage && textFrame > 0.5 * textInstances) {
@@ -156,6 +177,11 @@ public final class AllocSpike {
         if (nativeImage && (inputs > 0.5 || !focusedInput)) {
             System.out.printf("FAIL: the framework allocates %.1f bytes per text input (one focused: %b)%n", inputs,
                     focusedInput);
+            System.exit(1);
+        }
+        if (nativeImage && (shellClosed > 0.5 || shellOpen > 0.5)) {
+            System.out.printf("FAIL: the shell allocates %.1f bytes closed, %.1f with the modal open%n",
+                    shellClosed, shellOpen);
             System.exit(1);
         }
         if (nativeImage && cardFrame > 32768) {
@@ -321,6 +347,47 @@ public final class AllocSpike {
             VALUES[i] = new DoubleRef(i * 5);
         }
     }
+
+    static final FloatRef SPLIT_AT = new FloatRef(240);
+    static final IntRef TAB = new IntRef(0);
+    static final String[] TITLES = {"一", "二", "三"};
+    static final BoolRef OPEN = new BoolRef(false);
+    static final BoolRef CLOSED = new BoolRef(false);
+    static final Element[] ANCHOR = new Element[1];
+    static final String[] BUTTONS = {"b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7"};
+    /** The build's context, so the shell's lambdas need none of it captured. */
+    static Context c;
+
+    static void firstPane() {
+        box(c).fillHeight();
+    }
+
+    static void shellHalf() {
+        column(c).fillHeight().children(() -> {
+            tabs(c, TAB, TITLES).grow(1);
+            box(c).grow(1);
+        });
+    }
+
+    static void modalButtons() {
+        for (int i = 0; i < BUTTONS.length; i++) {
+            button(c, BUTTONS[i]);
+        }
+    }
+
+    static void popoverText() {
+        text(c, "p");
+    }
+
+    /** The M5 shell, its every lambda a method or capture-free, as the allocation spike needs. */
+    static void shell(Context context) {
+        c = context;
+        split(context, SPLIT_AT, AllocSpike::firstPane, AllocSpike::shellHalf).fill();
+        ANCHOR[0] = button(context, "x").absolute().width(10).height(10).left(0).top(0);
+        modal(context, OPEN, AllocSpike::modalButtons).width(400);
+        popover(context, ANCHOR[0], CLOSED, AllocSpike::popoverText);
+    }
+
 
     private static void controls(Context c) {
         for (int i = 0; i < 40; i++) {

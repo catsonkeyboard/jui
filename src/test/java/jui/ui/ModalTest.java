@@ -108,4 +108,23 @@ public final class ModalTest {
         tt.frame();
         Check.isTrue(tt.focused("below-a"), "the focus came back");
     }
+
+    public void testWhatIsBelowTakesNothingWhileItShows() {
+        BoolRef open = new BoolRef(false);
+        jui.ui.ScrollState below = new jui.ui.ScrollState();
+        Tester tt = Tester.of(c -> {
+            jui.ui.Ui.scroll(c, below).fill().children(() -> box(c).height(2000).label("tall"));
+            modal(c, open, () -> button(c, "inside-x")).width(120);
+        }, 300, 200);
+        tt.frame();
+        tt.scroll(150, 50, 0, 100);                            // reaches the content below
+        tt.frame();
+        Check.isTrue(below.y() > 0, "it scrolled while no modal shows");
+        float scrolled = below.y();
+        open.set(true);
+        tt.frame();
+        tt.scroll(150, 20, 0, 100);                           // over the backdrop
+        tt.frame();
+        Check.near(scrolled, below.y());                      // the modal keeps what is below still
+    }
 }

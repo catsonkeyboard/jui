@@ -542,13 +542,48 @@ richText(c, PREVIEW);
 - 测试：490 个全部通过（新增 3 个、扩展 1 个）；`./build.sh alloc` native 每控件、行、输入框仍为 0 B。
 
 
+## M5：外壳（2026-10-30）
+
+按[M5 计划](docs/plans/2026-10-29-m5-shell.md)补齐外壳控件，验收示例 `./build.sh demo Notes`（Obsidian 式外壳：搜索侧栏 + 1 万条笔记 + 分栏 + tabs + ⌘P 命令面板 + 信息 popover + 应用菜单）。`contextMenu` 已由计划三提前完成。
+
+**分栏 `split(c, firstWidth, first, second)`**
+- 两个 pane 相接于 1 DIP 分隔线（各自裁剪）；`firstWidth` 是第一 pane 的宽，`changed()` 报告移动。
+- 分隔线是 8 DIP 宽的不可见手柄（内置居中的 1 DIP 线），按压即聚焦，可拖动；`←`/`→` 每次 8 DIP。
+- 每侧至少 40 DIP；空间不足时第一 pane 让位（第二 pane 保住自己的 40），`firstWidth` 不动，空间回来即恢复。悬停/按住时线变强调色。
+
+**标签页 `tabs(c, selected, titles...)`**
+- 点击选择；选中项文字加重、底部 2 DIP 强调条；未选中悬停变色。
+- 方向键/↑/↓/Home/End 在有焦点时选择（环绕），焦点跟随；`selected` 越界夹取；`changed()` 报告。
+
+**弹窗 `modal(c, open, content)`**
+- 打开时：铺满的 40% 黑色背景 + 居中面板（surface 背景、阴影、最大为窗口减 40）；关闭时不构建内容，元素照常返回（可继续链样式）。
+- 点背景或 `Esc` 关闭，`dismissed()` 报告一次。**焦点圈定**：打开期间 Tab 只在其中循环（多层 modal 取最上层），关闭后焦点回到打开前的元素。`Esc` 先于应用快捷键给最上层的 modal/popover。
+
+**弹出面板 `popover(c, anchor, open, content)`**
+- 面板挂在 anchor 下方、起点对齐，至少与 anchor 同宽；贴窗时翻到上方或沿 anchor 平移入窗（布局期按 anchor 本帧的盒子定位，位置总是新鲜的）。margin 是与 anchor 的间距。
+- 点面板和 anchor 之外、或 `Esc` 关闭，`dismissed()` 报告；面板内按下不关闭。anchor 是同一遍构建的元素句柄。
+
+**应用菜单 `App.menu(bar -> ...)`**
+- `run` 之前注册一次：顶层子菜单装进菜单栏（在标准 Edit 菜单之前）；每个子菜单展开时（`menuNeedsUpdate:`）按 builder 重建内容，选择或快捷键后 builder 在焦点窗口的下一遍重跑，`chosen()` 报告一次。
+- `item`/`separator`/`submenu`/`disabled`/`checked`/`shortcut` 同右键菜单；快捷键经菜单栏的 key equivalent 生效（不打开菜单也触发），**不要在窗口里重复注册同一个快捷键**。`editItems()` 在菜单栏无效（标准 Edit 菜单已覆盖编辑命令）。
+
+**机制**：modal/popover 不加新的树根——内容作为视图末尾构建的 absolute 子元素，靠既有的绘制顺序（absolute 后画、后者在上）与命中顺序（paint 序最后一个优先）盖住并挡住先构建的内容。引擎侧新增：`Node.MODAL`（commit 时收集打开的 overlay，Esc 与 Tab 圈定据此工作）、`Node.ESCAPABLE`、`placeOn` 布局期附加定位、`Engine.appMenuChose`。
+
+**验证**：515 个测试全部通过（新增 22 个：SplitTest 6、TabsTest 4、ModalTest 4、PopoverTest 5、AppMenuTest 2、NotesDemoTest 3，含引擎侧与原生菜单栏结构）；native 分配门槛新增 M5 外壳场景（split + tabs + 关闭的 modal/popover，及 modal 打开），稳态帧 **0 B**（修复了初版的每帧 `Color` record、捕获式 lambda 后达成）；listbench p95 0.230 ms、max 0.324 ms；ffi-check 通过；native 示例 `Notes --print-window` 构建启动成功。
+
+**与 MyGO 的差异**：split 数值取 40/8/8（MyGO 代码 10/2.5/1.5 且与其文档不符）；无独立 overlay 根与 `AttachTo` 任意锚点组合（只有下方/上方两种）；无 `tabsBase` 拆分、`SplitPercent`/`SplitVertical` 和 RTL；应用菜单不用角色系统，是 contextMenu 会话模型在菜单栏的提升。
+
+**仍需手动核对**（`./build.sh native-demo Notes`）：拖动分割条（鼠标与触控板）与方向键；tabs 点击与键盘导航；⌘P 面板输入中文、回车、Esc、点背景；popover 翻转与外部关闭；菜单栏各项与快捷键（⌘N/⌘P）；菜单打开期间动画继续；深浅色外观。
+
+不把 M6（完整 Painter、布局缓存、图集回收、第 8 节性能硬门槛）标记为完成。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
 
 ```bash
 ./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
-./build.sh demo            # 卡片示例，在 JVM 上运行；其他示例：Counter、Todo、Files、Scroll、Form、TextArea、ContextMenu、EditorPrimitives
+./build.sh demo            # 卡片示例，在 JVM 上运行；其他示例：Counter、Todo、Files、Scroll、Form、TextArea、ContextMenu、EditorPrimitives、Notes
 ./build.sh native-demo     # 同上，编译成 native image（build/<name>-demo）后运行，也接受示例名
 ./build.sh alloc           # 实测 UI API 每帧的分配（native image 和 JVM）
 ./build.sh listbench       # 1 万行列表的滚动帧耗时（native image，M3 的门槛）

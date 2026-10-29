@@ -138,13 +138,15 @@ public final class Ui {
      */
     public static Element split(Context c, FloatRef firstWidth, Runnable first, Runnable second) {
         Element e = row(c).alignItems(Align.STRETCH);
-        e.children(() -> {
-            jui.ui.engine.Engine en = c.engine();
+        jui.ui.engine.Engine en = c.engine();
+        int outer = en.enter(e.index);
+        try {
             // The room the panes share, as the last frame laid it out.
             Element room = row(c).grow(1).alignItems(Align.STRETCH);
-            room.children(() -> {
+            int inner = en.enter(room.index);
+            try {
                 float size = firstWidth.get();
-                float total = en.state(room.index).w;       // the room as last laid out, 0 before the first
+                float total = en.state(room.index).w;   // the room as last laid out, 0 before the first
                 float shown = total <= 0 || size <= MIN_PANE ? size : Math.max(MIN_PANE, Math.min(size, total - 1 - MIN_PANE));
                 // The panes meet at the line, whatever the room: the flexbox gives way for them.
                 box(c).width(size).minWidth(Math.min(size, MIN_PANE)).shrink(1).clip().label("first-pane").children(first);
@@ -173,14 +175,21 @@ public final class Ui {
                 }
                 Theme t = c.theme();
                 int line = held || en.hovered(div.index) ? t.accent().rgba() : t.border().rgba();
-                div.children(() -> {
+                int into = en.enter(div.index);
+                try {
                     Element l = box(c).width(1).fillHeight().label("line");
                     if (l.node() != null) {
-                        l.node().background = line;         // the 1 DIP line, centered in the handle
+                        l.node().background = line;     // the 1 DIP line, centered in the handle
                     }
-                });
-            });
-        });
+                } finally {
+                    en.exit(into);
+                }
+            } finally {
+                en.exit(inner);
+            }
+        } finally {
+            en.exit(outer);
+        }
         return e;
     }
 
@@ -193,69 +202,75 @@ public final class Ui {
     public static Element tabs(Context c, IntRef selected, String... titles) {
         Theme t = c.theme();
         Element e = row(c).gap(4);
-        e.children(() -> {
-            int n = titles.length;
-            if (n == 0) {
-                return;
-            }
+        int n = titles.length;
+        if (n > 0) {
             jui.ui.engine.Engine en = c.engine();
             int clamped = Math.max(0, Math.min(selected.get(), n - 1));
             if (clamped != selected.get()) {
                 selected.set(clamped);
             }
-            // The tabs' identities, for the focus to follow a keyboard choice (from local state: no
-            // steady-frame allocation).
-            Ref<long[]> ids = local(e, "tabs", () -> new long[n]);
-            long[] tabIds = ids.get().length == n ? ids.get() : new long[n];
+            // The tabs' identities, for the focus to follow a keyboard choice (from local state:
+            // nothing a steady frame allocates).
+            Ref<long[]> ids = local(e, "tabs", () -> new long[0]);
+            long[] tabIds = ids.get().length == n ? ids.get() : growTabs(ids, n);
             int follow = -1;
-            for (int i = 0; i < n; i++) {
-                boolean on = i == selected.get();
-                Element tab = buttonBase(c).padding(8, 12).label(titles[i]);
-                Node tn = tab.node();
-                tn.flags |= Node.KEYS;
-                jui.ui.engine.ElementState s = en.state(tab.index);
-                int pick = -1;
-                if (tab.clicked()) {
-                    pick = i;
-                }
-                for (int k = 0; k < s.keyCount; k++) {
-                    switch (s.keys[k]) {
-                        case LEFT, UP -> pick = (i - 1 + n) % n;
-                        case RIGHT, DOWN -> pick = (i + 1) % n;
-                        case HOME -> pick = 0;
-                        case END -> pick = n - 1;
-                        default -> { }
+            int outer = en.enter(e.index);
+            try {
+                for (int i = 0; i < n; i++) {
+                    boolean on = i == selected.get();
+                    Element tab = buttonBase(c).padding(8, 12).label(titles[i]);
+                    Node tn = tab.node();
+                    tn.flags |= Node.KEYS;
+                    jui.ui.engine.ElementState s = en.state(tab.index);
+                    int pick = -1;
+                    if (tab.clicked()) {
+                        pick = i;
                     }
-                }
-                if (pick >= 0 && pick != selected.get()) {
-                    selected.set(pick);
-                    en.markChanged(e.index);
-                    follow = pick;
-                    on = i == selected.get();
-                }
-                tabIds[i] = tn.id;
-                if (follow == i) {
-                    en.requestFocus(tn.id);                  // the target was built after the source
-                    follow = -1;
-                }
-                int saved = en.enter(tab.index);
-                try {
-                    int color = on || en.hovered(tab.index) ? t.text().rgba() : t.textMuted().rgba();
-                    text(c, titles[i]).singleLine().textColor(new Color(color)).fontWeight(on ? 600 : 400);
-                    if (on) {                                // the 2 DIP accent underline
-                        Element u = box(c).absolute().height(2).left(6).right(6).bottom(0).radius(1);
-                        if (u.node() != null) {
-                            u.node().background = t.accent().rgba();
+                    for (int k = 0; k < s.keyCount; k++) {
+                        switch (s.keys[k]) {
+                            case LEFT, UP -> pick = (i - 1 + n) % n;
+                            case RIGHT, DOWN -> pick = (i + 1) % n;
+                            case HOME -> pick = 0;
+                            case END -> pick = n - 1;
+                            default -> { }
                         }
                     }
-                } finally {
-                    en.exit(saved);
+                    if (pick >= 0 && pick != selected.get()) {
+                        selected.set(pick);
+                        en.markChanged(e.index);
+                        follow = pick;
+                        on = i == selected.get();
+                    }
+                    tabIds[i] = tn.id;
+                    if (follow == i) {
+                        en.requestFocus(tn.id);          // the target was built after the source
+                        follow = -1;
+                    }
+                    int saved = en.enter(tab.index);
+                    try {
+                        int color = on || en.hovered(tab.index) ? t.text().rgba() : t.textMuted().rgba();
+                        Element label = text(c, titles[i]).singleLine();
+                        if (label.node() != null) {
+                            label.node().textColor = color; // as the theme has it, no Color made a frame
+                        }
+                        label.fontWeight(on ? 600 : 400);
+                        if (on) {                        // the 2 DIP accent underline
+                            Element u = box(c).absolute().height(2).left(6).right(6).bottom(0).radius(1);
+                            if (u.node() != null) {
+                                u.node().background = t.accent().rgba();
+                            }
+                        }
+                    } finally {
+                        en.exit(saved);
+                    }
                 }
+                if (follow >= 0 && follow < n) {
+                    en.requestFocus(tabIds[follow]);     // the target was built before the choice
+                }
+            } finally {
+                en.exit(outer);
             }
-            if (follow >= 0 && follow < n) {
-                en.requestFocus(tabIds[follow]);             // the target was built before the choice
-            }
-        });
+        }
         return e;
     }
 
@@ -291,13 +306,13 @@ public final class Ui {
         if (!on) {
             back.invisible();
         } else {
-            back.background(Color.rgba(0x000000, 0.4f));
+            back.background(MODAL_DIM);
         }
         int saved = en.enter(back.index);
         Element panel;
         try {
             panel = box(c).padding(20).gap(12).radius(t.radius()).background(t.surface())
-                    .shadow(0, 10, 30, 0, Color.rgba(0x000000, 0.3f))
+                    .shadow(0, 10, 30, 0, MODAL_SHADOW)
                     .maxWidth(en.windowWidth() - 40).maxHeight(en.windowHeight() - 40);
             if (!on) {
                 panel.invisible();
@@ -352,7 +367,7 @@ public final class Ui {
         }
         Element panel = box(c).absolute().margin(4, 0, 0, 0).padding(4).gap(4)
                 .radius(t.radius() + 2).background(t.background()).border(1, t.border())
-                .shadow(0, 6, 20, 0, Color.rgba(0x000000, 0.18f)).label("popover");
+                .shadow(0, 6, 20, 0, POPUP_SHADOW).label("popover");
         Node pn = panel.node();
         pn.flags |= Node.CLICKABLE | Node.ESCAPABLE;         // presses on it stay in it
         pn.placeOn = anchor.index;
@@ -435,6 +450,18 @@ public final class Ui {
 
     private static final Color WHITE = Color.rgb(0xFFFFFF);
     private static final Color KNOB_SHADOW = Color.rgba(0x000000, 0.25f);
+
+    /** A tab list kept in local state, grown only when its count changes. */
+    private static long[] growTabs(Ref<long[]> ids, int n) {
+        long[] grown = new long[n];
+        ids.set(grown);
+        return grown;
+    }
+
+    /** The dim over what a modal covers, and the shadows of a modal's panel and a popover. */
+    private static final Color MODAL_DIM = Color.rgba(0x000000, 0.4f);
+    private static final Color MODAL_SHADOW = Color.rgba(0x000000, 0.3f);
+    private static final Color POPUP_SHADOW = Color.rgba(0x000000, 0.18f);
     private static final java.time.Duration SWITCH_SLIDE = java.time.Duration.ofMillis(140);
 
     /** A button without looks: a centered row that takes focus and clicks; style it as you like. */
