@@ -184,6 +184,81 @@ public final class Ui {
         return e;
     }
 
+    /**
+     * A row of tabs showing titles, of which selected is the index of the
+     * one chosen: a click chooses a tab, as do the arrows, Home and End
+     * while one has the focus, which follows the choice. changed() reports
+     * a new choice.
+     */
+    public static Element tabs(Context c, IntRef selected, String... titles) {
+        Theme t = c.theme();
+        Element e = row(c).gap(4);
+        e.children(() -> {
+            int n = titles.length;
+            if (n == 0) {
+                return;
+            }
+            jui.ui.engine.Engine en = c.engine();
+            int clamped = Math.max(0, Math.min(selected.get(), n - 1));
+            if (clamped != selected.get()) {
+                selected.set(clamped);
+            }
+            // The tabs' identities, for the focus to follow a keyboard choice (from local state: no
+            // steady-frame allocation).
+            Ref<long[]> ids = local(e, "tabs", () -> new long[n]);
+            long[] tabIds = ids.get().length == n ? ids.get() : new long[n];
+            int follow = -1;
+            for (int i = 0; i < n; i++) {
+                boolean on = i == selected.get();
+                Element tab = buttonBase(c).padding(8, 12).label(titles[i]);
+                Node tn = tab.node();
+                tn.flags |= Node.KEYS;
+                jui.ui.engine.ElementState s = en.state(tab.index);
+                int pick = -1;
+                if (tab.clicked()) {
+                    pick = i;
+                }
+                for (int k = 0; k < s.keyCount; k++) {
+                    switch (s.keys[k]) {
+                        case LEFT, UP -> pick = (i - 1 + n) % n;
+                        case RIGHT, DOWN -> pick = (i + 1) % n;
+                        case HOME -> pick = 0;
+                        case END -> pick = n - 1;
+                        default -> { }
+                    }
+                }
+                if (pick >= 0 && pick != selected.get()) {
+                    selected.set(pick);
+                    en.markChanged(e.index);
+                    follow = pick;
+                    on = i == selected.get();
+                }
+                tabIds[i] = tn.id;
+                if (follow == i) {
+                    en.requestFocus(tn.id);                  // the target was built after the source
+                    follow = -1;
+                }
+                int saved = en.enter(tab.index);
+                try {
+                    int color = on || en.hovered(tab.index) ? t.text().rgba() : t.textMuted().rgba();
+                    text(c, titles[i]).singleLine().textColor(new Color(color)).fontWeight(on ? 600 : 400);
+                    if (on) {                                // the 2 DIP accent underline
+                        Element u = box(c).absolute().height(2).left(6).right(6).bottom(0).radius(1);
+                        if (u.node() != null) {
+                            u.node().background = t.accent().rgba();
+                        }
+                    }
+                } finally {
+                    en.exit(saved);
+                }
+            }
+            if (follow >= 0 && follow < n) {
+                en.requestFocus(tabIds[follow]);             // the target was built before the choice
+            }
+        });
+        return e;
+    }
+
     /** Sets the split's width, clamped to leave 40 DIPs of room on either side of the divider. */
     private static void setSplitWidth(jui.ui.engine.Engine en, int index, FloatRef firstWidth, float v, float total) {
         if (total > 0) {
