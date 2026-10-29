@@ -27,6 +27,7 @@ public final class Scene {
     private float scale = 1;
     private TextEngine text;
     private GlyphAtlas atlas;
+    private final float[] textRect = new float[4];
 
     /** Starts a frame at {@code scale} pixels a point, whose text goes through {@code text} and {@code atlas}. */
     public void begin(float scale, TextEngine text, GlyphAtlas atlas) {
@@ -92,27 +93,75 @@ public final class Scene {
 
     public void text(TextLayout layout, float x, float y, int color, int firstLine, int endLine) {
         if (firstLine >= endLine || layout.lines == 0) return;
-        int n = TextEngine.positions(layout.size, scale);
-        int shade = TextEngine.shadeOf(color);
         int firstGlyph = layout.lineGlyphStart(Math.max(0, firstLine));
         int endGlyph = layout.lineGlyphEnd(Math.min(layout.lines, endLine) - 1);
         for (int i = firstGlyph; i < endGlyph; i++) {
-            double pen = (x + layout.x(i)) * scale;
-            double whole = Math.floor(pen);
-            int sub = Math.min(n - 1, (int) Math.floor((pen - whole) * n));
-            int baseline = (int) Math.ceil((y + layout.baseline(i)) * scale - 1e-3);
-            GlyphAtlas.Entry e = atlas.get(text, layout.font(i), layout.glyph(i), scale, sub, n, shade);
-            if (e == null || e.width() == 0) {
-                continue;
-            }
-            int o = next();
-            put(o, (float) whole + e.left(), baseline + e.top(), e.width(), e.height());
-            put(o + 4, e.x(), e.y(), 0, 0); // where the glyph is in the atlas
-            putColor(o + 8, color);
-            putColor(o + 12, 0);
-            put(o + 16, 0, 0, KIND_GLYPH, 0);
+            glyph(layout, i, x, y, color);
         }
     }
+
+    private void glyph(TextLayout layout, int index, float x, float y, int color) {
+        int positions = TextEngine.positions(layout.glyphSize(index), scale);
+        int shade = TextEngine.shadeOf(color);
+        double pen = (x + layout.x(index)) * scale;
+        double whole = Math.floor(pen);
+        int sub = Math.min(positions - 1, (int) Math.floor((pen - whole) * positions));
+        int baseline = (int) Math.ceil((y + layout.baseline(index)) * scale - 1e-3);
+        GlyphAtlas.Entry entry = atlas.get(text, layout.font(index), layout.glyph(index), scale, sub, positions, shade);
+        if (entry == null || entry.width() == 0) return;
+        int offset = next();
+        put(offset, (float) whole + entry.left(), baseline + entry.top(), entry.width(), entry.height());
+        put(offset + 4, entry.x(), entry.y(), 0, 0);
+        putColor(offset + 8, color);
+        putColor(offset + 12, 0);
+        put(offset + 16, 0, 0, KIND_GLYPH, 0);
+    }
+
+    public void richText(TextLayout layout, jui.ui.Spans spans, float x, float y, int baseColor, float opacity) {
+        if (layout.lines == 0 || spans.size() == 0) return;
+        int first = Math.max(0, layout.lineForY(clipY0 - y) - 1);
+        int end = Math.min(layout.lines, layout.lineForY(clipY1 - y) + 2);
+        spanRects(layout, spans, x, y, baseColor, opacity, first, end, false);
+        for (int line = first; line < end; line++) {
+            for (int glyph = layout.lineGlyphStart(line); glyph < layout.lineGlyphEnd(line); glyph++) {
+                jui.ui.Span span = spans.get(spans.at(layout.index(glyph)));
+                glyph(layout, glyph, x, y, fade(span.colored() ? span.rgba() : baseColor, opacity));
+            }
+        }
+        spanRects(layout, spans, x, y, baseColor, opacity, first, end, true);
+    }
+
+    private void spanRects(TextLayout layout, jui.ui.Spans spans, float x, float y, int baseColor, float opacity,
+                           int first, int end, boolean decorations) {
+        for (int line = first; line < end; line++) {
+            int lineStart = layout.lineStart(line), lineEnd = layout.lineEnd(line);
+            if (lineEnd <= lineStart) continue;
+            int from = spans.at(lineStart), to = spans.at(lineEnd - 1);
+            for (int index = from; index <= to; index++) {
+                jui.ui.Span span = spans.get(index);
+                if (decorations ? !span.underlined() && !span.struck() : (span.fill() & 255) == 0) continue;
+                int start = Math.max(lineStart, spans.start(index)), last = Math.min(lineEnd, spans.end(index));
+                if (start >= last || !layout.selectionRect(start, last, line, textRect)) continue;
+                float left = x + textRect[0], width = textRect[2];
+                if (!decorations) box(left, y + layout.lineTop(line), width, layout.lineHeight(line), span.rounding(), fade(span.fill(), opacity));
+                else {
+                    float position = 0, thickness = 1 / scale, xHeight = 0;
+                    for (int glyph = layout.lineGlyphStart(line); glyph < layout.lineGlyphEnd(line); glyph++) {
+                        if (layout.index(glyph) < start || layout.index(glyph) >= last) continue;
+                        TextEngine.FontMetrics metrics = text.metrics(layout.font(glyph));
+                        position = Math.max(position, -metrics.underline());
+                        thickness = Math.max(thickness, metrics.thickness());
+                        xHeight = Math.max(xHeight, metrics.xHeight());
+                    }
+                    int color = fade(span.colored() ? span.rgba() : baseColor, opacity);
+                    if (span.underlined()) box(left, y + layout.lineBaseline(line) + position, width, thickness, 0, color);
+                    if (span.struck()) box(left, y + layout.lineBaseline(line) - xHeight / 2, width, thickness, 0, color);
+                }
+            }
+        }
+    }
+
+    private static int fade(int color, float opacity) { return (color & 0xFFFFFF00) | Math.round((color & 255) * opacity); }
 
     /** A box with one radius; colors are 0xRRGGBBAA in sRGB. */
     public void box(float x, float y, float w, float h, float radius, int fill) {

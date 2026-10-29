@@ -36,6 +36,10 @@ public final class Context {
         return serviceThread() ? engine.text().layout(text, size, weight, maxWidth) : null;
     }
 
+    public jui.text.TextLayout layoutText(Spans spans, float size, int weight, float maxWidth) {
+        return serviceThread() ? engine.text().layout(spans, size, weight, maxWidth) : null;
+    }
+
     public String clipboardText() { return serviceThread() ? engine.host().readClipboard() : null; }
 
     public void copyText(String text) { if (serviceThread()) engine.host().writeClipboard(text); }

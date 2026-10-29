@@ -15,6 +15,14 @@ public final class Ui {
 
     public static Element canvas(Context context) { return box(context); }
 
+    public static Element richText(Context context, Spans spans) {
+        java.util.Objects.requireNonNull(spans);
+        Element element = text(context, spans.text());
+        Node node = element.node();
+        if (node != null) node.spans = spans;
+        return element;
+    }
+
     public static void contextMenu(Context context, Element target, java.util.function.Consumer<Menu> build) {
         if (target == null || target.c.engine() != context.engine()) {
             jui.ui.engine.Dev.fail("contextMenu requires an element from this context");

@@ -52,7 +52,8 @@ final class Paint {
         }
         if (n.kind == Node.TEXT && n.layout != null) {
             // The text starts inside the padding and the border.
-            scene.text(n.layout, n.x + n.padLeft + n.border, n.y + n.padTop + n.border, fade(n.resolvedColor, o));
+            if (n.spans == null) scene.text(n.layout, n.x + n.padLeft + n.border, n.y + n.padTop + n.border, fade(n.resolvedColor, o));
+            else scene.richText(n.layout, n.spans, n.x + n.padLeft + n.border, n.y + n.padTop + n.border, n.resolvedColor, o);
         }
         if (n.kind == Node.SLIDER) {
             slider(n, scene, theme, o, ringId);

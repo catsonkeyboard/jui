@@ -21,6 +21,7 @@ public final class NodePool {
             node(index).draw = null;
             node(index).inputHandler = null;
             node(index).textClient = null;
+            node(index).spans = null;
         }
         int keep = (used + CHUNK - 1) / CHUNK + 1;
         for (int i = keep; i < chunkCount; i++) {

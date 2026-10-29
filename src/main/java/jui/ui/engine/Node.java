@@ -112,6 +112,7 @@ public final class Node {
 
     // Text input: NaN and 0 (size, weight) and hasTextColor false inherit.
     public String text;
+    public jui.ui.Spans spans;
     public int textColor;
     /** Whether textColor was set: any color, transparent too, can be. */
     public boolean hasTextColor;
@@ -165,6 +166,7 @@ public final class Node {
         contextMenu = null;
         draw = null;
         inputHandler = null;
+        spans = null;
         textClient = null;
         textClientDeclared = false;
         disabled = false;

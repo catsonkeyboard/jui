@@ -1872,7 +1872,8 @@ public final class Engine {
         // TextEngine takes 0 for no wrapping; a box squeezed to nothing still
         // wraps, at every chance, as CSS does, rather than run on one line.
         float limit = maxWidth == FlexLayout.UNLIMITED ? 0 : Math.max(maxWidth, 0.01f);
-        n.layout = text.layout(n.text, n.resolvedSize, n.resolvedWeight, limit);
+        n.layout = n.spans == null ? text.layout(n.text, n.resolvedSize, n.resolvedWeight, limit)
+                : text.layout(n.spans, n.resolvedSize, n.resolvedWeight, limit);
         out[0] = n.layout.width;
         out[1] = n.text.isEmpty() ? 0 : n.layout.height;
     }

@@ -61,6 +61,17 @@ public final class Painter {
         scene.text(layout, originX + x, top, color(color), first, end);
     }
 
+    public TextLayout richText(Spans spans, float x, float y, float size, int weight, Color color, float maxWidth) {
+        if (!valid()) return null;
+        TextLayout layout = engine.text().layout(spans, size, weight, maxWidth);
+        richText(layout, spans, x, y, color);
+        return layout;
+    }
+
+    public void richText(TextLayout layout, Spans spans, float x, float y, Color color) {
+        if (valid()) scene.richText(layout, spans, originX + x, originY + y, color.rgba(), opacity);
+    }
+
     public void clip(float x, float y, float width, float height) { clip(x, y, width, height, 0); }
 
     public void clip(float x, float y, float width, float height, float radius) {
