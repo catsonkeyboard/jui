@@ -733,18 +733,12 @@ final class Input {
         if (!wants && claimedBy(mods, key, true)) {
             return false;
         }
-        textKey.key = key;
-        textKey.mods = mods;
-        textKey.edit = e;
-        textKey.state = s;
-        textKey.live = true;
+        TextKeyEvent event = new TextKeyEvent(key, mods, e, s);
         boolean taken;
         try {
-            taken = s.onTextKey.test(textKey);
+            taken = s.onTextKey.test(event);
         } finally {
-            textKey.live = false;
-            textKey.edit = null;
-            textKey.state = null;
+            event.die();
         }
         if (taken) {
             blinkStart = engine.clockNow();
@@ -763,22 +757,35 @@ final class Input {
                 || k >= jui.ui.Key.MINUS.ordinal() && k <= jui.ui.Key.BACKQUOTE.ordinal();
     }
 
-    /** The one TextKey the hooks see, valid while one runs: no object a key. */
-    private final TextKeyEvent textKey = new TextKeyEvent();
-
+    /**
+     * The TextKey a hook sees, one a key event: it dies when its hook returns,
+     * so one kept cannot come back to life in a later hook. Event-level
+     * allocation, as the input events themselves.
+     */
     private final class TextKeyEvent implements jui.ui.TextKey {
-        jui.ui.Key key;
-        int mods;
+        final jui.ui.Key key;
+        final int mods;
         TextEdit edit;
         ElementState state;
-        boolean live;
+
+        TextKeyEvent(jui.ui.Key key, int mods, TextEdit edit, ElementState state) {
+            this.key = key;
+            this.mods = mods;
+            this.edit = edit;
+            this.state = state;
+        }
+
+        void die() {
+            edit = null;
+            state = null;
+        }
 
         public jui.ui.Key key() {
-            return key;
+            return valid() ? key : null;
         }
 
         public int mods() {
-            return mods;
+            return valid() ? mods : 0;
         }
 
         public String text() {
@@ -798,7 +805,7 @@ final class Input {
         }
 
         private boolean valid() {
-            if (!live) {
+            if (edit == null) {
                 Dev.fail("a TextKey is valid only while its onTextKey runs");
                 return false;
             }

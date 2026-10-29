@@ -95,6 +95,27 @@ public final class OnTextKeyTest {
         Tester tt = tester();
         tt.click("in");
         tt.key(Shortcut.of(Key.LEFT));
+        Check.fails(IllegalStateException.class, () -> kept[0].key());
+        Check.fails(IllegalStateException.class, () -> kept[0].mods());
         Check.fails(IllegalStateException.class, () -> kept[0].text());
+        Check.fails(IllegalStateException.class, () -> kept[0].setText("x"));
+    }
+
+    public void testAKeptTextKeyStaysDeadInALaterHook() {
+        int[] reused = {0};
+        TextKey[] first = {null};
+        Tester tt = Tester.of(c -> textInput(c, q).label("in").onTextKey(k -> {
+            if (first[0] == null) {
+                first[0] = k;
+            } else {
+                try { first[0].text(); reused[0]++; } catch (IllegalStateException expected) { }
+                try { first[0].key(); reused[0]++; } catch (IllegalStateException expected) { }
+            }
+            return k.key() == Key.LEFT;
+        }), 300, 200);
+        tt.click("in");
+        tt.key(Shortcut.of(Key.LEFT));
+        tt.key(Shortcut.of(Key.RIGHT));
+        Check.equal(0, reused[0]);
     }
 }
