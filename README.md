@@ -530,6 +530,18 @@ richText(c, PREVIEW);
 
 **已由用户手动核对通过**（2026-10-29 用户确认）：自有表面的拼音候选框、提交/取消、切焦点及关闭；中文/emoji跨行选区；取走J与IME开关；Edit/右键复制粘贴及撤销；混合字体baseline、mono/italic与装饰。
 
+## 遗留小问题清理（2026-10-29）
+
+各轮整体审查留下的四个 Minor：
+
+- **`TextKey` 有效期**：改为每个按键事件一个对象，`key()`/`mods()` 也检查过期；钩子返回后永久失效，存下来以后再调（包括在以后的钩子里）开发模式抛错。事件级分配，与输入事件同规格，稳态帧仍为 0 B。
+- **`wrapReverse` 交叉轴 margin**：镜像前先交换交叉轴两侧 margin（同 MyGO 的 `flipCross`）。上边距 10 的子元素反转后贴住交叉轴末端，空隙留在上方，不再悬空。
+- **`rowsBuilt()`**：计入为焦点在视野外额外构建的那一行。
+- **窗口关闭的资源**：`close()` 补上 `release(view)`——view 由我们 alloc，恰好平衡一次，不会过度释放。NSWindow 本体仍交给 AppKit：实测在 close 时翻转 `releasedWhenClosed`，AppKit 在进程退出阶段的清理会经 upcall 打进已关闭的 JVM（SIGBUS，`NSTextInputContext`）；盲 `release(window)` 又与 AppKit 自己的持有相撞（同进程后续窗口的输入错乱）。两项都是先观察到失败才放弃的；窗口本体的最终释放属于应用退出协议，未在本轮解决。
+
+- 测试：490 个全部通过（新增 3 个、扩展 1 个）；`./build.sh alloc` native 每控件、行、输入框仍为 0 B。
+
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
