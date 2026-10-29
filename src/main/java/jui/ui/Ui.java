@@ -129,6 +129,76 @@ public final class Ui {
     }
 
     /**
+     * A row that shares its room between first and second at a divider the
+     * user drags, or moves with the arrows once it has the focus: firstWidth
+     * is the first's width, which the divider keeps 40 DIPs of room on either
+     * side of itself. With less room than that the first gives way (the
+     * second keeps its 40), holding firstWidth for when there is room again.
+     * changed() reports a move.
+     */
+    public static Element split(Context c, FloatRef firstWidth, Runnable first, Runnable second) {
+        Element e = row(c).alignItems(Align.STRETCH);
+        e.children(() -> {
+            jui.ui.engine.Engine en = c.engine();
+            // The room the panes share, as the last frame laid it out.
+            Element room = row(c).grow(1).alignItems(Align.STRETCH);
+            room.children(() -> {
+                float size = firstWidth.get();
+                float total = en.state(room.index).w;       // the room as last laid out, 0 before the first
+                float shown = total <= 0 || size <= MIN_PANE ? size : Math.max(MIN_PANE, Math.min(size, total - 1 - MIN_PANE));
+                // The panes meet at the line, whatever the room: the flexbox gives way for them.
+                box(c).width(size).minWidth(Math.min(size, MIN_PANE)).shrink(1).clip().label("first-pane").children(first);
+                box(c).width(1); // the line's place in the flow
+                box(c).grow(1).minWidth(MIN_PANE).shrink(1).clip().children(second);
+
+                // The divider: an 8 DIP handle over the line, with the line as its child.
+                Element div = box(c).absolute().alignItems(Align.CENTER).width(8).left(shown - 3.5f).top(0).bottom(0)
+                        .focusable().cursor(Cursor.RESIZE_EW).label("divider");
+                Node n = div.node();
+                n.flags |= Node.DRAG | Node.HOVER | Node.KEYS;
+                jui.ui.engine.ElementState ds = en.state(div.index);
+                boolean off = en.disabled(div.index);
+                boolean held = ds.pressed && !off;
+                float move = held ? ds.dragX : 0;
+                if (!off && move != 0) {
+                    setSplitWidth(en, e.index, firstWidth, shown + move, total);
+                }
+                for (int k = 0; !off && k < ds.keyCount; k++) {
+                    if (ds.keys[k] == Key.LEFT) {
+                        setSplitWidth(en, e.index, firstWidth, shown - 8, total);
+                    }
+                    if (ds.keys[k] == Key.RIGHT) {
+                        setSplitWidth(en, e.index, firstWidth, shown + 8, total);
+                    }
+                }
+                Theme t = c.theme();
+                int line = held || en.hovered(div.index) ? t.accent().rgba() : t.border().rgba();
+                div.children(() -> {
+                    Element l = box(c).width(1).fillHeight().label("line");
+                    if (l.node() != null) {
+                        l.node().background = line;         // the 1 DIP line, centered in the handle
+                    }
+                });
+            });
+        });
+        return e;
+    }
+
+    /** Sets the split's width, clamped to leave 40 DIPs of room on either side of the divider. */
+    private static void setSplitWidth(jui.ui.engine.Engine en, int index, FloatRef firstWidth, float v, float total) {
+        if (total > 0) {
+            v = Math.max(MIN_PANE, Math.min(v, total - 1 - MIN_PANE));
+        }
+        if (v != firstWidth.get()) {
+            firstWidth.set(v);
+            en.markChanged(index);
+        }
+    }
+
+    /** The least a split's pane is given when the room runs short. */
+    static final float MIN_PANE = 40;
+
+    /**
      * A list of count rows that builds only those in view: row builds row i,
      * as one element. Rows may be of any height. A row's identity is its
      * key when the state has keys (ListState.keys), else a key set in row
