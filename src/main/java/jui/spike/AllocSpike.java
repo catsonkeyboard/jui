@@ -163,8 +163,61 @@ public final class AllocSpike {
             System.exit(1);
         }
         measureAreas(text, nativeImage);
+        measureEditors(text, nativeImage, emptyPainted);
         System.out.printf("MENU mode=%s idle_builds=%d%n", nativeImage ? "native" : "jvm", menuBuilds);
         if (menuBuilds != 0) throw new IllegalStateException("idle frames ran a menu builder");
+    }
+
+    private static void measureEditors(TextEngine textEngine, boolean nativeImage, double emptyPainted) {
+        EditorWorkload workload = new EditorWorkload(textEngine, 1024);
+        workload.run();
+        if (EditorWorkload.SOURCE.length() != 5000 || EditorWorkload.style(EditorWorkload.SOURCE).size() != 100)
+            throw new IllegalStateException("mixed-font fixture changed");
+        double steady = perFrame(workload);
+        EditorWorkload grown = new EditorWorkload(textEngine, 32);
+        grown.run();
+        int generations = grown.atlas.generation();
+        double afterGrowth = perFrame(grown);
+        Engine engine = new Engine(textEngine, Theme.light(), () -> {});
+        Scene scene = new Scene();
+        GlyphAtlas atlas = new GlyphAtlas(1024, 1024, 4096);
+        jui.examples.EditorSurface[] clients = new jui.examples.EditorSurface[20];
+        for (int index = 0; index < clients.length; index++) clients[index] = new jui.examples.EditorSurface("应用自有 client " + index);
+        View view = context -> {
+            for (int index = 0; index < clients.length; index++) {
+                jui.examples.EditorSurface client = clients[index]; client.attach(context);
+                jui.ui.Ui.canvas(context.key(index)).size(300, 25).handleTextInput(client).handleInput(client.handler).draw(client.drawing);
+            }
+        };
+        double custom = (perFrame(() -> {
+            engine.buildAndLayout(view, 800, 600); scene.begin(2, textEngine, atlas); engine.paint(scene);
+        }) - emptyPainted) / clients.length;
+        System.out.printf("EDITORS mode=%s custom_frame=%.1f rich_frame=%.0f after_growth_frame=%.0f growths=%d atlas=%dx%d%n",
+                nativeImage ? "native" : "jvm", custom, steady, afterGrowth, generations, grown.atlas.width, grown.atlas.height);
+        if (generations < 2 || nativeImage && (custom > .5 || steady > .5 || afterGrowth > .5 || steady > 32768))
+            throw new IllegalStateException("editor steady-frame allocation gate failed");
+        long[] scroll = new long[1000], edit = new long[1000];
+        for (int index = 0; index < 1100; index++) {
+            workload.editor.reset(EditorWorkload.SOURCE); workload.run();
+            long start = System.nanoTime();
+            workload.engine.textInsert("\n", -1, 0);
+            workload.engine.keyDown(Key.UP, 0, false);
+            workload.run();
+            if (index >= 100) edit[index - 100] = System.nanoTime() - start;
+            start = System.nanoTime();
+            workload.engine.scroll(30, 30, 0, index % 2 == 0 ? -20 : 20, true, 0); workload.run();
+            if (index >= 100) scroll[index - 100] = System.nanoTime() - start;
+        }
+        reportEditorTime("scroll", scroll, nativeImage);
+        reportEditorTime("insert-up", edit, nativeImage);
+    }
+
+    private static void reportEditorTime(String name, long[] samples, boolean nativeImage) {
+        java.util.Arrays.sort(samples);
+        double median = samples[500] / 1e6, percentile = samples[950] / 1e6, maximum = samples[999] / 1e6;
+        System.out.printf("EDITORBENCH mode=%s case=%s utf16=5000 spans=100 view=800x600 scale=2 samples=1000 p50=%.3fms p95=%.3fms max=%.3fms%n",
+                nativeImage ? "native" : "jvm", name, median, percentile, maximum);
+        if (nativeImage && (percentile > 4 || maximum > 8)) throw new IllegalStateException("mixed-font editor budget exceeded");
     }
 
     private static void measureAreas(TextEngine textEngine, boolean nativeImage) {
