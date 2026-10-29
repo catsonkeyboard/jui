@@ -59,9 +59,10 @@ public final class ListState {
         return model.first();
     }
 
-    /** How many rows the last frame built: for tools. */
+    /** How many rows the last frame built, counting the focused one kept built out of view. */
     public int rowsBuilt() {
-        return Math.max(0, model.builtLast() - model.builtFirst() + 1);
+        int rows = Math.max(0, model.builtLast() - model.builtFirst() + 1);
+        return rows + (model.extraRow() >= 0 ? 1 : 0);
     }
 
     /** The last row the last frame showed, or -1 before the list shows. */

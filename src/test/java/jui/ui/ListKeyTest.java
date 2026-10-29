@@ -43,7 +43,9 @@ public final class ListKeyTest {
             if (r.shortcut(Shortcut.of(Key.D))) presses[0]++;
         }).height(300).label("list"), 300, 400);
         tt.click("item0");
+        Check.equal(12, state.rowsBuilt());                 // in view: rows 0..11, no extra
         tt.scroll("list", 0, 3000);                         // item 0 far above the view
+        Check.equal(15, state.rowsBuilt());                 // rows 98..111, and the focused row 0 besides them
         Check.isTrue(tt.focused("item0"), "still built, still focused");
         Check.isTrue(tt.find("item0").y() + 30 <= tt.find("list").y() + 0.01f, "above the view");
         tt.key(Shortcut.of(Key.D));                          // its keys still reach it
