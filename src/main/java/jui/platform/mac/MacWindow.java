@@ -276,6 +276,7 @@ public final class MacWindow {
         ObjC.release(displayLink);
         send(window, "setDelegate:", 0);
         send(window, "close");
+        ObjC.release(view); // ours from alloc: the window held it too, so one release never over-releases
         BY_VIEW.remove(view);
         BY_DELEGATE.remove(delegate);
         ObjC.release(delegate); // the window does not retain its delegate: ours was the only reference

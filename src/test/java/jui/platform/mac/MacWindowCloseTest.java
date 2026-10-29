@@ -53,6 +53,21 @@ public final class MacWindowCloseTest {
         }
     }
 
+    public void testAScrollStillArrivesAfterAnotherWindowClosed() throws Throwable { // the close() minor
+        ObjC.send(ObjC.cls("NSApplication"), "sharedApplication");
+        MacWindow first = MacWindow.open("gone", 200, 150, 0xFFFFFF, null, (s, width, height) -> {});
+        first.close();
+        MacWindowInputTest.Recorder r = new MacWindowInputTest.Recorder();
+        MacWindow w = MacWindow.open("after close", 200, 150, 0xFFFFFF, null, (s, width, height) -> {}, r);
+        try {
+            long pixels = (long) MacWindowInputTest.SCROLL_EVENT.invokeExact(0L, 0, 1, 10, 0, 0);
+            ObjC.send(w.view(), "scrollWheel:", ObjC.send(ObjC.cls("NSEvent"), "eventWithCGEvent:", pixels));
+            Check.equal(1, r.scrolls);
+        } finally {
+            w.close();
+        }
+    }
+
     public void testTheRefreshRateIsReadAgainWhenTheWindowChangesScreen() { // M3 final review minor
         ObjC.send(ObjC.cls("NSApplication"), "sharedApplication");
         MacWindow w = MacWindow.open("screen", 200, 150, 0xFFFFFF, null, (s, width, height) -> {});

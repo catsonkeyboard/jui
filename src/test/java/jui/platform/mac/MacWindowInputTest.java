@@ -35,7 +35,7 @@ public final class MacWindowInputTest {
             FunctionDescriptor.of(JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG, POINT, JAVA_LONG, JAVA_DOUBLE, JAVA_LONG,
                     JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_BOOLEAN, JAVA_SHORT));
 
-    private static final MethodHandle SCROLL_EVENT = Linker.nativeLinker().downcallHandle(
+    static final MethodHandle SCROLL_EVENT = Linker.nativeLinker().downcallHandle(
             SymbolLookup.libraryLookup("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", Arena.global())
                     .find("CGEventCreateScrollWheelEvent2").orElseThrow(),
             FunctionDescriptor.of(JAVA_LONG, JAVA_LONG, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT));
