@@ -33,6 +33,13 @@ public final class ElementState {
     public int clicks, rightClicks, doubleClicks;
     public boolean pressed, pressPending, changed;
     public float dragX, dragY;
+    /** An open modal's bookkeeping: the Escape presses it takes between frames, whether it was
+     *  open in the last frame, and the element the focus returns to when it closes. */
+    public int escaped;
+    public boolean modalOpen;
+    public long modalReturn;
+    /** The modal this element's root showed was dismissed in this pass. */
+    public boolean dismissed;
     /** A scroll container's offset, its content's height and its content box's height as committed; an offset asked for (NaN none). */
     public float scrollY, contentH, viewH;
     public float requestY = Float.NaN;

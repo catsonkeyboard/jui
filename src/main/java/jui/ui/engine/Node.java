@@ -20,6 +20,8 @@ public final class Node {
     public static final int SCROLL_X = 512, SCROLL_Y = 1024;
     public static final int CONTEXT_MENU = 2048;
     public static final int RAW_INPUT = 4096;
+    /** Marks the backdrop of a modal, which scopes the focus and takes Escape. */
+    public static final int MODAL = 8192;
     public jui.ui.InputHandler inputHandler;
     public jui.ui.TextInputClient textClient;
     public boolean textClientDeclared;

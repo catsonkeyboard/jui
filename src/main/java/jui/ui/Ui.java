@@ -274,6 +274,65 @@ public final class Ui {
     static final float MIN_PANE = 40;
 
     /**
+     * A dialog over the window while open is true: a dimmed backdrop with
+     * the content centered on it, which clicking, or pressing Escape,
+     * closes; dismissed() reports that once. While it shows, the focus
+     * stays in it and comes back to what had it when it opened. Style the
+     * panel on what this returns; build nothing while it is closed.
+     */
+    public static Element modal(Context c, BoolRef open, Runnable content) {
+        Theme t = c.theme();
+        jui.ui.engine.Engine en = c.engine();
+        Element back = box(c).absolute().left(0).top(0).right(0).bottom(0).center();
+        Node bn = back.node();
+        bn.flags |= Node.CLICKABLE | Node.MODAL;
+        jui.ui.engine.ElementState bs = en.state(back.index);
+        boolean on = open.get();
+        if (!on) {
+            back.invisible();
+        } else {
+            back.background(Color.rgba(0x000000, 0.4f));
+        }
+        int saved = en.enter(back.index);
+        Element panel;
+        try {
+            panel = box(c).padding(20).gap(12).radius(t.radius()).background(t.surface())
+                    .shadow(0, 10, 30, 0, Color.rgba(0x000000, 0.3f))
+                    .maxWidth(en.windowWidth() - 40).maxHeight(en.windowHeight() - 40);
+            if (!on) {
+                panel.invisible();
+            } else {
+                panel.node().flags |= Node.CLICKABLE;        // presses on the panel stay in it
+                if (!bs.modalOpen) {
+                    bs.modalOpen = true;                     // where the focus returns when it closes
+                    bs.modalReturn = en.focusedIdentity();
+                }
+                if (bs.escaped > 0 || back.clicked()) {
+                    bs.escaped = 0;
+                    open.set(false);
+                    en.markDismissed(panel.index);
+                } else {
+                    int into = en.enter(panel.index);
+                    try {
+                        content.run();
+                    } finally {
+                        en.exit(into);
+                    }
+                }
+            }
+        } finally {
+            en.exit(saved);
+        }
+        if (bs.modalOpen && !on) {
+            bs.modalOpen = false;
+            if (bs.modalReturn != 0) {
+                en.requestFocus(bs.modalReturn);
+            }
+        }
+        return panel;
+    }
+
+    /**
      * A list of count rows that builds only those in view: row builds row i,
      * as one element. Rows may be of any height. A row's identity is its
      * key when the state has keys (ListState.keys), else a key set in row

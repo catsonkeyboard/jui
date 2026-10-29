@@ -47,6 +47,10 @@ final class Input {
     long dragId;
     boolean dragHorizontal;
     private float dragFrom, dragReach, dragStart, dragTravel;
+    /** The open modals of the last commit, outermost first: the last is the topmost. */
+    long[] modals = new long[4];
+    int modalCount;
+
 
     // Focus: the focused identity (0 for none), whether its ring shows, and the window's key state.
     long focusedId;
@@ -295,6 +299,18 @@ final class Input {
             }
             edited(now);
             return;
+        }
+        // An open modal takes Escape first (as MyGO's overlay shortcut): the topmost one closes.
+        if (key == jui.ui.Key.ESCAPE && mods == 0 && modalCount > 0) {
+            TextEdit esc = focusedEdit();
+            if (esc == null || !esc.composing()) {
+                ElementState top = engine.states().get(modals[modalCount - 1]);
+                if (top != null) {
+                    top.escaped++;
+                }
+                engine.requestFrame();
+                return;
+            }
         }
         // Keys that act at once yield to a shortcut that claims them (as MyGO's claimedBy).
         if (key == jui.ui.Key.TAB && (mods == 0 || mods == jui.ui.Mod.SHIFT) && !claimedBy(mods, key, true)) {
@@ -628,20 +644,29 @@ final class Input {
         if (at >= 0 && !focusShown[at] && inList(focusedId)) {
             at = -1; // a list's row kept built out of view for the focus: as if it were not built (plan M3 #9)
         }
-        int next;
+        long scope = topModal();
+        int next = -1;
         if (at >= 0) {
-            next = (at + (forward ? 1 : focusCount - 1)) % focusCount;
+            for (int step = 1; step <= focusCount; step++) {
+                int candidate = (at + (forward ? step : focusCount - step)) % focusCount;
+                if (insideModal(candidate, scope)) {
+                    next = candidate;
+                    break;
+                }
+            }
         } else {
             // Focus is on nothing built (a row scrolled out of view, an element gone): start from the
             // first element that shows, or the last going back, not one built out of view (plan M3 #9).
-            next = forward ? 0 : focusCount - 1;
             for (int k = 0; k < focusCount; k++) {
                 int i = forward ? k : focusCount - 1 - k;
-                if (focusShown[i]) {
+                if (focusShown[i] && insideModal(i, scope)) {
                     next = i;
                     break;
                 }
             }
+        }
+        if (next < 0) {
+            return;                                            // nothing to focus in the modal
         }
         focusedId = focusOrder[next];
         focusVisible = true;
@@ -663,6 +688,37 @@ final class Input {
     private boolean inList(long id) {
         for (int i = hits.indexOf(id); i >= 0; i = hits.parent[i]) {
             if ((hits.flags[i] & Node.LIST) != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Begins collecting this frame's open modals (Engine.commit). */
+    void modalsBegin() {
+        modalCount = 0;
+    }
+
+    /** An open modal, in build order (Engine.commit). */
+    void modalOpen(long id) {
+        if (modalCount == modals.length) {
+            modals = java.util.Arrays.copyOf(modals, modalCount * 2);
+        }
+        modals[modalCount++] = id;
+    }
+
+    /** The topmost open modal, or 0 for none. */
+    private long topModal() {
+        return modalCount == 0 ? 0 : modals[modalCount - 1];
+    }
+
+    /** Whether the focusable at focusOrder index i lies in the modal that scopes the focus. */
+    private boolean insideModal(int i, long scope) {
+        if (scope == 0) {
+            return true;
+        }
+        for (int h = hits.indexOf(focusOrder[i]); h >= 0; h = hits.parent[h]) {
+            if (hits.ids[h] == scope) {
                 return true;
             }
         }

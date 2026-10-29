@@ -81,6 +81,9 @@ public final class Engine {
     private boolean rowPending;
     private int rowIndex;
     /** The window's height in this frame: a list's view before it has been laid out. */
+    /** The window's width in this frame: a modal's panel caps at it. */
+    private float windowW;
+
     private float windowH;
     /** Dev mode: this frame's nodes by identity, to find siblings with the same key at once. */
     private final java.util.HashMap<Long, Integer> nodesById = Dev.ENABLED ? new java.util.HashMap<>() : null;
@@ -128,6 +131,7 @@ public final class Engine {
         input.advanceGlides(now);
         advanceAnimations(now);
         input.routeKey();
+        windowW = width;
         windowH = height;
         int nextPassId = 0;
         // A round builds, lays out and fixes up lists; a list that did not cover its view
@@ -263,11 +267,38 @@ public final class Engine {
         state(index).changed = true;
     }
 
+    /** Whether the element's modal was dismissed in this pass. */
+    public boolean dismissed(int index) {
+        boolean d = state(index).dismissed;
+        consumed |= d;
+        return d;
+    }
+
+    /** The element's modal was dismissed in this pass: by Escape, or a click on what is around it. */
+    public void markDismissed(int index) {
+        state(index).dismissed = true;
+    }
+
+    /** The window's width in this frame, in DIPs. */
+    public float windowWidth() {
+        return windowW;
+    }
+
+    /** The window's height in this frame, in DIPs. */
+    public float windowHeight() {
+        return windowH;
+    }
+
     /** Makes the node the parent of what is built next, and returns the parent to give back to {@link #exit}. */
     public int enter(int index) {
         int saved = parent;
         parent = index;
         return saved;
+    }
+
+    /** The element that has the focus now, or 0 for none: what a modal returns the focus to. */
+    public long focusedIdentity() {
+        return input.focusedId;
     }
 
     public void exit(int saved) {
@@ -519,6 +550,8 @@ public final class Engine {
                 s.submits = 0;
                 s.pressPending = false;
                 s.changed = false;
+                s.dismissed = false;
+                s.escaped = 0;
                 s.dragX = s.dragY = 0;
                 s.keyCount = 0;
             }
@@ -588,6 +621,7 @@ public final class Engine {
      */
     private void commit() {
         if (clientBindings != null) clientBindings.clear();
+        input.modalsBegin();
         hits.clear();
         commitHits(0, -1, Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY,
                 Float.POSITIVE_INFINITY, -1);
@@ -605,6 +639,9 @@ public final class Engine {
                 s.cw = Math.max(0, n.w - n.padLeft - n.padRight - 2 * n.border);
                 s.ch = Math.max(0, n.h - n.padTop - n.padBottom - 2 * n.border);
                 s.disabledLast = n.disabled;
+                if ((n.flags & Node.MODAL) != 0 && !n.invisible) {
+                    input.modalOpen(n.id); // the open modals of this frame, the last the topmost
+                }
                 s.inputHandler = n.inputHandler;
                 s.textClient = n.textClient;
                 s.noInputMethod = n.noInputMethod;

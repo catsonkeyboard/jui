@@ -812,6 +812,11 @@ public final class Element {
         return node() != null && c.engine().changed(index);
     }
 
+    /** Whether the element's modal was dismissed in this pass: by Escape, or a click on what is around it. */
+    public boolean dismissed() {
+        return node() != null && c.engine().dismissed(index);
+    }
+
     /** Whether the element has focus, in a focused window. */
     public boolean focused() {
         return node() != null && c.engine().focused(index);
