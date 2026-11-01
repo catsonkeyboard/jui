@@ -66,7 +66,7 @@
 ### 还没验证的
 
 - 彩色字形（emoji）：需要再加一张彩色图集，目前直接跳过不画。
-- 图集逐出、回收和重排尚未实现；计划四只补上了有上限的扩容，到上限仍明确报告 full。
+- 图集有界增长及冷字形回收已实现，当前帧字形固定；单帧字形集合超过上限仍明确报告 full（详见 M6）。
 - 和 AppKit 自己画的文字逐像素对比：MyGO 做过，这里只是肉眼看起来一致。
 - 完整从右到左的视觉编辑；输入法和普通文本编辑的后续验证见 M4 及多行文本框专节。
 - 拖动改变窗口大小时的同步呈现路径：代码已经写了，没有手动拖动测试过。
@@ -524,9 +524,9 @@ richText(c, PREVIEW);
 - 支持system/monospace、字号/字重、可用原生italic、颜色、圆角背景、下划线及删除线。背景按视觉行全高绘制，先背景、再glyph、后装饰；只处理可见行及上下各一行。
 - 跨paint边界的单个连字glyph取cluster起点颜色，不强行拆连字；装饰仍按区段几何。没有CJK合成斜体、链接、inline对象、完整bidi、普通文字选择或富格式剪贴板；彩色emoji仍未绘制。
 - 字体canonical按CFHash分桶、CFEqual核对，不再只比较字体名/字号；glyph使用实际font size量化。字体沿用既有retain缓存策略，本轮未新增字体缓存dispose/逐出，不宣称可无限变字号而不增长。
-- `GlyphAtlas(w,h)`继续固定容量；带最大值的构造才允许增长。窗口/Tester从1024扩到4096，entry坐标不变，CPU像素可由arena回收；扩容增加generation并整图上传。Metal旧command保留旧texture，新texture完整上传后编码；没有eviction/repack。单glyph仍限2048物理像素，超限明确抛错而非当成空字形；字体编号耗尽也报错，不能截断别名。
+- `GlyphAtlas(w,h)`继续固定容量；带最大值的构造才允许增长。窗口/Tester从1024扩到4096，entry坐标不变，CPU像素可由arena回收；扩容增加generation并整图上传。Metal旧command保留旧texture，新texture完整上传后编码；M6另增冷字形eviction/repack（见下）。单glyph仍限2048物理像素，超限明确抛错而非当成空字形；字体编号耗尽也报错，不能截断别名。
 
-**验证**：全套487测试通过；native分配、列表、FFI及离屏GPU读回的最终结果见[整体审查记录](docs/reviews/2026-10-29-editor-primitives-review.md)。自动化读回验证自己的生产Scene/pipeline，不是系统窗口截图，也不替代人工验收。不把本轮记为M6全部完成。
+**验证**：全套487测试通过；native分配、列表、FFI及离屏GPU读回的最终结果见[整体审查记录](docs/reviews/2026-10-29-editor-primitives-review.md)。自动化读回验证自己的生产Scene/pipeline，不是系统窗口截图，也不替代人工验收。计划四仅覆盖M6的一部分，后续交付与测量见M6节。
 
 **已由用户手动核对通过**（2026-10-29 用户确认）：自有表面的拼音候选框、提交/取消、切焦点及关闭；中文/emoji跨行选区；取走J与IME开关；Edit/右键复制粘贴及撤销；混合字体baseline、mono/italic与装饰。
 
@@ -575,7 +575,36 @@ richText(c, PREVIEW);
 
 **仍需手动核对**（`./build.sh native-demo Notes`）：拖动分割条（鼠标与触控板）与方向键；tabs 点击与键盘导航；⌘P 面板输入中文、回车、Esc、点背景；popover 翻转与外部关闭；菜单栏各项与快捷键（⌘N/⌘P）；菜单打开期间动画继续；深浅色外观。
 
-不把 M6（完整 Painter、布局缓存、图集回收、第 8 节性能硬门槛）标记为完成。
+M5 当时未包含布局缓存、图集回收与完整性能测量；后续结果见下方 M6。
+
+## M6 绘制与性能
+
+2026-11-01，`codex/m6-perf`，基线 `d3f78cc`。交付帧统计、完整外壳基准、磁盘笔记库启动/内存门槛、布局缓存、图集回收和 `GraphDemo`。全套 **530 测试通过**；完整命令、口径、审查及裁定见[审查记录](docs/reviews/2026-11-01-m6-perf-review.md)。
+
+Apple M5 Pro / 64 GiB / macOS 26.6.1 / GraalVM 25 native image / scale 2，最终串行实测：
+
+| 指标 | native 实测 | 门槛 |
+|---|---|---|
+| 磁盘 1 万篇笔记，首帧显示已保存笔记 | 128.666 ms（5 次中位数，进程启动→GPU 完成） | < 200 ms |
+| 1 万文件名 + 一篇正文，空闲 3 秒 footprint | 66.6 MB（5 次中位数，vmmap） | < 80 MB |
+| 完整 Notes 外壳不变帧 | p95 0.035 ms / max 0.067 ms；648 B/帧 | p95 < 4 ms；≤ 32 KB |
+| 搜索框输入→下一帧 CPU paint 完成 | p95 0.116 ms / max 0.902 ms | max ≤ 8.333 ms（120 Hz 的一帧） |
+| 外壳内 1 万行滚动 | p95 0.101 ms / max 0.161 ms；只建可见行及少量缓冲 | p95 < 4 ms，无缺字 |
+
+打字基准逐键输入/退格并断言下一帧搜索词已更新，**没有测显示器出光或包含 vsync 排队的端到端延迟**。上表按实施计划的 CPU 测量口径达标，不能由此推断物理出光延迟。普通 `listbench` p95 0.239 ms；小图集从 256² 起步、上限 512²，回收 86 次，p95 0.287 ms、max 1.257 ms，无缺字。框架合成控件/列表/输入框、M5 外壳和富文本编辑场景稳态仍为 0 B。
+
+- `JUI_FRAME_STATS=1`：整帧超过 8 ms 才向 stderr 记一行；`all` 全记，其他非负数字是毫秒阈值（`0` 也全记），空/`off`/非法值关闭。分开累计 build/pass、构建 round、layout 调用数、paint、CPU present 编码/提交；分配为当前 UI 线程的 `ThreadMXBean` 差值，GC 为进程收集次数差值，日志自身分配不计入。关闭时不初始化管理 bean；不计 GPU 执行时间为 present。
+- 布局缓存按节点池槽位保留快照，先核对身份、布局输入、字体样式、文本/Spans 和子节点身份同序，再按约束盒复用；每元素保留两个文本/高度测量宽度。列表、输入框、附加定位、弹层及滚动变化容器的子树禁止复用。`-Djui.layoutCache=off` 可关闭；250 轮随机树逐盒对比及现有回归覆盖。外壳稳定帧可复用的 18 个节点命中 18 个；含易变子树的祖先不算可复用。
+- 三参数 `GlyphAtlas(w,h,max)` 达上限后按近期使用重打包，当前帧已画字形不可逐出；失败尝试不修改旧像素。generation 触发整图上传，并刷新本帧较早发出的字形 UV；在途 GPU command 保留旧纹理。逐出后重画像素一致、GPU 读回与在途资源安全有测试。两参数构造仍是固定容量。
+- `bench 5 notes` 生成忽略目录 `build/notes-vault` 下的 1 万个 Markdown 文件和 `.last-note`，首帧只读已保存正文，随后虚拟线程扫描文件名，主线程更新列表；内存取样前必须确认 1 万条已载入。Notes native 的默认堆上限为 32 MiB（普通 `native-demo Notes` 同样生效，可用运行参数 `-Xmx` 覆盖），没有在取样前强制 GC。fixture 不是完整 Vault/编辑器。
+- `./build.sh native-demo Graph`：公开 Painter API 绘制六节点、七边图谱，280 ms 入场动画，悬停节点放大并高亮相邻边。原生画面及节点高亮已由本轮自动操作核对；Notes 中文输入法、触控板、菜单和深浅色完整人工验收仍沿用前述清单。
+
+```bash
+JUI_FRAME_STATS=all ./build.sh native-demo Notes --quit-after-first-frame
+./build.sh shellbench      # native 硬门槛 + JVM 参照
+./build.sh bench 5 notes   # 磁盘外壳启动/内存；失败返回非零
+./build.sh native-demo Graph --print-window
+```
 
 ## 运行
 
@@ -583,10 +612,12 @@ richText(c, PREVIEW);
 
 ```bash
 ./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
-./build.sh demo            # 卡片示例，在 JVM 上运行；其他示例：Counter、Todo、Files、Scroll、Form、TextArea、ContextMenu、EditorPrimitives、Notes
+./build.sh demo            # 卡片示例，在 JVM 上运行；其他示例：Counter、Todo、Files、Scroll、Form、TextArea、ContextMenu、EditorPrimitives、Notes、Graph
 ./build.sh native-demo     # 同上，编译成 native image（build/<name>-demo）后运行，也接受示例名
 ./build.sh alloc           # 实测 UI API 每帧的分配（native image 和 JVM）
-./build.sh listbench       # 1 万行列表的滚动帧耗时（native image，M3 的门槛）
+./build.sh listbench       # 1 万行滚动，普通图集与小图集回收压力（native）
+./build.sh shellbench      # 完整外壳帧、分配、输入和滚动（native + JVM）
+./build.sh bench 5 notes   # 1 万篇磁盘笔记库的首帧与空闲内存门槛
 ./build.sh ffi-check       # 调用每种结构体形状的 Objective-C 方法（JVM 和 native image）
 ./build.sh jvm             # 原型，在 JVM 上运行
 ./build.sh native          # 原型，编译成 native image：build/jui-spike

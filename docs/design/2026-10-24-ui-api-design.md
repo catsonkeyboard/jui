@@ -364,7 +364,7 @@ canvas(c).fill().draw((Painter p, Rect r) -> {
 - `draw`的Rect及坐标为border-box局部DIP，自动clip到边框内侧并继承opacity；finally恢复clip，只能pop自己的clip。dev Painter句柄过期检查，production借用句柄仍禁止跨回调保存。
 - `TextLayout`提供二维hitTest、line/selection/caretRect、软换行亲和性、逐glyph实际字号及line baseline。不可变Span/Spans、`richText`与Painter.richText共同排版，不将Span拆成box。
 - 富文本支持system/mono、字号/字重、可用原生italic、颜色、圆角背景、下划线和删除线；paint样式不改变shape key。背景整行高；连字跨颜色边界取cluster起点色，装饰按区段几何。不含CJK合成斜体、完整bidi、inline链接/对象、可选择richText或富格式剪贴板。
-- 图集支持位置不变的有界增长（1024到4096），generation驱动Metal整图上传，旧command保留旧texture；两参数GlyphAtlas保持固定容量。没有图集逐出/重排或字体缓存无限变体回收，不把这些记为M6已完成。
+- 图集支持位置不变的有界增长（1024到4096），generation驱动Metal整图上传，旧command保留旧texture；两参数GlyphAtlas保持固定容量。M6已增加冷字形逐出与重排、当前帧固定及UV刷新，GPU读回验证旧纹理在途安全；字体缓存无限变体回收仍不在本轮范围内。
 
 接口和实施裁定详见[计划四](../plans/2026-10-29-editor-primitives.md)与[整体审查](../reviews/2026-10-29-editor-primitives-review.md)。原生启动、GPU读回和自动化测试都不等同于用户手动输入法/外观验收。
 
@@ -492,7 +492,7 @@ public final class NotesApp {
 
 - 自己用 Java 实现 CSS flexbox 的一个子集（第 6.8 节列出的属性），按 CSS 规范的算法：确定主轴尺寸、伸缩、换行、交叉轴对齐、自动外边距、绝对定位。
 - 文本节点通过测量回调排版：给定可用宽度，得到排版结果（`TextLayout`），排版结果缓存在 `TextEngine` 里。
-- **布局缓存**（M6）：同 MyGO，比较元素的布局输入和子元素是否和上一帧相同；相同且得到的空间也相同，就直接复用上一帧的结果。数据结构从 M1 起就要为此留好位置。
+- **布局缓存**（M6已实现）：比较元素身份、布局输入与子元素身份同序，相同且约束盒相同则复用结果；易变子树排除，两宽度文本/高度测量复用。提供 `-Djui.layoutCache=off`，随机树逐盒等价测试。当前TextEngine字体保留至实例生命周期结束，未来释放字体必须同时失效布局及图集缓存。
 
 ### 7.5 绘制：扩展 `Scene`
 
@@ -500,7 +500,7 @@ public final class NotesApp {
 - **裁剪**：矩形裁剪栈，通过 Metal 的 `setScissorRect:` 实现，给滚动区域和弹出层用；圆角裁剪以后再做。
 - **线段**：给图谱视图用，在着色器里新增一种距离场图元。
 - **焦点环**和选区高亮：用现有的方框图元就能画。
-- **字形图集**：增加扩容和回收（参照 MyGO：第一次画的字形先放进临时区，第二帧还在用才移到长期区）。
+- **字形图集**（M6已实现）：有界增长，达上限后按当前/近期帧使用回收重打包；当前帧字形固定，Scene更新重排坐标，generation触发整图上传，在途command保留旧texture。采用帧龄回收，未照搬临时区/长期区。
 
 ### 7.6 帧调度
 
@@ -583,6 +583,8 @@ public final class NotesApp {
   - JVM 上用 `ThreadMXBean` 统计当前线程分配的字节数；
   - native image 上连续跑几千帧内容不变的帧，用堆使用量和 GC 计数换算出每帧的平均分配。具体做法由实现者决定，但结果必须是“每帧多少字节”。
 - `build.sh bench` 增加基准外壳的启动和内存测量。
+
+**M6实测（2026-11-01）**：按[M6实施计划](../plans/2026-10-30-m6-perf.md)的CPU基准口径，首帧128.666ms、空闲66.6MB；完整外壳稳态p95 0.035ms、648B/帧；输入到CPU paint最大0.902ms；外壳滚动p95 0.101ms。全部自动门槛达标，530测试通过。打字数据不含vsync排队/显示器出光；完整口径、原生核对和审查见[审查记录](../reviews/2026-11-01-m6-perf-review.md)。
 
 ---
 
