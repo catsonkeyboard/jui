@@ -25,6 +25,7 @@ final class NotesWorkspace {
     private TextEngine serif;
     private float headingHeight = 44;
     private final Painter.Draw heading = this::heading;
+    private final Painter.Draw measure = this::measure;
     private final InputHandler resizeKeys = this::resizeKey;
 
     private boolean resizeKey(InputEvent event) {
@@ -48,12 +49,11 @@ final class NotesWorkspace {
         if (c.shortcut(Shortcut.of(Key.ESCAPE))) demo.query.set("");
         demo.playback(c);
         Element shell = row(c.key("notes-workspace")).fill().alignItems(Align.STRETCH)
-                .background(colors.paper).textColor(colors.ink).fontSize(13);
-        float width = shell.bounds().width();
-        if (width > 0) roomWidth = width;
-        navigationWidth = shell.animate("navigation", demo.navigation ? 252 : 0, motion(SLIDE));
+                .background(colors.paper).textColor(colors.ink).fontSize(13).clip().draw(measure);
         float visible = shell.animate("sheets", demo.sheetList ? 1 : 0, motion(SLIDE));
-        shownListWidth = demo.sidebarWidth.get() * visible;
+        navigationWidth = Math.min(shell.animate("navigation", demo.navigation ? 252 : 0, motion(SLIDE)),
+                Math.max(0, roomWidth - 160 - visible));
+        shownListWidth = Math.min(demo.sidebarWidth.get(), Math.max(0, roomWidth - navigationWidth - 160 - visible)) * visible;
         shell.children(() -> {
             column(c.key("navigation-pane")).width(navigationWidth).minWidth(0).shrink(1).fillHeight()
                     .background(colors.nav).clip().disabled(navigationWidth < 1).label("navigation-pane")
@@ -61,20 +61,24 @@ final class NotesWorkspace {
             column(c.key("notes-pane")).width(shownListWidth).minWidth(0).shrink(1).fillHeight()
                     .background(colors.list).clip().disabled(shownListWidth < 1).label("notes-pane")
                     .children(() -> demo.sidebar(c, c.theme()));
-            column(c.key("editor-pane")).grow(1).minWidth(0).fillHeight().background(colors.paper).clip()
-                    .label("editor").children(() -> demo.editor(c, c.theme()));
-            Element divider = box(c.key("divider")).absolute().left(navigationWidth + shownListWidth - 4)
-                    .top(0).bottom(0).width(8).focusable().cursor(Cursor.RESIZE_EW).label("divider")
-                    .disabled(!demo.sheetList || visible < .999f).handleInput(resizeKeys);
+            Element divider = box(c.key("divider")).width(8 * visible).shrink(0).fillHeight()
+                    .margin(0, -3.5f * visible, 0, -3.5f * visible).focusable().cursor(Cursor.RESIZE_EW).label("divider")
+                    .disabled(!demo.sheetList || visible < .999f || shownListWidth < 120).handleInput(resizeKeys);
             float delta = divider.dragX();
             if (delta != 0) { resize(demo.sidebarWidth.get() + delta); c.invalidate(); }
-            divider.children(() -> box(c).absolute().left(3.5f).width(1).top(0).bottom(0)
+            divider.children(() -> box(c).absolute().left(3.5f * visible).width(visible).top(0).bottom(0)
                     .background(divider.hovered() ? colors.accent : colors.line));
+            column(c.key("editor-pane")).grow(1).minWidth(160).shrink(0).fillHeight().background(colors.paper).clip()
+                    .label("editor").children(() -> demo.editor(c, c.theme()));
         });
     }
 
+    private void measure(Painter p, Rect bounds) {
+        if (roomWidth != bounds.width()) { roomWidth = bounds.width(); p.animationFrame(); }
+    }
+
     private void resize(float value) {
-        demo.sidebarWidth.set(Math.max(120, Math.min(value, Math.max(120, roomWidth - navigationWidth - 160))));
+        demo.sidebarWidth.set(Math.max(120, Math.min(value, Math.max(120, roomWidth - navigationWidth - 161))));
     }
 
     private void navigation(Context c) {
@@ -137,10 +141,11 @@ final class NotesWorkspace {
     String heading() { return demo.selectedGroup<0 ? FILTER_NAMES[demo.filter] : demo.groups.get(demo.selectedGroup).title; }
 
     void document(Context c, String body) {
-        scroll(c.key("document-scroll")).grow(1).clip().children(() ->
-                column(c).fillWidth().padding(28, 32).gap(16).children(() -> {
+        scroll(c.key("document-scroll")).grow(1).clip().label("document-scroll").children(() ->
+                column(c).fillWidth().padding(28, 32).gap(16).label("document-content").children(() -> {
                     canvas(c.key("document-heading")).fillWidth().height(headingHeight).shrink(0).draw(heading);
                     if(body==null) richText(c,NotesDemo.PREVIEW).fontSize(16);
+                    else if (body.isEmpty()) text(c,"空白笔记").fontSize(16).textColor(colors.muted);
                     else text(c,body).fontSize(16);
                 }));
     }

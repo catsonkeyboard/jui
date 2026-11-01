@@ -12,7 +12,7 @@
 #   ./build.sh shellbench         measure full NotesDemo steady frames, allocation, typing and scroll
 #   ./build.sh listbench          time scroll frames of a 10000-row list in a native image (the M3 gate)
 #   ./build.sh ffi-check          call Objective-C methods of every struct shape, on the JVM and in a native image
-#   ./build.sh demo [Name] [args]        run an example on the JVM: Card (default), Counter, Todo, Files, Scroll, Form, TextArea, ContextMenu, EditorPrimitives, Notes, Graph or NotesMotion
+#   ./build.sh demo [Name] [args]        run an example on the JVM: Card (default), Counter, Todo, Files, Scroll, Form, TextArea, ContextMenu, EditorPrimitives, Notes or Graph (NotesMotion aliases Notes)
 #   ./build.sh native-demo [Name] [args] build an example into build/<name>-demo and run it
 #
 # JUI_FRAME_STATS=1 logs frames over 8 ms; all logs every frame; a number is ms; off disables.
@@ -77,7 +77,11 @@ build_native() {
 # example_name prints the example's name (jui.examples.<Name>Demo): $1 if it
 # is not a flag, else Card.
 example_name() {
-  if [[ $# -gt 0 && "$1" != -* ]]; then echo "$1"; else echo Card; fi
+  if [[ $# -gt 0 && "$1" != -* ]]; then
+    if [[ "$1" == NotesMotion ]]; then echo Notes; else echo "$1"; fi
+  else
+    echo Card
+  fi
 }
 
 # demo runs an example on the JVM.

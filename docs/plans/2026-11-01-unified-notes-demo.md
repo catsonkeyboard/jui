@@ -37,11 +37,11 @@
 **Files:** NotesDemo.main/menus, build.sh, ShellBench.java, PresentBench.java; port NotesMotionDemoTest and delete separate NotesMotionDemo; NotesVaultTest.
 **Consumes:** Unified model/view, list bounds label, original CLI/vault/forTools contracts.
 **Produces:** Notes canonical runtime with --autoplay/--reduced-motion/--print-window/--vault/--bench/--quit-after-first-frame; NotesMotion build alias.
-- [ ] Port motion tests to unified Notes, add filtered new-note/tab preservation and keyboard regressions; run failing cases before corresponding fixes.
-- [ ] Route startup/menu and autoplay through unified state, keep system appearance and remove duplicate app/model.
-- [ ] Move benchmark scroll coordinates to notes-list bounds; use 64 DIP scroll steps for taller cards without weakening any timing/allocation threshold.
-- [ ] Run full test, native shellbench and bench 5 notes serially. Fix real regressions, do not silently relax gates.
-- [ ] Commit task-scoped files.
+- [x] Port motion tests to unified Notes, add filtered new-note/tab preservation and keyboard regressions; run failing cases before corresponding fixes.
+- [x] Route startup/menu and autoplay through unified state, keep system appearance and remove duplicate app/model.
+- [x] Move benchmark scroll coordinates to notes-list bounds; use 64 DIP scroll steps for taller cards without weakening any timing/allocation threshold.
+- [x] Run full test, native shellbench and bench 5 notes serially. Fix real regressions, do not silently relax gates.
+- [x] Commit task-scoped files.
 
 ### Task 3: Documentation and native acceptance
 **Files:** README unified demo/commands/manual checklist; review record for this plan.

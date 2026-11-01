@@ -102,7 +102,8 @@ public final class PresentBench {
         }
         // Delivered at the native Input boundary, exactly as MacWindow.wheel sends it.
         expectedFrame = window.engine().frame() + 1;
-        window.scroll(120, 320, 0, 24, true, 0);
+        Rect noteList = window.engine().bounds("notes-list");
+        window.scroll(noteList.x() + noteList.width() / 2, noteList.y() + noteList.height() / 2, 0, 64, true, 0);
     }
 
     private void sendKey() {

@@ -30,30 +30,25 @@ import static jui.ui.Ui.list;
 import static jui.ui.Ui.modal;
 import static jui.ui.Ui.popover;
 import static jui.ui.Ui.primaryButton;
-import static jui.ui.Ui.richText;
 import static jui.ui.Ui.row;
 import static jui.ui.Ui.spacer;
-import static jui.ui.Ui.split;
 import static jui.ui.Ui.tabs;
 import static jui.ui.Ui.text;
 import static jui.ui.Ui.textInput;
 
 /**
- * The Obsidian-like shell of design §6.15, as the M5 acceptance: a sidebar
- * of 10000 notes beside an editor, split at a draggable divider; tabs of the
- * open notes over a read-only preview; a command palette as a modal, ⌘P in
- * the app's own menu bar; a popover of the selected note's facts off a
- * button in the editor. The editor itself is later work (a real editor is
- * not M5).
- *
- * <pre>./build.sh demo Notes</pre>
+ * One notes example: animated three-pane workspace, virtualized catalog,
+ * search, open tabs, command palette, information popover and native menus.
+ * Readonly previews and in-memory new notes; not a complete Markdown editor.
+ * <pre>./build.sh demo Notes [--autoplay] [--reduced-motion]</pre>
  */
 public final class NotesDemo {
     /** The one the menu bar's builders talk to; made in main, or by a test. */
     static NotesDemo demo;
 
     final List<FilesDemo.Note> notes;
-    private String previewBody;
+    private final java.util.IdentityHashMap<FilesDemo.Note, String> previewBodies = new java.util.IdentityHashMap<>();
+    private final List<FilesDemo.Note> createdNotes = new ArrayList<>();
     private boolean benchmarkRawKeys;
     final NotesWorkspace workspace = new NotesWorkspace(this);
     static final class Group {
@@ -74,7 +69,7 @@ public final class NotesDemo {
 
     NotesDemo(NotesVault vault) {
         notes = new ArrayList<>(List.of(vault.selected));
-        previewBody = vault.body;
+        previewBodies.put(vault.selected, vault.body);
         open(vault.selected);
     }
     final ListState files = new ListState();
@@ -134,10 +129,16 @@ public final class NotesDemo {
             for (FilesDemo.Note n : notes) if (n.id == nextId) { occupied = true; nextId++; break; }
         } while (occupied);
         FilesDemo.Note note = new FilesDemo.Note(nextId++, "Untitled", null);
-        notes.add(note);
+        notes.add(note); createdNotes.add(note); previewBodies.put(note, "");
         if (selectedGroup >= 0) noteGroups.put(note, selectedGroup);
         notesVersion++;
         query.set(""); open(note); sheetList = true; files.scrollToEnd();
+    }
+
+    void replaceNotes(List<FilesDemo.Note> loaded) {
+        notes.clear(); notes.addAll(loaded);
+        for (FilesDemo.Note note : createdNotes) if (!notes.contains(note)) notes.add(note);
+        notesVersion++; filteredFor = null;
     }
 
     void closeTab() {
@@ -262,8 +263,8 @@ public final class NotesDemo {
     void editor(Context c, Theme t) {
         column(c).fill().children(() -> {
             row(c).height(44).shrink(0).padding(0, 8).gap(6).children(() -> {
-                if (workspace.iconButton(c, "toggle-navigation", "navigation").clicked()) navigation = !navigation;
-                if (workspace.iconButton(c, "toggle-sheets", "sheets-toggle").clicked()) sheetList = !sheetList;
+                if (workspace.iconButton(c, "toggle-navigation", "navigation").shrink(0).clicked()) navigation = !navigation;
+                if (workspace.iconButton(c, "toggle-sheets", "sheets-toggle").shrink(0).clicked()) sheetList = !sheetList;
                 if (!open.isEmpty()) {
                     String[] titles = new String[open.size()];
                     for (int i=0;i<titles.length;i++) {
@@ -282,7 +283,7 @@ public final class NotesDemo {
             divider(c);
             if (current() == null) {
                 column(c).grow(1).center().children(() -> text(c, "选择或搜索一篇笔记").textColor(t.textMuted()));
-            } else workspace.document(c, previewBody);
+            } else workspace.document(c, previewBodies.get(current()));
         });
     }
 
@@ -330,6 +331,9 @@ public final class NotesDemo {
             vault = NotesVault.open(java.nio.file.Path.of(arg.substring(8)));
         NotesVault loaded = vault;
         demo = vault == null ? new NotesDemo() : new NotesDemo(vault);
+        demo.autoplay = Arrays.asList(args).contains("--autoplay");
+        demo.reducedMotion = Arrays.asList(args).contains("--reduced-motion");
+        if (demo.current() == null && !demo.notes.isEmpty()) demo.open(demo.notes.getFirst());
         App.menu(NotesDemo::menus);
         App.run(() -> {
             long launched = jui.ffi.Libc.nowMicros();
@@ -348,7 +352,7 @@ public final class NotesDemo {
                 if (loaded != null) Thread.startVirtualThread(() -> {
                     List<FilesDemo.Note> names = loaded.scan();
                     w.update(() -> {
-                        demo.notes.clear(); demo.notes.addAll(names); demo.filteredFor = null;
+                        demo.replaceNotes(names);
                         System.out.println("VAULT notes=" + names.size());
                     });
                 });

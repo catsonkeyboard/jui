@@ -84,6 +84,57 @@ public final class NotesWorkspaceTest {
         } finally { t.close(); }
     }
 
+    public void testNewNoteStartsBlank() {
+        NotesDemo d = new NotesDemo(); Tester t = workspace(d);
+        try {
+            t.frame(); t.click("new-sheet");
+            Check.isTrue(t.hasText("空白笔记"), "new note must not inherit another note's preview");
+        } finally { t.close(); }
+    }
+
+    public void testBackgroundCatalogKeepsNewNotes() {
+        NotesDemo d = new NotesDemo(); Tester t = workspace(d);
+        try {
+            var loaded = java.util.List.of(d.notes.get(0), d.notes.get(1));
+            t.frame(); t.click("new-sheet"); var created = d.current();
+            d.replaceNotes(loaded); t.frame();
+            Check.equal(3, d.notes.size());
+            Check.isTrue(d.notes.contains(created) && created == d.current(), "late catalog scan preserves new note identity");
+        } finally { t.close(); }
+    }
+
+    public void testSearchShortcutRestoresListAndKeepsQueryWhenOverlayCloses() {
+        NotesDemo d = new NotesDemo(); Tester t = workspace(d);
+        try {
+            t.frame(); t.click("toggle-sheets"); t.advance(Duration.ofMillis(450));
+            t.key(Shortcut.cmd(Key.F)); t.advance(Duration.ofMillis(450));
+            Check.isTrue(t.focused("search"), "search shortcut restores and focuses shared field");
+            t.type("0002"); t.frame();
+            d.paletteOpen.set(true); t.frame(); t.key(Shortcut.of(Key.ESCAPE)); t.frame();
+            Check.isTrue(!d.paletteOpen.get(), "escape closes palette");
+            Check.equal("0002", d.query.get());
+        } finally { t.close(); }
+    }
+
+    public void testNarrowWindowKeepsEditorRestoreControlsReachable() {
+        NotesDemo d = new NotesDemo(); Tester t = workspace(d);
+        try {
+            t.frame(); t.click("note-row");
+            t.resize(480, 420); t.frame(); t.settle();
+            Check.isTrue(t.find("editor").width() >= 159, "narrow layout reserves an editor toolbar");
+            Rect restore = t.find("toggle-navigation");
+            Check.isTrue(restore.x() >= 0 && restore.x() + restore.width() <= 480, "restore button stays inside window");
+            t.click("toggle-navigation"); t.advance(Duration.ofMillis(450));
+            t.click("toggle-sheets"); t.advance(Duration.ofMillis(450));
+            Check.near(0, t.find("editor").x());
+            t.resize(1180, 690); t.frame(); t.settle();
+            t.click("toggle-navigation"); t.advance(Duration.ofMillis(450));
+            t.click("toggle-sheets"); t.advance(Duration.ofMillis(450));
+            Check.near(296, d.sidebarWidth.get());
+            Check.isTrue(t.find("editor").width() > 500, "preferred widths recover after expanding");
+        } finally { t.close(); }
+    }
+
     public void testTenThousandCardsRemainVirtualizedAndScrollable() {
         NotesDemo d = new NotesDemo(); Tester t = workspace(d);
         try {

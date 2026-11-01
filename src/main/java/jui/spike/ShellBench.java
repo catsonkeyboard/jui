@@ -69,10 +69,12 @@ public final class ShellBench {
             }
             report("key_to_paint", times);
             double typingMax = times[FRAMES - 1] / 1e6;
+            Rect noteList = engine.bounds("notes-list");
+            float scrollX = noteList.x() + noteList.width() / 2, scrollY = noteList.y() + noteList.height() / 2;
             int rowsMax = 0, visibleMax = 0;
             for (int i = 0; i < WARMUP + FRAMES; i++) {
                 long started = System.nanoTime();
-                engine.scroll(120, 320, 0, 24, true, 0);
+                engine.scroll(scrollX, scrollY, 0, 64, true, 0);
                 frame(engine, view, scene, text, atlas);
                 if (i >= WARMUP) {
                     times[i - WARMUP] = System.nanoTime() - started;
