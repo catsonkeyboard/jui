@@ -37,6 +37,23 @@ public final class MacWindowFrameTest {
         }
     }
 
+    public void testObserverReportsDrawableCallbacksIncludingSkippedFrames() {
+        long app = ObjC.send(ObjC.cls("NSApplication"), "sharedApplication");
+        ObjC.send(app, "finishLaunching");
+        MacWindow w = MacWindow.open("presented", 200, 150, 0xFFFFFF, null, (scene, width, height) -> {});
+        int[] callbacks = {0};
+        try {
+            w.onPresented((frame, value) -> { Check.isTrue(frame > 0, "callback correlated to submitted frame"); Check.isTrue(value >= 0, "0 explicitly represents skipped frames"); callbacks[0]++; });
+            w.requestFrame();
+            pump(3, () -> callbacks[0] > 0);
+            Check.isTrue(callbacks[0] > 0, "native drawable callback delivered on the UI loop");
+            int before = callbacks[0];
+            w.requestFrame();
+            pump(3, () -> callbacks[0] > before);
+            Check.isTrue(callbacks[0] > before, "a later requested frame reaches observer");
+        } finally { w.close(); }
+    }
+
     public void testFramesComeOnRequestAndTheLinkPausesWhenIdle() {
         long app = ObjC.send(ObjC.cls("NSApplication"), "sharedApplication");
         ObjC.send(app, "finishLaunching");

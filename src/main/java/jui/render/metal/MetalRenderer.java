@@ -138,6 +138,12 @@ public final class MetalRenderer {
      */
     public boolean render(Scene scene, double width, double height, double scale, int clear,
                           boolean synced, long onCompleted) {
+        return render(scene, width, height, scale, clear, synced, onCompleted, 0, 0);
+    }
+
+    /** Optional drawable presentation observer (Metal callback thread). */
+    public boolean render(Scene scene, double width, double height, double scale, int clear,
+                          boolean synced, long onCompleted, long onPresented, long frameToken) {
         long pool = ObjC.poolPush();
         try {
             if (synced != presentsWithTransaction) {
@@ -163,6 +169,11 @@ public final class MetalRenderer {
                 return false;
             }
 
+            if (onPresented != 0) {
+                if (presentationFrames == null) presentationFrames = new java.util.concurrent.ConcurrentHashMap<>();
+                presentationFrames.put(send(drawable, "drawableID"), frameToken);
+                send(drawable, "addPresentedHandler:", onPresented);
+            }
             long commands = encode(scene, send(drawable, "texture"), pw, ph, clear);
             if (onCompleted != 0) send(commands, "addCompletedHandler:", onCompleted);
             if (synced) {
@@ -175,6 +186,13 @@ public final class MetalRenderer {
             }
             return true;
         } finally { ObjC.poolPop(pool); }
+    }
+
+    private volatile java.util.concurrent.ConcurrentHashMap<Long, Long> presentationFrames;
+
+    public long takePresentedFrame(long drawable) {
+        Long token = presentationFrames.remove(send(drawable, "drawableID"));
+        return token == null ? -1 : token;
     }
 
     private void uploadAtlas() {

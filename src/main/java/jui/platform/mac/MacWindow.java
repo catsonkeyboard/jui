@@ -184,6 +184,9 @@ public final class MacWindow {
     private boolean pointerInside;
 
     private LongConsumer onFirstFrame;
+    @FunctionalInterface public interface FrameObserver { void presented(long frame, double uptimeSeconds); }
+    private FrameObserver onPresented;
+    private long presentedHandler;
     private int polls;
     /** Frames drawn so far. */
     public int frames;
@@ -438,6 +441,23 @@ public final class MacWindow {
         return send(window, "windowNumber");
     }
 
+    /** Actual drawable presentedTime (uptime seconds), 0 if skipped; delivered on the UI thread. */
+    public void onPresented(FrameObserver then) {
+        onPresented = then;
+        if (then != null && presentedHandler == 0) {
+            var weak = new java.lang.ref.WeakReference<>(this);
+            presentedHandler = Blocks.block1(drawable -> {
+                MacWindow w = weak.get();
+                if (w == null || w.closed) return;
+                double time = ObjC.sendDouble(drawable, "presentedTime");
+                long frame = w.renderer.takePresentedFrame(drawable);
+                MacApp.post(() -> { if (!w.closed && w.onPresented != null) w.onPresented.presented(frame, time); });
+            });
+        }
+    }
+
+    public long refreshNanos() { return refresh; }
+
     /**
      * Calls {@code then}, on the main thread, with the wall-clock
      * microseconds at which the GPU finished the first frame (0 if it never
@@ -466,7 +486,8 @@ public final class MacWindow {
             // Java never started.
             handler = Blocks.block1(commandBuffer -> firstFrameDoneMicros = Libc.nowMicros());
         }
-        boolean drew = renderer.render(scene, bounds[2], bounds[3], scale, background, resizing, handler);
+        boolean drew = renderer.render(scene, bounds[2], bounds[3], scale, background, resizing, handler,
+                onPresented == null ? 0 : presentedHandler, input != null && input.engine() != null ? input.engine().frame() : frames + 1);
         if (FrameStats.ENABLED) FrameStats.present(presentStarted);
         if (drew) {
             frames++;

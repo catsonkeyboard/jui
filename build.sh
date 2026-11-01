@@ -8,6 +8,7 @@
 #                                 and the same app in Objective-C (baseline/spike.m)
 #   ./build.sh test [Class[#m]]   run the tests in src/test/java
 #   ./build.sh alloc              measure per-frame allocation of the UI API (native and JVM)
+#   ./build.sh presentbench       native key event to drawable presentation and scroll cadence
 #   ./build.sh shellbench         measure full NotesDemo steady frames, allocation, typing and scroll
 #   ./build.sh listbench          time scroll frames of a 10000-row list in a native image (the M3 gate)
 #   ./build.sh ffi-check          call Objective-C methods of every struct shape, on the JVM and in a native image
@@ -118,6 +119,12 @@ listbench() {
   native_image jui.spike.ListBench build/list-bench > build/list-bench-build.log
   build/list-bench
   build/list-bench --small-atlas
+}
+
+presentbench() {
+  compile
+  native_image jui.spike.PresentBench build/present-bench > build/present-bench-build.log
+  build/present-bench
 }
 
 shellbench() {
@@ -234,8 +241,9 @@ case "${1:-native}" in
   alloc) alloc ;;
   listbench) listbench ;;
   shellbench) shellbench ;;
+  presentbench) presentbench ;;
   ffi-check) ffi_check ;;
   demo) shift; demo "$@" ;;
   native-demo) shift; native_demo "$@" ;;
-  *) echo "usage: $0 jvm|native|bench|test|alloc|listbench|shellbench|ffi-check|demo|native-demo" >&2; exit 2 ;;
+  *) echo "usage: $0 jvm|native|bench|test|alloc|listbench|shellbench|presentbench|ffi-check|demo|native-demo" >&2; exit 2 ;;
 esac

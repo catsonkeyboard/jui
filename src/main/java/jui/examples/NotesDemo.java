@@ -54,6 +54,7 @@ public final class NotesDemo {
 
     final List<FilesDemo.Note> notes;
     private String previewBody;
+    private boolean benchmarkRawKeys;
 
     public NotesDemo() { notes = new FilesDemo().notes; }
 
@@ -135,8 +136,12 @@ public final class NotesDemo {
     }
 
     /** The actual shell workload, with one note open, shared by performance tools. */
-    public static Object[] forTools() {
+    public static Object[] forTools() { return forTools(false); }
+
+    /** Native key timing disables OS composition only in this benchmark fixture. */
+    public static Object[] forTools(boolean rawKeys) {
         NotesDemo d = new NotesDemo();
+        d.benchmarkRawKeys = rawKeys;
         d.open(d.notes.getFirst());
         return new Object[] {(jui.ui.View) d::view, d.files, d.query};
     }
@@ -153,7 +158,9 @@ public final class NotesDemo {
     private void sidebar(Context c, Theme t) {
         column(c).fill().background(t.surface()).children(() -> {
             row(c).padding(8).children(() -> {
-                if (textInput(c, query).placeholder("搜索笔记").label("search").grow(1).changed()) {
+                Element search = textInput(c, query).placeholder("搜索笔记").label("search").grow(1);
+                if (benchmarkRawKeys) search.inputMethod(false);
+                if (search.changed()) {
                     files.scrollToTop();
                 }
             });

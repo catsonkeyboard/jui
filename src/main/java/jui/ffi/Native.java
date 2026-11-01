@@ -32,6 +32,7 @@ public final class Native {
     static final MethodHandle W6 = handle(Sigs.W6);
     static final MethodHandle W7 = handle(Sigs.W7);
 
+    public static final MethodHandle KEY_EVENT = handle(Sigs.KEY_EVENT);
     public static final MethodHandle INT0 = handle(Sigs.INT0);
     public static final MethodHandle SYSCTL = handle(Sigs.SYSCTL);
     public static final MethodHandle SUGGEST_LINE_BREAK = handle(Sigs.SUGGEST_LINE_BREAK);

@@ -272,6 +272,10 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
         }
     }
 
+    /** Optional actual drawable presentation timestamps, in uptime seconds, on the UI thread. */
+    public void onPresented(MacWindow.FrameObserver done) { mac.onPresented(done); }
+    public long refreshNanos() { return mac.refreshNanos(); }
+
     /** Wall-clock microseconds of the first CPU submission, for startup diagnostics. */
     public long firstCommitMicros() { return mac.firstCommitMicros; }
 

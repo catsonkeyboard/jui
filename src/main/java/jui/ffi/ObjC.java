@@ -24,6 +24,17 @@ import static java.lang.foreign.ValueLayout.JAVA_LONG;
 public final class ObjC {
     private ObjC() {}
 
+    /** A synthetic AppKit key event for native workload probes; never posted globally. */
+    public static long keyEvent(long window, String characters, short code, double timestamp) {
+        try {
+            POINT_ARG.set(JAVA_DOUBLE, 0, 0); POINT_ARG.set(JAVA_DOUBLE, 8, 0);
+            long text = nsString(characters);
+            return (long) Native.KEY_EVENT.invokeExact(MSG_SEND, cls("NSEvent"),
+                    sel("keyEventWithType:location:modifierFlags:timestamp:windowNumber:context:characters:charactersIgnoringModifiers:isARepeat:keyCode:"),
+                    10L, POINT_ARG, 0L, timestamp, window, 0L, text, text, false, code);
+        } catch (Throwable t) { throw Native.rethrow(t); }
+    }
+
     public static final Linker LINKER = Linker.nativeLinker();
     private static final Arena LIBS = Arena.global();
     private static final SymbolLookup LIBOBJC = SymbolLookup.libraryLookup("/usr/lib/libobjc.A.dylib", LIBS);

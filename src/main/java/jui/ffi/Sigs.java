@@ -10,6 +10,7 @@ import static java.lang.foreign.ValueLayout.JAVA_BOOLEAN;
 import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
 import static java.lang.foreign.ValueLayout.JAVA_INT;
 import static java.lang.foreign.ValueLayout.JAVA_LONG;
+import static java.lang.foreign.ValueLayout.JAVA_SHORT;
 
 /**
  * Every native signature the app calls, or is called back with.
@@ -57,6 +58,10 @@ public final class Sigs {
     /** int sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen). */
     public static final FunctionDescriptor SYSCTL = down(FunctionDescriptor.of(JAVA_INT,
             JAVA_LONG, JAVA_INT, JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG));
+
+    /** NSEvent keyEventWithType:location:modifierFlags:timestamp:windowNumber:context:characters:charactersIgnoringModifiers:isARepeat:keyCode:. */
+    public static final FunctionDescriptor KEY_EVENT = down(FunctionDescriptor.of(JAVA_LONG, JAVA_LONG, JAVA_LONG,
+            JAVA_LONG, CG_POINT, JAVA_LONG, JAVA_DOUBLE, JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_BOOLEAN, JAVA_SHORT));
 
     // Core Text and Core Graphics.
     /** CFRange: location and length. */
