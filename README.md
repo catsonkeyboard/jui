@@ -611,6 +611,24 @@ JUI_FRAME_STATS=all ./build.sh native-demo Notes --quit-after-first-frame
 ./build.sh native-demo Graph --print-window
 ```
 
+## 笔记样式和动画示例（2026-11-01）
+
+深色笔记应用的样式和动画示例：炭黑三栏、淡紫色筛选胶囊、低对比度笔记卡片、粉色分组图标、虚线新增按钮和 Times New Roman 正文。所有界面仍通过 j-ui / Metal 绘制；系统无衬线用于导航，独立的命名字体排版缓存用于正文。
+
+```bash
+./build.sh demo NotesMotion                    # JVM
+./build.sh native-demo NotesMotion             # 编译并运行原生版本
+./build.sh native-demo NotesMotion --autoplay  # 自动演示约 8 秒的界面交互
+./build.sh demo NotesMotion --reduced-motion   # 缩短过渡
+```
+
+- 点击 Inbox / All / Last 7 Days：选中胶囊的位置、宽度和标签透明度同步过渡。
+- 左侧和列表顶栏按钮收起对应栏；编辑器左上角两个按钮始终可以恢复侧栏。宽度过渡为 320 ms，可中途反向。
+- New group：新分组淡入、展开并推开下方按钮；New sheet：新增内存笔记并在预览区打开。
+- 右上角播放按钮启动／停止自动演示。⌘1 / ⌘2 / ⌘3 切换筛选，⌘B 切换导航，⌘\ 切换列表，⌘N 新建笔记，⌘F 搜索，Esc 关闭搜索。
+
+这是样式和动画演示，正文为只读预览，数据只在内存保存。Last 7 Days 当前使用相同的示例笔记，没有接入真实笔记时间筛选或磁盘存储。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。

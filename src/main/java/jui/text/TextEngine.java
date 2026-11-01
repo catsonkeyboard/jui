@@ -27,6 +27,7 @@ public final class TextEngine {
 
     private final boolean smoothing = fontSmoothing();
     private final long language;
+    private final String family;
     private final Map<Long, Long> systemFonts = new HashMap<>();
     /**
      * Fonts bucketed by CFHash and compared with CFEqual, so equivalent
@@ -76,8 +77,14 @@ public final class TextEngine {
 
     /** {@code language} picks the glyphs of fonts that have several, as Han characters in Chinese and Japanese. */
     public TextEngine(String language) {
+        this(language, null);
+    }
+
+    /** A separate layout cache using a named macOS font family; null uses the system font. */
+    public TextEngine(String language, String family) {
         ObjC.framework("AppKit"); // the system font comes from NSFont, even without an app (as in tests)
         this.language = CoreText.string(language);
+        this.family = family;
     }
 
     /** Layouts the cache keeps, in both generations. */
@@ -381,6 +388,11 @@ public final class TextEngine {
         long pool = ObjC.poolPush();
         try {
             long font = ObjC.sendDoubles(ObjC.cls("NSFont"), mono ? "monospacedSystemFontOfSize:weight:" : "systemFontOfSize:weight:", size, nsWeight(weight));
+            if (family != null && !mono) {
+                long manager = ObjC.send(ObjC.cls("NSFontManager"), "sharedFontManager");
+                long converted = ObjC.send(manager, "convertFont:toFamily:", font, ObjC.nsString(family));
+                if (converted != 0) font = converted;
+            }
             long copy = italic ? CoreText.italic(font) : 0;
             long resolved = canonical(copy == 0 ? font : copy);
             if (copy != 0) CoreText.release(copy);
