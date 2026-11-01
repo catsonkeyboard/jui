@@ -583,6 +583,8 @@ M5 当时未包含布局缓存、图集回收与完整性能测量；后续结�
 
 用户已确认本轮按原实施计划的 **CPU 性能口径** 验收，实际显示延迟与呈现节奏另记待优化，未宣称这些目标已经达到。
 
+下表保留 M6 当时的双栏基线；当前三栏统一示例的数据见后面的“统一笔记示例”。
+
 Apple M5 Pro / 64 GiB / macOS 26.6.1 / GraalVM 25 native image / scale 2，最终串行实测：
 
 | 指标 | native 实测 | 门槛 |
@@ -611,23 +613,29 @@ JUI_FRAME_STATS=all ./build.sh native-demo Notes --quit-after-first-frame
 ./build.sh native-demo Graph --print-window
 ```
 
-## 笔记样式和动画示例（2026-11-01）
+## 统一笔记示例（2026-11-01）
 
-深色笔记应用的样式和动画示例：炭黑三栏、淡紫色筛选胶囊、低对比度笔记卡片、粉色分组图标、虚线新增按钮和 Times New Roman 正文。所有界面仍通过 j-ui / Metal 绘制；系统无衬线用于导航，独立的命名字体排版缓存用于正文。
+`Notes` 现在整合了原笔记外壳与样式/动画示例：**导航—笔记列表—预览三栏**，默认跟随系统明暗。淡紫筛选胶囊、分组淡入、低对比度卡片、虚线新增按钮和可反向的侧栏动画保留；预览标题使用衬线字，正文保留富文本。全部通过 j-ui / Metal 绘制，无截图资源。
 
 ```bash
-./build.sh demo NotesMotion                    # JVM
-./build.sh native-demo NotesMotion             # 编译并运行原生版本
-./build.sh native-demo NotesMotion --autoplay  # 自动演示约 8 秒的界面交互
-./build.sh demo NotesMotion --reduced-motion   # 缩短过渡
+./build.sh demo Notes
+./build.sh native-demo Notes
+./build.sh native-demo Notes --autoplay       # 自动演示，约8秒后停止播放，窗口仍可操作
+./build.sh native-demo Notes --reduced-motion # 缩短过渡
+./build.sh native-demo NotesMotion            # 兼容别名，实际运行同一个Notes
 ```
 
-- 点击 Inbox / All / Last 7 Days：选中胶囊的位置、宽度和标签透明度同步过渡。
-- 左侧和列表顶栏按钮收起对应栏；编辑器左上角两个按钮始终可以恢复侧栏。宽度过渡为 320 ms，可中途反向。
-- New group：新分组淡入、展开并推开下方按钮；New sheet：新增内存笔记并在预览区打开。
-- 右上角播放按钮启动／停止自动演示。⌘1 / ⌘2 / ⌘3 切换筛选，⌘B 切换导航，⌘\ 切换列表，⌘N 新建笔记，⌘F 搜索，Esc 关闭搜索。
+- 同一份目录包含1万条示例笔记，卡片列表只构建可见行；搜索按标题过滤。标签页、分组、菜单新建、命令面板和信息弹层共享相同笔记对象。
+- 点击 Inbox / All / Last 7 Days，胶囊位置、宽度和文字透明度同步过渡。分组新建时淡入并推开下方按钮，已有分组保持展开。
+- 侧栏收起/恢复为320ms，支持中途反向；编辑区始终有两个恢复按钮。列表边界支持拖动和方向键调宽，折叠/展开保留偏好宽度。窄窗口为编辑工具栏预留空间，放宽后恢复偏好；不足120DIP的列表暂时禁用分割条。
+- New sheet 和“文件→新建笔记”共用一个入口：清空搜索、加入当前分组、打开标签并显示空白预览。后台笔记目录载入不会覆盖已新建笔记。关闭当前标签会保留目录中的笔记。
+- 保留 ⌘P 命令面板、中文输入与候选框、Tab焦点限制、Esc/外部关闭、信息popover及原生菜单。
+- 快捷键：⌘1/2/3筛选，⌘B导航，⌘\笔记列表，⌘N新建，⌘W关闭标签，⌘P命令面板，⌘F恢复列表并聚焦搜索；无弹层时Esc清空搜索。右上播放按钮可启动/停止自动演示。
+- `--vault`、`--bench`、`--quit-after-first-frame`、`--print-window` 及 `forTools` 保留。`shellbench` 改为根据 `notes-list` 的实际边界滚动，每步64DIP以覆盖96DIP卡片；时间与分配门槛不变。
 
-这是样式和动画演示，正文为只读预览，数据只在内存保存。Last 7 Days 当前使用相同的示例笔记，没有接入真实笔记时间筛选或磁盘存储。
+**人工验收**：运行同一个Notes，检查三栏收展及反向操作、分割条鼠标/键盘、标签切换/关闭、中文搜索/命令面板、popover、分组/新建、窗口缩窄后恢复按钮、系统明暗及自动演示。旧的Form/TextArea/ContextMenu/EditorPrimitives确认记录仍有效，完整硬件/IME组合可按此前清单回归。
+
+正文仍为只读预览，新建与分组只在内存中保存；Last 7 Days仍是示例分类，没有真实日期筛选。完整编辑器/磁盘保存、真实呈现延迟及普通scroll布局缓存命中问题不在本次整合范围。实现与本轮数据见[统一示例审查记录](docs/reviews/2026-11-01-unified-notes-demo-review.md)。
 
 ## 运行
 
