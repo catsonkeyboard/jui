@@ -45,7 +45,7 @@
 
 ### Task 3: Documentation and native acceptance
 **Files:** README unified demo/commands/manual checklist; review record for this plan.
-- [ ] Build/start native Notes and compatibility alias. Inspect actual light/dark panes, group/filter motion, restored controls, palette/popover; no screenshots committed.
-- [ ] Run appropriate final test/alloc/listbench/ffi-check/shellbench/bench checks serially; record actual values and unchanged deferred items.
-- [ ] One fresh whole-branch read-only reviewer; fix Critical/Important with regression tests, record minor findings.
-- [ ] Update manual checklist to one Notes entry, commit; keep branch and report remaining native/manual limitations accurately.
+- [x] Build/start native Notes and compatibility alias. Inspect actual light/dark panes, group/filter motion, restored controls, palette/popover; no screenshots committed.
+- [x] Run appropriate final test/alloc/listbench/ffi-check/shellbench/bench checks serially; record actual values and unchanged deferred items.
+- [x] One fresh whole-branch read-only reviewer; fix Critical/Important with regression tests, record minor findings.
+- [x] Update manual checklist to one Notes entry, commit; keep branch and report remaining native/manual limitations accurately.

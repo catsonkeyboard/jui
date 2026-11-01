@@ -1,0 +1,74 @@
+Unified Notes verification — 2026-11-01
+CPU scope retained; actual drawable presentation goal is deferred. No screenshot assets.
+
+$ ./build.sh test
+exit=0
+GPU atlas growth ok generations=4 retainedReferences=true pixels=equal nonzero=true
+GPU atlas repack ok generations=1 retainedReferences=true pixels=equal nonzero=true
+GPU atlas growth ok generations=4 retainedReferences=true pixels=equal nonzero=true
+552 passed, 0 failed
+
+$ ./build.sh alloc
+exit=0
+ALLOC mode=native empty_frame=0 handles=0.0 lambdas=16.0 temprefs=16.0 key_long=0.0 key_object=0.0 shell_frame=1120 text_frame=0 text_instances=157 card_frame=200 controls_frame=0.0 controls_hover_frame=0.0 list_frame=0.0 list_rows=37 inputs_frame=0.0 input_focused=true m5_shell_closed=0 m5_shell_open=0
+AREAS mode=native areas_frame=0.0 selected_frame=0.0 composing_frame=0.0 focused=true
+AREABENCH mode=native case=scroll utf16=5000 p50=0.061ms p95=0.067ms max=0.096ms
+AREABENCH mode=native case=insert-up utf16=5000 p50=0.354ms p95=0.378ms max=1.228ms
+EDITORS mode=native custom_frame=0.0 rich_frame=0 after_growth_frame=0 growths=4 atlas=512x512 peak_atlas_bytes=262144 growth_frame_ms=0.889
+EDITORBENCH mode=native case=scroll utf16=5000 spans=100 view=800x600 scale=2 samples=1000 p50=0.072ms p95=0.079ms max=0.105ms
+EDITORBENCH mode=native case=insert-up utf16=5000 spans=100 view=800x600 scale=2 samples=1000 p50=0.322ms p95=0.346ms max=0.832ms
+MENU mode=native idle_builds=0
+ALLOC mode=jvm empty_frame=0 handles=65.2 lambdas=123.7 temprefs=123.7 key_long=88.0 key_object=112.0 shell_frame=24608 text_frame=440 text_instances=157 card_frame=2000 controls_frame=138.1 controls_hover_frame=138.1 list_frame=60.5 list_rows=37 inputs_frame=56.0 input_focused=true m5_shell_closed=1960 m5_shell_open=2824
+AREAS mode=jvm areas_frame=56.0 selected_frame=56.0 composing_frame=56.0 focused=true
+AREABENCH mode=jvm case=scroll utf16=5000 p50=0.027ms p95=0.030ms max=0.145ms
+AREABENCH mode=jvm case=insert-up utf16=5000 p50=0.408ms p95=0.534ms max=1.578ms
+EDITORS mode=jvm custom_frame=96.0 rich_frame=56 after_growth_frame=56 growths=4 atlas=512x512 peak_atlas_bytes=262144 growth_frame_ms=3.231
+EDITORBENCH mode=jvm case=scroll utf16=5000 spans=100 view=800x600 scale=2 samples=1000 p50=0.048ms p95=0.058ms max=0.212ms
+EDITORBENCH mode=jvm case=insert-up utf16=5000 spans=100 view=800x600 scale=2 samples=1000 p50=0.163ms p95=0.205ms max=0.452ms
+MENU mode=jvm idle_builds=0
+
+$ ./build.sh listbench
+exit=0
+LISTBENCH mode=native p50=0.180ms p95=0.237ms max=0.433ms rows_max=22 visible_max=18 last_row=2127 atlas_glyphs=742 repacks=0 small=false
+LISTBENCH mode=native p50=0.191ms p95=0.282ms max=0.398ms rows_max=22 visible_max=18 last_row=2127 atlas_glyphs=263 repacks=86 small=true
+
+$ ./build.sh ffi-check
+exit=0
+GPU atlas growth ok generations=4 retainedReferences=true pixels=equal nonzero=true
+FFI ok
+GPU atlas growth ok generations=4 retainedReferences=true pixels=equal nonzero=true
+FFI ok
+
+$ ./build.sh shellbench
+exit=0
+SHELLBENCH steady p50=0.042ms p95=0.049ms max=0.167ms
+SHELLBENCH cache_hits=36 eligible=36 hit_rate=100.0%
+SHELLBENCH alloc=5536.0B/frame notes=10000
+SHELLBENCH key_to_paint p50=0.177ms p95=0.204ms max=1.116ms
+SHELLBENCH scroll p50=0.109ms p95=0.172ms max=0.364ms
+SHELLBENCH mode=native rows_max=10 visible_max=6 last=1338 atlas_full=false
+SHELLBENCH steady p50=0.048ms p95=0.059ms max=0.215ms
+SHELLBENCH cache_hits=36 eligible=36 hit_rate=100.0%
+SHELLBENCH alloc=10486.5B/frame notes=10000
+SHELLBENCH key_to_paint p50=0.108ms p95=0.158ms max=0.468ms
+SHELLBENCH scroll p50=0.106ms p95=0.280ms max=0.946ms
+SHELLBENCH mode=jvm rows_max=10 visible_max=6 last=1338 atlas_full=false
+
+$ ./build.sh bench 5 notes
+exit=0
+NOTESBENCH main=6.233ms launched=73.585ms ready=126.805ms committed=145.465ms frame=153.888ms footprint=77.200MB runs=5 notes=10000
+
+Entry smoke only (not disk-vault timing gate): ./build.sh native-demo NotesMotion --print-window --quit-after-first-frame
+exit=0
+window=38933
+BENCH main=412.116 launched=488.241 ready=545.564 committed=575.854 frame=583.834
+
+Entry smoke only (not disk-vault timing gate): ./build.sh demo NotesMotion --print-window --quit-after-first-frame
+exit=0
+window=39384
+BENCH main=118.282 launched=227.667 ready=295.111 committed=362.159 frame=372.051
+
+Entry smoke only (not disk-vault timing gate): ./build.sh native-demo Notes --print-window --quit-after-first-frame
+exit=0
+window=39099
+BENCH main=442.817 launched=521.782 ready=572.201 committed=597.278 frame=605.767
