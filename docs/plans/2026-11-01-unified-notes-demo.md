@@ -27,11 +27,11 @@
 **Files:** NotesDemo.java, new NotesWorkspace.java; NotesDemoTest.java; new NotesWorkspaceTest.java.
 **Consumes:** FilesDemo.Note, NotesVault, current NotesDemo fields/tests, NotesMotion motion/icon patterns.
 **Produces:** One model/view with labels navigation-pane, notes-pane, notes-list, editor, divider, filter-*, new-group, new-sheet, toggle-navigation, toggle-sheets; existing search/note-row/palette/info labels retained.
-- [ ] Write failing tests: three panes/theme preservation; interruption and restoring both panes; shared group/new-note/search/palette/tab state and divider drag/keyboard after reopening.
-- [ ] Run ./build.sh test NotesWorkspaceTest; observe missing merged UI behaviors.
-- [ ] Implement shared state and workspace with cached light/dark tokens, filter pill and group motion, virtualized cards, persistent editor controls, draggable divider and existing rich preview/overlays.
-- [ ] Update legacy geometry assumptions in NotesDemoTest to use divider bounds, then ./build.sh test passes all tests.
-- [ ] Commit task-scoped files.
+- [x] Write failing tests: three panes/theme preservation; interruption and restoring both panes; shared group/new-note/search/palette/tab state and divider drag/keyboard after reopening.
+- [x] Run ./build.sh test NotesWorkspaceTest; observe missing merged UI behaviors.
+- [x] Implement shared state and workspace with cached light/dark tokens, filter pill and group motion, virtualized cards, persistent editor controls, draggable divider and existing rich preview/overlays.
+- [x] Update legacy geometry assumptions in NotesDemoTest to use divider bounds, then ./build.sh test passes all tests.
+- [x] Commit task-scoped files.
 
 ### Task 2: Canonical entry, compatibility and measurement
 **Files:** NotesDemo.main/menus, build.sh, ShellBench.java, PresentBench.java; port NotesMotionDemoTest and delete separate NotesMotionDemo; NotesVaultTest.

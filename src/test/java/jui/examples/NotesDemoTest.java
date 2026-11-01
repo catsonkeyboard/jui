@@ -14,11 +14,14 @@ public final class NotesDemoTest {
         Tester tt = shell(d);
         tt.frame();
         Check.isTrue(d.open.isEmpty(), "nothing open yet");
-        tt.press(240, 300);                                    // the divider between sidebar and editor
-        tt.move(280, 300);
+        var divider = tt.find("divider");
+        float start = divider.x() + divider.width() / 2;
+        float before = d.sidebarWidth.get();
+        tt.press(start, 300);                                    // the divider between sidebar and editor
+        tt.move(start + 40, 300);
         tt.frame();
-        Check.near(280, d.sidebarWidth.get());                 // dragged
-        tt.release(280, 300);
+        Check.near(before + 40, d.sidebarWidth.get());                 // dragged
+        tt.release(start + 40, 300);
         tt.frame();
         tt.click("note-row");                                  // the first note in the list
         tt.frame();
