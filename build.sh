@@ -115,6 +115,7 @@ listbench() {
   compile
   native_image jui.spike.ListBench build/list-bench > build/list-bench-build.log
   build/list-bench
+  build/list-bench --small-atlas
 }
 
 shellbench() {

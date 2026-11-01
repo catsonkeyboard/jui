@@ -31,7 +31,8 @@ public final class ListBench {
         TextEngine text = new TextEngine("zh-Hans");
         Engine e = new Engine(text, Theme.light(), () -> {});
         Scene scene = new Scene();
-        GlyphAtlas atlas = new GlyphAtlas(1024, 1024);
+        boolean small = Arrays.asList(args).contains("--small-atlas");
+        GlyphAtlas atlas = small ? new GlyphAtlas(256, 256, 512) : new GlyphAtlas(1024, 1024, 4096);
         for (int i = 0; i < WARMUP; i++) {
             e.scroll(WIDTH / 2, HEIGHT / 2, 0, i < WARMUP / 2 ? 24 : -24, true, 0);
             frame(e, view, scene, text, atlas);
@@ -50,12 +51,13 @@ public final class ListBench {
         double p50 = times[FRAMES / 2] / 1e6, p95 = times[(int) (FRAMES * 0.95)] / 1e6, max = times[FRAMES - 1] / 1e6;
         boolean nativeImage = "runtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode"));
         System.out.printf("LISTBENCH mode=%s p50=%.3fms p95=%.3fms max=%.3fms rows_max=%d visible_max=%d last_row=%d"
-                        + " atlas_glyphs=%d%n",
-                nativeImage ? "native" : "jvm", p50, p95, max, rowsMax, visibleMax, files.last(), atlas.glyphs());
+                        + " atlas_glyphs=%d repacks=%d small=%s%n",
+                nativeImage ? "native" : "jvm", p50, p95, max, rowsMax, visibleMax, files.last(), atlas.glyphs(), atlas.repacks(), small);
         if (nativeImage && (p95 > 4 || max > 8 || rowsMax > visibleMax + 5)) {
             System.out.println("FAIL: a scroll frame is over budget (p95 4 ms, max 8 ms) or builds rows out of view");
             System.exit(1);
         }
+        if (small && atlas.repacks() < 2) throw new AssertionError("small atlas must exercise repeated reclamation");
         if (atlas.isFull()) { // glyphs went undrawn: the M3 hand check found this deep in the list
             System.out.println("FAIL: the glyph atlas filled up while scrolling");
             System.exit(1);

@@ -23,6 +23,8 @@ public final class Scene {
     private static final float KIND_STROKE = 3;
 
     private float[] data = new float[FLOATS * 64];
+    private GlyphAtlas.Entry[] glyphEntries = new GlyphAtlas.Entry[64];
+    private int atlasGeneration;
     private int count;
     private float scale = 1;
     private TextEngine text;
@@ -31,6 +33,9 @@ public final class Scene {
 
     /** Starts a frame at {@code scale} pixels a point, whose text goes through {@code text} and {@code atlas}. */
     public void begin(float scale, TextEngine text, GlyphAtlas atlas) {
+        Arrays.fill(glyphEntries, 0, count, null);
+        if (atlas != null) atlas.beginFrame();
+        this.atlasGeneration = atlas == null ? 0 : atlas.generation();
         this.count = 0;
         this.depth = 0;
         this.clipX0 = this.clipY0 = Float.NEGATIVE_INFINITY;
@@ -59,6 +64,7 @@ public final class Scene {
      * For tests.
      */
     public float[] instance(int i) {
+        refreshGlyphCoordinates();
         return java.util.Arrays.copyOfRange(data, i * FLOATS, (i + 1) * FLOATS);
     }
 
@@ -110,6 +116,7 @@ public final class Scene {
         GlyphAtlas.Entry entry = atlas.get(text, layout.font(index), layout.glyph(index), scale, sub, positions, shade);
         if (entry == null || entry.width() == 0) return;
         int offset = next();
+        glyphEntries[offset / FLOATS] = entry;
         put(offset, (float) whole + entry.left(), baseline + entry.top(), entry.width(), entry.height());
         put(offset + 4, entry.x(), entry.y(), 0, 0);
         putColor(offset + 8, color);
@@ -230,6 +237,7 @@ public final class Scene {
      * crisp lines need; a box keeps at least a pixel each way it has size.
      */
     public int writeTo(MemorySegment dst, int max) {
+        refreshGlyphCoordinates();
         int n = Math.min(count, max);
         for (int i = 0; i < n; i++) {
             int o = i * FLOATS;
@@ -261,13 +269,27 @@ public final class Scene {
         dst.setAtIndex(JAVA_FLOAT, o + 2, to - from);
     }
 
+    /** Repacking may happen after an earlier glyph was emitted in this same scene. */
+    private void refreshGlyphCoordinates() {
+        if (atlas == null || atlasGeneration == atlas.generation()) return;
+        for (int i = 0; i < count; i++) {
+            GlyphAtlas.Entry entry = glyphEntries[i];
+            if (entry == null) continue;
+            if (!entry.resident()) throw new IllegalStateException("scene outlived its glyph atlas frame");
+            data[i * FLOATS + 4] = entry.x(); data[i * FLOATS + 5] = entry.y();
+        }
+        atlasGeneration = atlas.generation();
+    }
+
     private int next() {
         if ((count + 1) * FLOATS > data.length) {
             data = Arrays.copyOf(data, data.length * 2);
+            glyphEntries = Arrays.copyOf(glyphEntries, data.length / FLOATS);
         }
         if (clipChanged) {
             startBatch();
         }
+        glyphEntries[count] = null;
         int o = count++ * FLOATS;
         System.arraycopy(round, 0, data, o + 20, 8);
         return o;

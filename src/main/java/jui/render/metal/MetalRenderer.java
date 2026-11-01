@@ -249,15 +249,23 @@ public final class MetalRenderer {
         return commands;
     }
 
-    public static void checkAtlasGrowth() {
+    public static void checkAtlasEviction() { checkAtlasReplacement(true); }
+
+    public static void checkAtlasGrowth() { checkAtlasReplacement(false); }
+
+    private static void checkAtlasReplacement(boolean eviction) {
         long pool = ObjC.poolPush();
         long superlayer = ObjC.create("CALayer");
         MetalRenderer renderer = null;
         long firstTarget = 0, secondTarget = 0;
         try (Arena arena = Arena.ofConfined()) {
-            GlyphAtlas atlas = new GlyphAtlas(32, 32, 512);
+            GlyphAtlas atlas = eviction ? new GlyphAtlas(128, 128, 128) : new GlyphAtlas(32, 32, 512);
             renderer = new MetalRenderer(superlayer, atlas);
             jui.text.TextEngine text = new jui.text.TextEngine("zh-Hans");
+            if (eviction) {
+                Scene cold = new Scene(); cold.begin(2, text, atlas);
+                cold.text("abcdefghijklmno", 0, 0, 12, 400, 0xFFFFFFFF, 0);
+            }
             Scene original = new Scene();
             original.begin(2, text, atlas);
             original.text("W", 8, 8, 13, 400, 0xFFFFFFFF, 0);
@@ -266,10 +274,11 @@ public final class MetalRenderer {
             long before = renderer.encode(original, firstTarget, 128, 96, 0);
             if (send(before, "retainedReferences") == 0) throw new IllegalStateException("command buffers must retain resources");
             long oldTexture = renderer.atlasTexture;
-            jui.text.TextLayout more = text.layout("abcdefghijklmnopqrstuvwxyz0123456789中文字体图集扩容", 24, 700, 0);
+            jui.text.TextLayout more = eviction ? text.layout("M", 48, 400, 0)
+                    : text.layout("abcdefghijklmnopqrstuvwxyz0123456789中文字体图集扩容", 24, 700, 0);
             for (int index = 0; index < more.glyphCount(); index++) atlas.get(text, more.font(index), more.glyph(index), 2, 0, 1, 0);
             long after = renderer.encode(original, secondTarget, 128, 96, 0);
-            if (atlas.generation() < 2 || oldTexture == renderer.atlasTexture || atlas.isFull())
+            if ((eviction ? atlas.repacks() == 0 : atlas.generation() < 2) || oldTexture == renderer.atlasTexture || atlas.isFull())
                 throw new IllegalStateException("GPU growth probe did not grow twice");
             send(before, "commit"); send(after, "commit");
             send(before, "waitUntilCompleted"); send(after, "waitUntilCompleted");
@@ -283,7 +292,8 @@ public final class MetalRenderer {
                 if (first.get(JAVA_BYTE, offset) != 0) ink = true;
             }
             if (!ink || first.mismatch(second) != -1) throw new IllegalStateException("old glyph changed after GPU atlas growth");
-            System.out.printf("GPU atlas growth ok generations=%d retainedReferences=true pixels=equal nonzero=true%n", atlas.generation());
+            System.out.printf("GPU atlas %s ok generations=%d retainedReferences=true pixels=equal nonzero=true%n",
+                    eviction ? "repack" : "growth", atlas.generation());
         } finally {
             ObjC.release(firstTarget); ObjC.release(secondTarget);
             if (renderer != null) {
