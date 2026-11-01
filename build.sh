@@ -7,6 +7,7 @@
 #                                 and the same app in Objective-C (baseline/spike.m)
 #   ./build.sh test [Class[#m]]   run the tests in src/test/java
 #   ./build.sh alloc              measure per-frame allocation of the UI API (native and JVM)
+#   ./build.sh shellbench         measure full NotesDemo steady frames, allocation, typing and scroll
 #   ./build.sh listbench          time scroll frames of a 10000-row list in a native image (the M3 gate)
 #   ./build.sh ffi-check          call Objective-C methods of every struct shape, on the JVM and in a native image
 #   ./build.sh demo [Name] [args]        run an example on the JVM: Card (default), Counter, Todo, Files, Scroll, Form, TextArea, ContextMenu, EditorPrimitives or Notes
@@ -112,6 +113,13 @@ listbench() {
   build/list-bench
 }
 
+shellbench() {
+  compile
+  native_image jui.spike.ShellBench build/shell-bench > build/shell-bench-build.log
+  build/shell-bench
+  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.ShellBench
+}
+
 # ffi_check calls Objective-C methods that take and return ranges, rects and
 # points, on the JVM and in a native image, where a signature left
 # unregistered would fail only at its first call.
@@ -194,8 +202,9 @@ case "${1:-native}" in
   test) shift; run_tests "$@" ;;
   alloc) alloc ;;
   listbench) listbench ;;
+  shellbench) shellbench ;;
   ffi-check) ffi_check ;;
   demo) shift; demo "$@" ;;
   native-demo) shift; native_demo "$@" ;;
-  *) echo "usage: $0 jvm|native|bench|test|alloc|listbench|ffi-check|demo|native-demo" >&2; exit 2 ;;
+  *) echo "usage: $0 jvm|native|bench|test|alloc|listbench|shellbench|ffi-check|demo|native-demo" >&2; exit 2 ;;
 esac

@@ -125,6 +125,13 @@ public final class NotesDemo {
         return open.isEmpty() ? null : open.get(Math.min(tab.get(), open.size() - 1));
     }
 
+    /** The actual shell workload, with one note open, shared by performance tools. */
+    public static Object[] forTools() {
+        NotesDemo d = new NotesDemo();
+        d.open(d.notes.getFirst());
+        return new Object[] {(jui.ui.View) d::view, d.files, d.query};
+    }
+
     void view(Context c) {
         Theme t = c.theme();
         split(c, sidebarWidth, () -> sidebar(c, t), () -> editor(c, t)).grow(1);
@@ -137,7 +144,7 @@ public final class NotesDemo {
     private void sidebar(Context c, Theme t) {
         column(c).fill().background(t.surface()).children(() -> {
             row(c).padding(8).children(() -> {
-                if (textInput(c, query).placeholder("搜索笔记").grow(1).changed()) {
+                if (textInput(c, query).placeholder("搜索笔记").label("search").grow(1).changed()) {
                     files.scrollToTop();
                 }
             });
