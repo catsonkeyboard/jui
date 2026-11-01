@@ -10,6 +10,8 @@ import jui.ui.Justify;
  * public so that the ui package, layout and paint share them.
  */
 public final class Node {
+    LayoutCache.Record cache; // survives reset; only identity-checked snapshots may be restored
+
     public static final byte BOX = 0, TEXT = 1, SPACER = 2, DIVIDER = 3, SLIDER = 4, INPUT = 5;
     public static final int NONE = -1;
 

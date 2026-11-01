@@ -49,6 +49,8 @@ public final class ShellBench {
             }
             double bytes = (mx.getCurrentThreadAllocatedBytes() - before) / (double) FRAMES;
             double steady = report("steady", times);
+            System.out.printf(Locale.ROOT, "SHELLBENCH cache_hits=%d eligible=%d hit_rate=%.1f%%%n",
+                    engine.cacheHits(), engine.cacheEligible(), engine.cacheEligible() == 0 ? 0 : 100.0 * engine.cacheHits() / engine.cacheEligible());
             System.out.printf(Locale.ROOT, "SHELLBENCH alloc=%.1fB/frame notes=10000%n", bytes);
 
             Rect search = engine.bounds("search");

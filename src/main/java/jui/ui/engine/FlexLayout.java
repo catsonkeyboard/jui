@@ -25,11 +25,17 @@ public final class FlexLayout {
         void measure(int node, float maxWidth, float[] out);
     }
 
+    private final LayoutCache cache;
     private final NodePool pool;
     private final Measure measure;
     private final float[] out = new float[2];
 
     public FlexLayout(NodePool pool, Measure measure) {
+        this(pool, measure, null);
+    }
+
+    FlexLayout(NodePool pool, Measure measure, LayoutCache cache) {
+        this.cache = cache;
         this.pool = pool;
         this.measure = measure;
     }
@@ -46,6 +52,7 @@ public final class FlexLayout {
 
     /** Lays out the children of a node whose box is set, then theirs. */
     private void place(int index) {
+        if (cache != null && cache.reuse(index)) return;
         Node p = pool.node(index);
         if (p.kind == Node.TEXT || p.kind == Node.INPUT) {
             // The text's layout at its final width, for paint.
@@ -728,6 +735,8 @@ public final class FlexLayout {
     /** The width a node takes for its content, on one line: max-content. */
     private float contentWidth(int index) {
         Node n = pool.node(index);
+        LayoutCache.Record record = cache != null && cache.enabled ? n.cache : null;
+        if (record != null && record.cacheable && record.widthValid) return record.contentWidth;
         if (!Float.isNaN(n.width)) {
             return clamp(n.width, n.minWidth, n.maxWidth);
         }
@@ -752,12 +761,17 @@ public final class FlexLayout {
                 }
             }
         }
-        return clamp(w + insetX(n), n.minWidth, n.maxWidth);
+        float result = clamp(w + insetX(n), n.minWidth, n.maxWidth);
+        if (record != null && record.cacheable) { record.contentWidth = result; record.widthValid = true; }
+        return result;
     }
 
     /** The height a node takes for its content when it is width wide. */
     private float contentHeight(int index, float width) {
         Node n = pool.node(index);
+        LayoutCache.Record record = cache != null && cache.enabled ? n.cache : null;
+        float cached = record == null ? Float.NaN : record.height(width);
+        if (!Float.isNaN(cached)) return cached;
         if (!Float.isNaN(n.height)) {
             return clamp(n.height, n.minHeight, n.maxHeight);
         }
@@ -801,7 +815,9 @@ public final class FlexLayout {
                 }
             }
         }
-        return clamp(h + insetY(n), n.minHeight, n.maxHeight);
+        float result = clamp(h + insetY(n), n.minHeight, n.maxHeight);
+        if (record != null) record.height(width, result);
+        return result;
     }
 
     // Helpers.

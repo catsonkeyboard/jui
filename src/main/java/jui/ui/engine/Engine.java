@@ -33,7 +33,8 @@ public final class Engine {
     /** The platform: clipboard, cursor, input method. A window sets its own; Tester's is in memory. */
     private Host host = new Host.Memory();
     private final Context context;
-    private final FlexLayout layout = new FlexLayout(pool, this::measure);
+    private final LayoutCache layoutCache = new LayoutCache(pool, !"off".equals(System.getProperty("jui.layoutCache")));
+    private final FlexLayout layout = new FlexLayout(pool, this::measure, layoutCache);
 
     /** The most passes a frame builds (design §4, MyGO's rule). */
     private static final int MAX_PASSES = 3;
@@ -108,6 +109,9 @@ public final class Engine {
         this.context = new Context(this);
     }
 
+    public long cacheHits() { return layoutCache.hits; }
+    public long cacheEligible() { return layoutCache.eligible; }
+
     public Context context() {
         return context;
     }
@@ -132,6 +136,7 @@ public final class Engine {
             Dev.fail("views build only on the main thread");
         }
         if (FrameStats.ENABLED) frameStats.begin();
+        layoutCache.begin();
         frame++;
         now = clock.getAsLong();
         wake = Long.MAX_VALUE; // a frame that asks for no wake-up stops the timer (as MyGO)
@@ -854,8 +859,10 @@ public final class Engine {
 
     private void layoutFrame(float width, float height) {
         long started = FrameStats.ENABLED ? frameStats.start() : 0;
+        layoutCache.prepare();
         layout.layout(0, width, height);
         layoutInputs();
+        layoutCache.save();
         if (FrameStats.ENABLED) frameStats.laidOut(started);
     }
 
@@ -1951,8 +1958,10 @@ public final class Engine {
         // TextEngine takes 0 for no wrapping; a box squeezed to nothing still
         // wraps, at every chance, as CSS does, rather than run on one line.
         float limit = maxWidth == FlexLayout.UNLIMITED ? 0 : Math.max(maxWidth, 0.01f);
-        n.layout = n.spans == null ? text.layout(n.text, n.resolvedSize, n.resolvedWeight, limit)
+        jui.text.TextLayout cached = layoutCache.enabled && n.cache != null ? n.cache.text(maxWidth) : null;
+        n.layout = cached != null ? cached : n.spans == null ? text.layout(n.text, n.resolvedSize, n.resolvedWeight, limit)
                 : text.layout(n.spans, n.resolvedSize, n.resolvedWeight, limit);
+        if (cached == null && layoutCache.enabled && n.cache != null) n.cache.text(maxWidth, n.layout);
         out[0] = n.layout.width;
         out[1] = n.text.isEmpty() ? 0 : n.layout.height;
     }
