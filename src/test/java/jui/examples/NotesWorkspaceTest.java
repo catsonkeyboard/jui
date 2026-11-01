@@ -164,6 +164,28 @@ public final class NotesWorkspaceTest {
         } finally { t.close(); }
     }
 
+    public void testManyTabsKeepActiveTabVisibleWithoutCoveringToolbarControls() {
+        NotesDemo d = new NotesDemo(); Tester t = workspace(d);
+        try {
+            for (int i=0;i<10;i++) d.open(d.notes.get(i));
+            t.frame(); t.settle();
+            Rect viewport = t.find("tab-strip"), close = t.find("close-tab"), info = t.find("信息");
+            Check.isTrue(viewport.x() + viewport.width() <= close.x() + .01f, "tab viewport ends before close control");
+            Check.isTrue(viewport.x() + viewport.width() <= info.x() + .01f, "tabs cannot paint over information control");
+            String title=d.current().title.substring(0,12);
+            Rect active=t.find(title);
+            Check.isTrue(active.x() < viewport.x()+viewport.width() && active.x()+active.width() > viewport.x(), "newly opened last tab is visible");
+            d.open(d.notes.get(0)); t.frame(); t.settle();
+            Rect first=t.find(d.current().title.substring(0,12));
+            Check.isTrue(first.x() >= viewport.x()-.01f, "reopening first note reveals its tab");
+            t.click(d.current().title.substring(0,12));
+            t.key(Shortcut.of(Key.END)); t.frame(); t.settle();
+            Check.isTrue(d.current() == d.notes.get(9), "keyboard navigation still selects last tab");
+            Rect last = t.find(d.current().title.substring(0,12));
+            Check.isTrue(last.x() < viewport.x()+viewport.width() && last.x()+last.width() > viewport.x(), "keyboard selection reveals last tab");
+        } finally { t.close(); }
+    }
+
     public void testTenThousandCardsRemainVirtualizedAndScrollable() {
         NotesDemo d = new NotesDemo(); Tester t = workspace(d);
         try {

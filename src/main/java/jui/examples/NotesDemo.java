@@ -72,6 +72,9 @@ public final class NotesDemo {
     final ListState files = new ListState();
     final TextRef query = new TextRef("");
     private final jui.ui.Handle searchHandle = new jui.ui.Handle();
+    private final jui.ui.ScrollState tabScroll = new jui.ui.ScrollState();
+    private int revealedTab = -1, revealedTabCount = -1;
+    private float tabViewportWidth = -1;
     final FloatRef sidebarWidth = new FloatRef(296);
     final BoolRef paletteOpen = new BoolRef(false);
     final TextRef command = new TextRef("");
@@ -271,10 +274,20 @@ public final class NotesDemo {
                         String title = open.get(i).title;
                         titles[i] = title.substring(0, Math.min(12, title.length()));
                     }
-                    tabs(c, tab, titles).grow(1).minWidth(0);
+                    int selected = Math.max(0, Math.min(tab.get(), titles.length - 1));
+                    if (revealedTab != selected || revealedTabCount != titles.length) {
+                        float x = 0;
+                        for (int i=0;i<selected;i++) x += c.layoutText(titles[i],13,400,0).width + 28;
+                        tabScroll.scrollTo(x, 0);
+                        revealedTab = selected; revealedTabCount = titles.length;
+                    }
+                    Element viewport = jui.ui.Ui.scrollHorizontal(c, tabScroll).grow(1).minWidth(0).height(40).label("tab-strip");
+                    float width = viewport.bounds().width();
+                    if (tabViewportWidth != width) { tabViewportWidth = width; revealedTab = -1; c.invalidate(); }
+                    viewport.children(() -> tabs(c, tab, titles).shrink(0));
                     if (workspace.iconButton(c, "close-tab", "close").clicked()) closeTab();
                 } else spacer(c).grow(1);
-                infoButton = button(c, "信息");
+                infoButton = button(c, "信息").clip();
                 if (infoButton.clicked()) infoOpen.set(!infoOpen.get());
                 if (workspace.iconButton(c, "replay", autoplay ? "stop" : "play").clicked()) {
                     autoplay = !autoplay; playbackStart = -1; playbackStep = 0;
