@@ -1,6 +1,7 @@
 package jui.ui.engine;
 
 import jui.ffi.Libc;
+import jui.perf.FrameStats;
 import jui.text.TextEngine;
 import jui.ui.Align;
 import jui.ui.Context;
@@ -15,6 +16,7 @@ import jui.ui.View;
  */
 public final class Engine {
     private final TextEngine text;
+    private final FrameStats frameStats = FrameStats.create();
     private Theme theme;
     private final Runnable requestFrame;
     private final java.util.function.LongSupplier clock;
@@ -129,6 +131,7 @@ public final class Engine {
         if (Libc.pthreadMainNp() == 0) {
             Dev.fail("views build only on the main thread");
         }
+        if (FrameStats.ENABLED) frameStats.begin();
         frame++;
         now = clock.getAsLong();
         wake = Long.MAX_VALUE; // a frame that asks for no wake-up stops the timer (as MyGO)
@@ -141,7 +144,9 @@ public final class Engine {
         // A round builds, lays out and fixes up lists; a list that did not cover its view
         // in the first round gets a second, in the same frame (at most two rounds).
         for (int round = 0; ; round++) {
+            if (FrameStats.ENABLED) frameStats.round();
             for (pass = 0; pass < MAX_PASSES; pass++) {
+                long buildStarted = FrameStats.ENABLED ? frameStats.start() : 0;
                 passId = nextPassId++;
                 consumed = false;
                 input.beginPass();
@@ -165,6 +170,7 @@ public final class Engine {
                 if (pass == 0) {
                     input.dropKey();
                 }
+                if (FrameStats.ENABLED) frameStats.built(buildStarted);
                 if (!consumed) {
                     break;
                 }
@@ -847,8 +853,10 @@ public final class Engine {
     }
 
     private void layoutFrame(float width, float height) {
+        long started = FrameStats.ENABLED ? frameStats.start() : 0;
         layout.layout(0, width, height);
         layoutInputs();
+        if (FrameStats.ENABLED) frameStats.laidOut(started);
     }
 
     /** Whether the node or one inside it has identity id. */
@@ -1879,10 +1887,12 @@ public final class Engine {
     public void paint(jui.render.Scene scene) {
         if (callbackDepth != 0) throw new IllegalStateException("UI callbacks cannot reenter painting");
         if (closed) return;
+        long started = FrameStats.ENABLED ? frameStats.start() : 0;
         if (pool.size() > 0) {
             long ring = input.focusVisible && input.windowFocused ? input.focusedId : 0;
             Paint.paint(pool, 0, scene, theme, 1, false, ring);
         }
+        if (FrameStats.ENABLED) frameStats.painted(started);
     }
 
     /**

@@ -12,6 +12,7 @@
 #   ./build.sh demo [Name] [args]        run an example on the JVM: Card (default), Counter, Todo, Files, Scroll, Form, TextArea, ContextMenu, EditorPrimitives or Notes
 #   ./build.sh native-demo [Name] [args] build an example into build/<name>-demo and run it
 #
+# JUI_FRAME_STATS=1 logs frames over 8 ms; all logs every frame; a number is ms; off disables.
 # Needs GraalVM 25 (GRAALVM_HOME, or found in ~/Library/Java/JavaVirtualMachines)
 # and Xcode's Metal compiler.
 set -euo pipefail

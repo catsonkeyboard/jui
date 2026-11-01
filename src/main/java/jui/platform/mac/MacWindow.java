@@ -1,5 +1,7 @@
 package jui.platform.mac;
 
+import jui.perf.FrameStats;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.LongConsumer;
@@ -447,6 +449,7 @@ public final class MacWindow {
 
     private void draw() {
         if (closed) return;
+        if (FrameStats.ENABLED) FrameStats.beginDraw();
         lastFrameNanos = System.nanoTime();
         double[] bounds = ObjC.sendRect(view, "bounds");
         double scale = ObjC.sendDouble(window, "backingScaleFactor");
@@ -454,6 +457,7 @@ public final class MacWindow {
         lastHeight = bounds[3];
         lastScale = scale;
         lastPaintNanos = paint();
+        long presentStarted = FrameStats.ENABLED ? System.nanoTime() : 0;
         boolean first = frames == 0;
         boolean resizing = ObjC.sendBool(view, "inLiveResize");
         long handler = 0;
@@ -463,6 +467,7 @@ public final class MacWindow {
             handler = Blocks.block1(commandBuffer -> firstFrameDoneMicros = Libc.nowMicros());
         }
         boolean drew = renderer.render(scene, bounds[2], bounds[3], scale, background, resizing, handler);
+        if (FrameStats.ENABLED) FrameStats.present(presentStarted);
         if (drew) {
             frames++;
         }
