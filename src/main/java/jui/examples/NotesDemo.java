@@ -43,9 +43,6 @@ import static jui.ui.Ui.textInput;
  * <pre>./build.sh demo Notes [--autoplay] [--reduced-motion]</pre>
  */
 public final class NotesDemo {
-    /** The one the menu bar's builders talk to; made in main, or by a test. */
-    static NotesDemo demo;
-
     final List<FilesDemo.Note> notes;
     private final java.util.IdentityHashMap<FilesDemo.Note, String> previewBodies = new java.util.IdentityHashMap<>();
     private final List<FilesDemo.Note> createdNotes = new ArrayList<>();
@@ -109,7 +106,8 @@ public final class NotesDemo {
                 shown = new ArrayList<>();
                 String needle = q.toLowerCase(Locale.ROOT);
                 for (FilesDemo.Note n : notes) {
-                    if ((selectedGroup < 0 || java.util.Objects.equals(noteGroups.get(n), selectedGroup))
+                    Integer group = selectedGroup < 0 ? null : noteGroups.get(n);
+                    if ((selectedGroup < 0 || group != null && group.intValue() == selectedGroup)
                             && n.lower.contains(needle)) shown.add(n);
                 }
             }
@@ -330,11 +328,11 @@ public final class NotesDemo {
         for (String arg : args) if (arg.startsWith("--vault="))
             vault = NotesVault.open(java.nio.file.Path.of(arg.substring(8)));
         NotesVault loaded = vault;
-        demo = vault == null ? new NotesDemo() : new NotesDemo(vault);
+        NotesDemo demo = vault == null ? new NotesDemo() : new NotesDemo(vault);
         demo.autoplay = Arrays.asList(args).contains("--autoplay");
         demo.reducedMotion = Arrays.asList(args).contains("--reduced-motion");
         if (demo.current() == null && !demo.notes.isEmpty()) demo.open(demo.notes.getFirst());
-        App.menu(NotesDemo::menus);
+        App.menu(demo::menus);
         App.run(() -> {
             long launched = jui.ffi.Libc.nowMicros();
             Window w = Window.open(WindowOptions.of("笔记").size(980, 640).content(demo::view));
@@ -360,20 +358,20 @@ public final class NotesDemo {
         });
     }
 
-    private static void menus(Menu bar) {
+    void menus(Menu bar) {
         bar.submenu("文件", file -> {
             if (file.item("新建笔记").shortcut(Shortcut.cmd(Key.N)).chosen()) {
-                demo.newNote();
+                newNote();
             }
             file.separator();
-            file.item("关闭窗口").shortcut(Shortcut.cmd(Key.W));
+            if (file.item("关闭标签页").shortcut(Shortcut.cmd(Key.W)).disabled(open.isEmpty()).chosen()) closeTab();
         });
         bar.submenu("视图", view -> {
             if (view.item("命令面板").shortcut(Shortcut.cmd(Key.P)).chosen()) {
-                demo.paletteOpen.set(true);
+                paletteOpen.set(true);
             }
-            if (view.item("显示笔记列表").shortcut(Shortcut.of(Mod.CMD, Key.BACKSLASH)).checked(demo.sheetList).chosen())
-                demo.sheetList = !demo.sheetList;
+            if (view.item("显示笔记列表").shortcut(Shortcut.of(Mod.CMD, Key.BACKSLASH)).checked(sheetList).chosen())
+                sheetList = !sheetList;
         });
     }
 }
