@@ -148,6 +148,22 @@ public final class NotesWorkspaceTest {
         } finally { t.close(); }
     }
 
+    public void testCommandPaletteKeepsFocusWhenWorkspaceSearchShortcutIsPressed() {
+        NotesDemo d = new NotesDemo(); Tester t = workspace(d);
+        try {
+            d.query.set("0002"); d.selectFilter(1); t.frame();
+            d.paletteOpen.set(true); t.frame();
+            Check.isTrue(t.focused("command"), "palette starts focused");
+            t.key(Shortcut.cmd(Key.F)); t.type("季度"); t.frame();
+            Check.isTrue(d.paletteOpen.get() && t.focused("command"), "workspace shortcut cannot leave modal");
+            Check.equal("0002", d.query.get());
+            Check.equal("季度", d.command.get());
+            t.key(Shortcut.cmd(Key.DIGIT1)); t.frame();
+            Check.equal(1, d.filter);
+            Check.isTrue(t.focused("command"), "background navigation is blocked too");
+        } finally { t.close(); }
+    }
+
     public void testTenThousandCardsRemainVirtualizedAndScrollable() {
         NotesDemo d = new NotesDemo(); Tester t = workspace(d);
         try {

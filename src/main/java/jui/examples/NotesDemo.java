@@ -233,7 +233,7 @@ public final class NotesDemo {
             row(c).height(36).shrink(0).children(() -> {
                 Element search = textInput(c, query).placeholder("搜索笔记").label("search").grow(1).bind(searchHandle);
                 if (benchmarkRawKeys) search.inputMethod(false);
-                if (focusSearch) { searchHandle.focus(); focusSearch = false; }
+                if (focusSearch && !paletteOpen.get()) { searchHandle.focus(); focusSearch = false; }
                 if (search.changed()) files.scrollToTop();
             });
             List<FilesDemo.Note> found = shown();

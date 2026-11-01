@@ -41,12 +41,14 @@ final class NotesWorkspace {
 
     void view(Context c) {
         colors = c.theme().isDark() ? DARK : LIGHT;
-        if (c.shortcut(Shortcut.cmd(Key.DIGIT1))) demo.selectFilter(0);
-        if (c.shortcut(Shortcut.cmd(Key.DIGIT2))) demo.selectFilter(1);
-        if (c.shortcut(Shortcut.cmd(Key.DIGIT3))) demo.selectFilter(2);
-        if (c.shortcut(Shortcut.cmd(Key.B))) demo.navigation = !demo.navigation;
-        if (c.shortcut(Shortcut.cmd(Key.F))) { demo.sheetList = true; demo.focusSearch = true; }
-        if (c.shortcut(Shortcut.of(Key.ESCAPE))) demo.query.set("");
+        if (!demo.paletteOpen.get()) {
+            if (c.shortcut(Shortcut.cmd(Key.DIGIT1))) demo.selectFilter(0);
+            if (c.shortcut(Shortcut.cmd(Key.DIGIT2))) demo.selectFilter(1);
+            if (c.shortcut(Shortcut.cmd(Key.DIGIT3))) demo.selectFilter(2);
+            if (c.shortcut(Shortcut.cmd(Key.B))) demo.navigation = !demo.navigation;
+            if (c.shortcut(Shortcut.cmd(Key.F))) { demo.sheetList = true; demo.focusSearch = true; }
+            if (c.shortcut(Shortcut.of(Key.ESCAPE))) demo.query.set("");
+        }
         demo.playback(c);
         Element shell = row(c.key("notes-workspace")).fill().alignItems(Align.STRETCH)
                 .background(colors.paper).textColor(colors.ink).fontSize(13).clip().draw(measure);
