@@ -272,6 +272,12 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
         }
     }
 
+    /** Wall-clock microseconds of the first CPU submission, for startup diagnostics. */
+    public long firstCommitMicros() { return mac.firstCommitMicros; }
+
+    /** Called on the UI thread when the first GPU frame completes (0 on failure). */
+    public void onFirstFrame(java.util.function.LongConsumer done) { mac.onFirstFrame(done); }
+
     /** The window server's number for the window, as screencapture -l takes: for tools. */
     public long windowNumber() {
         return mac.windowNumber();

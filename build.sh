@@ -3,6 +3,7 @@
 #
 #   ./build.sh jvm [--bench]      compile, then run on the JVM (GraalVM's HotSpot)
 #   ./build.sh native [flags...]  build the native image build/jui-spike
+#   ./build.sh bench [runs] [notes]  # notes: disk vault startup <200ms, idle footprint <80MB
 #   ./build.sh bench [runs]       measure startup, memory and size: native image, JVM,
 #                                 and the same app in Objective-C (baseline/spike.m)
 #   ./build.sh test [Class[#m]]   run the tests in src/test/java
@@ -94,7 +95,10 @@ native_demo() {
   name=$(example_name "$@")
   if [[ $# -gt 0 && "$1" != -* ]]; then shift; fi
   lower=$(echo "$name" | tr '[:upper:]' '[:lower:]')
-  native_image "jui.examples.${name}Demo" "build/${lower}-demo" > "build/${lower}-demo-build.log"
+  local heap_flags=()
+  # This demo holds filenames and one body; bound the default native heap to its workload.
+  if [[ "$name" == Notes ]]; then heap_flags=(-R:MaxHeapSize=33554432); fi
+  native_image "jui.examples.${name}Demo" "build/${lower}-demo" "${heap_flags[@]}" > "build/${lower}-demo-build.log"
   "build/${lower}-demo" "$@"
 }
 
@@ -178,8 +182,32 @@ idle_memory() {
   wait "$pid" 2> /dev/null || true
 }
 
+bench_notes() {
+  local runs=$1 vault out=build/bench-notes.txt memory=build/bench-notes-memory.txt
+  vault=$(python3 scripts/notes-fixture.py build/notes-vault)
+  compile
+  native_image jui.examples.NotesDemo build/notes-demo -R:MaxHeapSize=33554432 > build/notes-demo-build.log
+  build/notes-demo --vault="$vault" --quit-after-first-frame > /dev/null
+  : > "$out"
+  : > "$memory"
+  for ((i = 0; i < runs; i++)); do
+    build/notes-demo --vault="$vault" --quit-after-first-frame | grep '^BENCH ' >> "$out"
+    local pid footprint
+    build/notes-demo --vault="$vault" > build/notes-idle.log 2>&1 &
+    pid=$!
+    sleep 3
+    footprint=$(vmmap --summary "$pid" 2>/dev/null | awk '/^Physical footprint:/ {print $3}')
+    kill "$pid"
+    wait "$pid" 2>/dev/null || true
+    grep -q '^VAULT notes=10000$' build/notes-idle.log || { echo 'FAIL: vault not fully scanned' >&2; return 1; }
+    printf '%s\n' "$footprint" >> "$memory"
+  done
+  python3 scripts/notes-gate.py "$out" "$memory" "$runs"
+}
+
 bench() {
   local runs=${1:-10}
+  if [[ ${2:-} == notes ]]; then bench_notes "$runs"; return; fi
   build_native
   echo
   echo "Native image: $(du -h "$BIN" | cut -f1) ($(stat -f %z "$BIN") bytes)"

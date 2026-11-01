@@ -52,7 +52,16 @@ public final class NotesDemo {
     /** The one the menu bar's builders talk to; made in main, or by a test. */
     static NotesDemo demo;
 
-    final List<FilesDemo.Note> notes = new FilesDemo().notes;
+    final List<FilesDemo.Note> notes;
+    private String previewBody;
+
+    public NotesDemo() { notes = new FilesDemo().notes; }
+
+    NotesDemo(NotesVault vault) {
+        notes = new ArrayList<>(List.of(vault.selected));
+        previewBody = vault.body;
+        open(vault.selected);
+    }
     final ListState files = new ListState();
     final TextRef query = new TextRef("");
     final FloatRef sidebarWidth = new FloatRef(240);
@@ -194,7 +203,8 @@ public final class NotesDemo {
             } else {
                 column(c).grow(1).padding(16).clip().children(() -> {
                     text(c, n.title).bold().fontSize(18);
-                    richText(c, PREVIEW);
+                    if (previewBody == null) richText(c, PREVIEW);
+                    else text(c, previewBody);
                 });
             }
         });
@@ -237,13 +247,36 @@ public final class NotesDemo {
 
     /** The app's own menus, as App.menu declares them; {@code --print-window} prints the window's number. */
     public static void main(String[] args) {
-        demo = new NotesDemo();
+        long start = jui.ffi.Libc.processStartMicros(), mainAt = jui.ffi.Libc.nowMicros();
+        boolean quit = Arrays.asList(args).contains("--quit-after-first-frame") || Arrays.asList(args).contains("--bench");
+        NotesVault vault = null;
+        for (String arg : args) if (arg.startsWith("--vault="))
+            vault = NotesVault.open(java.nio.file.Path.of(arg.substring(8)));
+        NotesVault loaded = vault;
+        demo = vault == null ? new NotesDemo() : new NotesDemo(vault);
         App.menu(NotesDemo::menus);
         App.run(() -> {
+            long launched = jui.ffi.Libc.nowMicros();
             Window w = Window.open(WindowOptions.of("笔记").size(980, 640).content(demo::view));
+            long ready = jui.ffi.Libc.nowMicros();
             if (Arrays.asList(args).contains("--print-window")) {
                 System.out.println("window=" + w.windowNumber());
             }
+            w.onFirstFrame(done -> {
+                if (quit) {
+                    System.out.printf(Locale.ROOT, "BENCH main=%.3f launched=%.3f ready=%.3f committed=%.3f frame=%.3f%n",
+                            (mainAt - start) / 1000.0, (launched - start) / 1000.0, (ready - start) / 1000.0,
+                            (w.firstCommitMicros() - start) / 1000.0, (done - start) / 1000.0);
+                    System.exit(done > 0 ? 0 : 1);
+                }
+                if (loaded != null) Thread.startVirtualThread(() -> {
+                    List<FilesDemo.Note> names = loaded.scan();
+                    w.update(() -> {
+                        demo.notes.clear(); demo.notes.addAll(names); demo.filteredFor = null;
+                        System.out.println("VAULT notes=" + names.size());
+                    });
+                });
+            });
         });
     }
 
