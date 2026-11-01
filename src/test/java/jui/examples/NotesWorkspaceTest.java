@@ -135,6 +135,19 @@ public final class NotesWorkspaceTest {
         } finally { t.close(); }
     }
 
+    public void testInboxAndAllUseTheSameCatalogWithGroupMembership() {
+        NotesDemo d = new NotesDemo(); Tester t = workspace(d);
+        try {
+            t.frame(); t.click("group-0"); t.click("new-sheet");
+            var grouped = d.current();
+            t.click("filter-inbox"); t.advance(Duration.ofMillis(400));
+            Check.isTrue(t.hasText("10000 notes"), "inbox shows ungrouped catalog entries");
+            t.click("filter-all"); t.advance(Duration.ofMillis(400));
+            Check.isTrue(t.hasText("10001 notes"), "all also includes group notes");
+            Check.isTrue(grouped == d.current(), "filter changes do not discard the active tab");
+        } finally { t.close(); }
+    }
+
     public void testTenThousandCardsRemainVirtualizedAndScrollable() {
         NotesDemo d = new NotesDemo(); Tester t = workspace(d);
         try {

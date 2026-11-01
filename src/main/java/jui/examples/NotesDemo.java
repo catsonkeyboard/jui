@@ -101,14 +101,16 @@ public final class NotesDemo {
         String q = query.get();
         if (!q.equals(filteredFor) || selectedGroup != filteredGroup || filter != filteredFilter || notesVersion != shownVersion) {
             filteredFor = q; filteredGroup = selectedGroup; filteredFilter = filter; shownVersion = notesVersion;
-            if (q.isEmpty() && selectedGroup < 0) shown = notes;
+            if (q.isEmpty() && selectedGroup < 0 && (filter != 0 || noteGroups.isEmpty())) shown = notes;
             else {
                 shown = new ArrayList<>();
                 String needle = q.toLowerCase(Locale.ROOT);
+                boolean inspectGroups = selectedGroup >= 0 || filter == 0 && !noteGroups.isEmpty();
                 for (FilesDemo.Note n : notes) {
-                    Integer group = selectedGroup < 0 ? null : noteGroups.get(n);
-                    if ((selectedGroup < 0 || group != null && group.intValue() == selectedGroup)
-                            && n.lower.contains(needle)) shown.add(n);
+                    Integer group = inspectGroups ? noteGroups.get(n) : null;
+                    boolean included = selectedGroup >= 0 ? group != null && group.intValue() == selectedGroup
+                            : filter != 0 || group == null;
+                    if (included && n.lower.contains(needle)) shown.add(n);
                 }
             }
             countLabel = shown.size() + (shown.size() == 1 ? " note" : " notes");
