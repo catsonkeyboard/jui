@@ -11,7 +11,7 @@
 #   ./build.sh shellbench         measure full NotesDemo steady frames, allocation, typing and scroll
 #   ./build.sh listbench          time scroll frames of a 10000-row list in a native image (the M3 gate)
 #   ./build.sh ffi-check          call Objective-C methods of every struct shape, on the JVM and in a native image
-#   ./build.sh demo [Name] [args]        run an example on the JVM: Card (default), Counter, Todo, Files, Scroll, Form, TextArea, ContextMenu, EditorPrimitives or Notes
+#   ./build.sh demo [Name] [args]        run an example on the JVM: Card (default), Counter, Todo, Files, Scroll, Form, TextArea, ContextMenu, EditorPrimitives, Notes or Graph
 #   ./build.sh native-demo [Name] [args] build an example into build/<name>-demo and run it
 #
 # JUI_FRAME_STATS=1 logs frames over 8 ms; all logs every frame; a number is ms; off disables.
@@ -95,10 +95,12 @@ native_demo() {
   name=$(example_name "$@")
   if [[ $# -gt 0 && "$1" != -* ]]; then shift; fi
   lower=$(echo "$name" | tr '[:upper:]' '[:lower:]')
-  local heap_flags=()
   # This demo holds filenames and one body; bound the default native heap to its workload.
-  if [[ "$name" == Notes ]]; then heap_flags=(-R:MaxHeapSize=33554432); fi
-  native_image "jui.examples.${name}Demo" "build/${lower}-demo" "${heap_flags[@]}" > "build/${lower}-demo-build.log"
+  if [[ "$name" == Notes ]]; then
+    native_image "jui.examples.${name}Demo" "build/${lower}-demo" -R:MaxHeapSize=33554432
+  else
+    native_image "jui.examples.${name}Demo" "build/${lower}-demo"
+  fi > "build/${lower}-demo-build.log"
   "build/${lower}-demo" "$@"
 }
 
