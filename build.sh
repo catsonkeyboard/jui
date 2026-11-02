@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds and runs the macOS spike.
+# Gradle-backed build and run commands for the macOS examples and spike.
 #
 #   ./build.sh jvm [--bench]      compile, then run on the JVM (GraalVM's HotSpot)
 #   ./build.sh native [flags...]  build the native image build/jui-spike
@@ -38,39 +38,36 @@ find_graalvm() {
 }
 
 GRAALVM_HOME=$(find_graalvm)
+export GRAALVM_HOME
 JAVA="$GRAALVM_HOME/bin/java"
 BIN=build/jui-spike
 # The oldest macOS the binary and the shader run on. Left alone, native-image
 # targets the macOS that builds it, and the binary would not open on older ones.
-MACOS_MIN=${MACOS_MIN:-14.0}
+export MACOS_MIN=${MACOS_MIN:-14.0}
+mkdir -p build
 
-compile() {
-  rm -rf build/classes
-  mkdir -p build/classes/jui/shaders
-  cp src/main/resources/jui/shaders/shader.metal build/classes/jui/shaders/
-  # Precompile the shader, as MyGO does: no compiling at startup.
-  xcrun -sdk macosx metal -mmacosx-version-min="$MACOS_MIN" \
-    -o build/classes/jui/shaders/shader.metallib src/main/resources/jui/shaders/shader.metal
-  # NativeImageFeature compiles against GraalVM's own module (which --release
-  # cannot see); only native-image loads it.
-  "$GRAALVM_HOME/bin/javac" --add-modules org.graalvm.nativeimage \
-    -d build/classes $(find src/main/java -name '*.java')
+gradle_build() {
+  JAVA_HOME="$GRAALVM_HOME" ./gradlew --console=plain "$@"
 }
 
-# native_image MAIN OUT [flags...] builds the compiled classes into a native image.
+compile() {
+  gradle_build runtimeClasspath
+  CLASSPATH=$(cat build/runtime-classpath.txt)
+}
+
+# Keep arguments as an array, including values containing spaces.
 native_image() {
-  local main=$1 out=$2
+  local main=$1 out=$2 flags
   shift 2
-  "$GRAALVM_HOME/bin/native-image" \
-    --enable-native-access=ALL-UNNAMED \
-    --features=jui.ffi.NativeImageFeature \
-    --initialize-at-build-time=jui.ffi.Sigs,jui.ffi.Native \
-    -H:NativeLinkerOption=-mmacosx-version-min="$MACOS_MIN" \
-    -cp build/classes -o "$out" "$@" "$main"
+  flags="${out}.args"
+  mkdir -p "$(dirname "$flags")"
+  : > "$flags"
+  if [[ $# -gt 0 ]]; then printf '%s\0' "$@" > "$flags"; fi
+  gradle_build runtimeClasspath nativeCompile "-PnativeMain=$main" "-PnativeOutput=$out" "-PnativeArgsFile=$flags"
+  CLASSPATH=$(cat build/runtime-classpath.txt)
 }
 
 build_native() {
-  compile
   native_image jui.spike.Main "$BIN" "$@"
 }
 
@@ -90,12 +87,11 @@ demo() {
   local name
   name=$(example_name "$@")
   if [[ $# -gt 0 && "$1" != -* ]]; then shift; fi
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes "jui.examples.${name}Demo" "$@"
+  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp "$CLASSPATH" "jui.examples.${name}Demo" "$@"
 }
 
 # native_demo builds an example into build/<name>-demo and runs it.
 native_demo() {
-  compile
   local name lower
   name=$(example_name "$@")
   if [[ $# -gt 0 && "$1" != -* ]]; then shift; fi
@@ -114,7 +110,7 @@ alloc() {
   compile
   native_image jui.spike.AllocSpike build/alloc-spike > build/alloc-build.log
   build/alloc-spike
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.AllocSpike
+  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp "$CLASSPATH" jui.spike.AllocSpike
 }
 
 # listbench builds the scroll frame gate into a native image and runs it.
@@ -135,7 +131,7 @@ shellbench() {
   compile
   native_image jui.spike.ShellBench build/shell-bench > build/shell-bench-build.log
   build/shell-bench
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.ShellBench
+  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp "$CLASSPATH" jui.spike.ShellBench
 }
 
 # ffi_check calls Objective-C methods that take and return ranges, rects and
@@ -143,24 +139,23 @@ shellbench() {
 # unregistered would fail only at its first call.
 ffi_check() {
   compile
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.FfiCheck
+  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp "$CLASSPATH" jui.spike.FfiCheck
   native_image jui.spike.FfiCheck build/ffi-check > build/ffi-check-build.log
   build/ffi-check
 }
 
 run_jvm() {
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.Main "$@"
+  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp "$CLASSPATH" jui.spike.Main "$@"
 }
 
 # run_tests compiles the tests in src/test/java and runs them with the
 # zero-dependency runner; $1, if given, picks a class or a Class#method.
 run_tests() {
-  compile
-  rm -rf build/test-classes
-  mkdir -p build/test-classes
-  "$GRAALVM_HOME/bin/javac" -cp build/classes -d build/test-classes $(find src/test/java -name '*.java')
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -Djui.dev=true \
-    -cp build/classes:build/test-classes jui.testing.RunTests "$@"
+  if [[ $# -gt 0 ]]; then
+    gradle_build test "-PtestFilter=$1"
+  else
+    gradle_build test
+  fi
 }
 
 # median reads numbers, one a line.
@@ -230,11 +225,11 @@ bench() {
   echo "Memory: physical footprint after 3 s idle."
   printf "%-7s %10s %10s %10s %10s %10s %10s\n" mode "main()" launched window committed "1st frame" memory
   measure native "$runs" "$BIN"
-  measure jvm "$runs" "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.Main
+  measure jvm "$runs" "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp "$CLASSPATH" jui.spike.Main
   # The control: the same app in Objective-C, for what macOS itself costs.
   clang -fobjc-arc -O2 -mmacosx-version-min=14.0 -framework AppKit -framework Metal -framework QuartzCore \
     baseline/spike.m -o build/objc-spike
-  measure objc "$runs" build/objc-spike build/classes/jui/shaders/shader.metallib
+  measure objc "$runs" build/objc-spike build/resources/main/jui/shaders/shader.metallib
 }
 
 case "${1:-native}" in

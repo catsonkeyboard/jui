@@ -603,7 +603,7 @@ public final class NotesApp {
 | `jui.ffi` | 不变 | 已有 |
 | `jui.spike` | 保留作为启动基准，或改写成基于新 API 的示例 | 已有 |
 
-构建：继续用 `build.sh`，或者在 M1 时换成 Gradle，由实现者决定（第 11 节）。
+构建（2026-11-02）：使用 Gradle Wrapper 管理 Java、Metal、测试和 native image 的增量构建，`build.sh` 保留全部兼容命令及基准测量入口。
 
 ## 10. 分阶段交付
 
@@ -627,7 +627,7 @@ public final class NotesApp {
 - 节点池、状态表、命中测试列表的具体数据结构。
 - flexbox 算法的实现细节，只要和 CSS 规范的结果一致即可。
 - 主题的具体配色。
-- 是否换成 Gradle，以及测试框架选 JUnit 5 还是别的。
+- 构建已迁移至 Gradle；测试保留仓库自带的零依赖运行器。
 - 开发模式的开关方式。
 
 进度补记（2026-10-30）：[M5 计划](../plans/2026-10-29-m5-shell.md)完成 `split`、`modal`、`popover`、`tabs` 与应用菜单栏（`App.menu`），验收示例为 `NotesDemo`（6.15 的 Obsidian 式外壳，编辑区为只读富文本占位——完整编辑器不在 M5）。原生交互人工核对单列待办；不据此把 M6 标记为完成。

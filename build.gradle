@@ -1,0 +1,134 @@
+import groovy.json.JsonSlurper
+
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    mavenCentral()
+}
+
+tasks.named('wrapper', Wrapper) {
+    distributionSha256Sum = '2ab2958f2a1e51120c326cad6f385153bb11ee93b3c216c5fccebfdfbb7ec6cb'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+        vendor = JvmVendorSpec.matching('GraalVM')
+    }
+}
+
+def launcher = javaToolchains.launcherFor(java.toolchain)
+def graalHome = launcher.map { it.metadata.installationPath }
+def macosMin = providers.gradleProperty('macosMin')
+        .orElse(providers.environmentVariable('MACOS_MIN')).orElse('14.0')
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+tasks.named('compileJava', JavaCompile) {
+    // GraalVM's hosted API lives in its JDK, not in a Maven dependency.
+    options.compilerArgs.addAll(['--add-modules', 'org.graalvm.nativeimage'])
+}
+
+def metalCompiler = providers.exec {
+    commandLine 'xcrun', '-sdk', 'macosx', '--find', 'metal'
+}.standardOutput.asText.map { it.trim() }
+def metalSdk = providers.exec {
+    commandLine 'xcrun', '-sdk', 'macosx', '--show-sdk-path'
+}.standardOutput.asText.map { it.trim() }
+def metalOutput = layout.buildDirectory.file('generated/metal/jui/shaders/shader.metallib')
+def compileMetal = tasks.register('compileMetal', Exec) {
+    group = 'build'
+    description = 'Compile the Metal shader when its source, compiler or deployment target changes.'
+    inputs.file('src/main/resources/jui/shaders/shader.metal')
+    inputs.file(metalCompiler)
+    inputs.property('sdk', metalSdk)
+    inputs.property('macosMin', macosMin)
+    outputs.file(metalOutput)
+    doFirst {
+        metalOutput.get().asFile.parentFile.mkdirs()
+        commandLine 'xcrun', '-sdk', 'macosx', 'metal',
+                "-mmacosx-version-min=${macosMin.get()}", '-o', metalOutput.get().asFile,
+                file('src/main/resources/jui/shaders/shader.metal')
+    }
+}
+tasks.named('processResources', ProcessResources) {
+    dependsOn compileMetal
+    from(layout.buildDirectory.dir('generated/metal'))
+}
+
+def juiTest = tasks.register('juiTest', JavaExec) {
+    group = 'verification'
+    description = 'Run the existing zero-dependency tests; optionally -PtestFilter=Class#method.'
+    dependsOn tasks.named('testClasses')
+    javaLauncher = launcher
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'jui.testing.RunTests'
+    jvmArgs '-XstartOnFirstThread', '--enable-native-access=ALL-UNNAMED', '-Djui.dev=true'
+    systemProperty 'jui.testClasses', tasks.named('compileTestJava', JavaCompile)
+            .flatMap { it.destinationDirectory }.get().asFile.absolutePath
+    if (providers.gradleProperty('testFilter').isPresent()) {
+        args providers.gradleProperty('testFilter').get()
+    }
+    // GPU/window tests deliberately run on every invocation; compilation stays incremental.
+}
+tasks.named('test', Test) {
+    enabled = false
+    dependsOn juiTest
+}
+
+// The shell runner reads this generated file instead of duplicating dependency paths.
+tasks.register('runtimeClasspath') {
+    dependsOn tasks.named('classes')
+    def output = layout.buildDirectory.file('runtime-classpath.txt')
+    inputs.files(sourceSets.main.runtimeClasspath).withNormalizer(ClasspathNormalizer)
+    // The output contains paths: equal JAR contents at a new location still change it.
+    inputs.property('classpathPaths', providers.provider { sourceSets.main.runtimeClasspath.asPath })
+    outputs.file(output)
+    doLast { output.get().asFile.text = sourceSets.main.runtimeClasspath.asPath }
+}
+
+def nativeMain = providers.gradleProperty('nativeMain').orElse('jui.spike.Main')
+def nativeOutput = providers.gradleProperty('nativeOutput').orElse('build/jui-spike')
+def jsonNativeArgs = providers.gradleProperty('nativeArgsJson').map {
+    def parsed = new JsonSlurper().parseText(it)
+    if (!(parsed instanceof List) || parsed.any { !(it instanceof String) }) {
+        throw new GradleException('nativeArgsJson must be a JSON array of strings')
+    }
+    parsed
+}
+// NUL-separated shell argv needs no quoting rules or extra Python dependency.
+def nativeArgs = providers.gradleProperty('nativeArgsFile').map {
+    def content = file(it).getText('UTF-8')
+    content.isEmpty() ? [] : content.split('\u0000', -1).dropRight(1).toList()
+}.orElse(jsonNativeArgs).orElse([])
+// A distinct task history per binary lets benchmarks and demos reuse each other's builds.
+def nativeTask = tasks.register('native_' + nativeOutput.get().replaceAll('[^a-zA-Z0-9]', '_'), Exec) {
+    group = 'build'
+    dependsOn tasks.named('classes')
+    inputs.files(sourceSets.main.runtimeClasspath).withNormalizer(ClasspathNormalizer)
+    inputs.file(graalHome.map { it.file('release') })
+    inputs.property('graalHome', graalHome.map { it.asFile.absolutePath })
+    inputs.property('mainClass', nativeMain)
+    inputs.property('nativeImageArgs', nativeArgs)
+    inputs.property('macosMin', macosMin)
+    outputs.file(nativeOutput.map { file(it) })
+    doFirst {
+        def binary = file(nativeOutput.get())
+        binary.parentFile.mkdirs()
+        commandLine([graalHome.get().file('bin/native-image').asFile,
+                '--enable-native-access=ALL-UNNAMED',
+                '--features=jui.ffi.NativeImageFeature',
+                '--initialize-at-build-time=jui.ffi.Sigs,jui.ffi.Native',
+                "-H:NativeLinkerOption=-mmacosx-version-min=${macosMin.get()}",
+                '-cp', sourceSets.main.runtimeClasspath.asPath, '-o', binary.absolutePath]
+                + nativeArgs.get() + [nativeMain.get()])
+    }
+}
+tasks.register('nativeCompile') {
+    group = 'build'
+    description = 'Build a native image; supports -PnativeMain, -PnativeOutput and -PnativeArgsJson.'
+    dependsOn nativeTask
+}
