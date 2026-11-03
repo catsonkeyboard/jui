@@ -3,14 +3,19 @@ package jui.spike;
 import java.util.Arrays;
 
 import jui.ffi.Libc;
+import jui.platform.Platform;
+import jui.platform.PlatformWindow;
 import jui.platform.mac.MacApp;
 import jui.platform.mac.MacWindow;
+import jui.platform.win.WinApp;
+import jui.platform.win.WinWindow;
 import jui.render.Scene;
 import jui.text.TextEngine;
 import jui.text.TextLayout;
 
 /**
- * The macOS spike: a window drawn with Metal, called from Java through FFM.
+ * The spike: a window drawn with Metal on macOS or Direct3D 11 on Windows,
+ * called from Java through FFM.
  *
  * <p>With {@code --bench} it measures startup, from the process's start to
  * the GPU's end of its first frame (which shows at the display's next
@@ -26,29 +31,36 @@ public final class Main {
         long start = Libc.processStartMicros();
         long mainAt = Libc.nowMicros();
         boolean bench = Arrays.asList(args).contains("--bench");
-        boolean mainThread = MacApp.onMainThread();
+        boolean mainThread = Platform.windows() ? WinApp.onMainThread() : MacApp.onMainThread();
         if (!mainThread) {
             System.err.println("jui: main() is not on the main thread; on the JVM, pass -XstartOnFirstThread");
             System.exit(2);
         }
         long[] marks = new long[2];
-        MacApp.run(() -> {
+        Runnable run = () -> {
             marks[0] = Libc.nowMicros();
             TextEngine text = new TextEngine("zh-Hans");
-            MacWindow window = MacWindow.open("j-ui 验证原型", 760, 560, BACKGROUND, text, Main::paint);
+            PlatformWindow window = Platform.windows()
+                    ? WinWindow.open("j-ui 验证原型", 760, 560, BACKGROUND, text, Main::paint)
+                    : MacWindow.open("j-ui 验证原型", 760, 560, BACKGROUND, text, Main::paint);
             marks[1] = Libc.nowMicros();
             if (Arrays.asList(args).contains("--print-window")) {
                 System.out.println("window=" + window.windowNumber());
             }
             if (bench) {
                 window.onFirstFrame(done -> {
-                    report(start, mainAt, marks[0], marks[1], window.firstCommitMicros, done,
-                            window.renderer().libraryKind);
+                    String lib = Platform.windows() ? "D3D11" : ((MacWindow) window).renderer().libraryKind;
+                    report(start, mainAt, marks[0], marks[1], window.firstCommitMicros(), done, lib);
                     reportText(window, text);
                     System.exit(done > 0 ? 0 : 1);
                 });
             }
-        });
+        };
+        if (Platform.windows()) {
+            WinApp.run(run);
+        } else {
+            MacApp.run(run);
+        }
     }
 
     private static final String PARAGRAPH = "Java 通过 FFM 直接调用 Core Text：由它找字体，为缺字的字体回退"
@@ -127,16 +139,23 @@ public final class Main {
     }
 
     /** What the first frame's text cost, and what painting the same frame costs once its text is cached. */
-    private static void reportText(MacWindow window, TextEngine text) {
-        long cold = window.lastPaintNanos;
+    private static void reportText(PlatformWindow window, TextEngine text) {
+        long cold = 0;
         long warm = Long.MAX_VALUE;
-        for (int i = 0; i < 20; i++) {
-            warm = Math.min(warm, window.paint());
+        if (window instanceof MacWindow mw) {
+            cold = mw.lastPaintNanos;
+            for (int i = 0; i < 20; i++) {
+                warm = Math.min(warm, mw.paint());
+            }
+            System.out.printf("  text: %d instances, %d glyphs rasterized into the atlas%n",
+                    mw.instances(), text.rasterized);
+            System.out.printf("  first paint %.2f ms (layout %.2f ms, rasterizing %.2f ms); cached paint %.3f ms%n",
+                    cold / 1e6, text.layoutNanos / 1e6, text.rasterNanos / 1e6, warm / 1e6);
+        } else {
+            System.out.printf("  text: %d glyphs rasterized into the atlas%n", text.rasterized);
+            System.out.printf("  layout %.2f ms, rasterizing %.2f ms%n",
+                    text.layoutNanos / 1e6, text.rasterNanos / 1e6);
         }
-        System.out.printf("  text: %d instances, %d glyphs rasterized into the atlas%n",
-                window.instances(), text.rasterized);
-        System.out.printf("  first paint %.2f ms (layout %.2f ms, rasterizing %.2f ms); cached paint %.3f ms%n",
-                cold / 1e6, text.layoutNanos / 1e6, text.rasterNanos / 1e6, warm / 1e6);
         // What a downcall costs: pthread_main_np does almost nothing itself.
         int sink = 0;
         for (int i = 0; i < 200_000; i++) {

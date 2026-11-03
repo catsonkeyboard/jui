@@ -17,28 +17,41 @@
 #
 # JUI_FRAME_STATS=1 logs frames over 8 ms; all logs every frame; a number is ms; off disables.
 # Needs GraalVM 25 (GRAALVM_HOME, or found in ~/Library/Java/JavaVirtualMachines)
-# and Xcode's Metal compiler.
-set -euo pipefail
-cd "$(dirname "$0")"
+
+case "$(uname -s)" in
+  CYGWIN*|MINGW*|MSYS*|Windows_NT) WINDOWS=1 ;;
+  *) WINDOWS= ;;
+esac
+CP_SEP=":"; [[ -n "$WINDOWS" ]] && CP_SEP=";"
 
 find_graalvm() {
   if [[ -n "${GRAALVM_HOME:-}" ]]; then
     echo "$GRAALVM_HOME"
     return
   fi
-  for d in "$HOME"/Library/Java/JavaVirtualMachines/graalvm*25*/Contents/Home \
-           /Library/Java/JavaVirtualMachines/graalvm*25*/Contents/Home; do
-    if [[ -x "$d/bin/native-image" ]]; then
-      echo "$d"
-      return
-    fi
-  done
+  if [[ -n "$WINDOWS" ]]; then
+    for d in "$USERPROFILE"/jdk/graalvm-community-*; do
+      if [[ -x "$d/bin/javac.exe" ]]; then
+        echo "$d"
+        return
+      fi
+    done
+  else
+    for d in "$HOME"/Library/Java/JavaVirtualMachines/graalvm*25*/Contents/Home \
+             /Library/Java/JavaVirtualMachines/graalvm*25*/Contents/Home; do
+      if [[ -x "$d/bin/native-image" ]]; then
+        echo "$d"
+        return
+      fi
+    done
+  fi
   echo "GraalVM 25 not found: set GRAALVM_HOME" >&2
   exit 1
 }
 
 GRAALVM_HOME=$(find_graalvm)
 JAVA="$GRAALVM_HOME/bin/java"
+THREAD_FLAG=(); [[ -z "$WINDOWS" ]] && THREAD_FLAG=(-XstartOnFirstThread)
 BIN=build/jui-spike
 # The oldest macOS the binary and the shader run on. Left alone, native-image
 # targets the macOS that builds it, and the binary would not open on older ones.
@@ -48,9 +61,12 @@ compile() {
   rm -rf build/classes
   mkdir -p build/classes/jui/shaders
   cp src/main/resources/jui/shaders/shader.metal build/classes/jui/shaders/
-  # Precompile the shader, as MyGO does: no compiling at startup.
-  xcrun -sdk macosx metal -mmacosx-version-min="$MACOS_MIN" \
-    -o build/classes/jui/shaders/shader.metallib src/main/resources/jui/shaders/shader.metal
+  cp src/main/resources/jui/shaders/shader.hlsl build/classes/jui/shaders/
+  if [[ -z "$WINDOWS" ]]; then
+    # Precompile the shader, as MyGO does: no compiling at startup.
+    xcrun -sdk macosx metal -mmacosx-version-min="$MACOS_MIN" \
+      -o build/classes/jui/shaders/shader.metallib src/main/resources/jui/shaders/shader.metal
+  fi
   # NativeImageFeature compiles against GraalVM's own module (which --release
   # cannot see); only native-image loads it.
   "$GRAALVM_HOME/bin/javac" --add-modules org.graalvm.nativeimage \
@@ -61,11 +77,19 @@ compile() {
 native_image() {
   local main=$1 out=$2
   shift 2
-  "$GRAALVM_HOME/bin/native-image" \
+  local ni="$GRAALVM_HOME/bin/native-image"
+  [[ -n "$WINDOWS" ]] && ni="$GRAALVM_HOME/bin/native-image.cmd"
+  local macos_min=()
+  [[ -z "$WINDOWS" ]] && macos_min=(-H:NativeLinkerOption=-mmacosx-version-min="$MACOS_MIN")
+  # Build-time handles fold to direct calls on the mac; the Windows analyzer
+  # cannot fold them, so there the handles stay runtime-initialized.
+  local init=(--initialize-at-build-time=jui.ffi.Sigs,jui.ffi.Native)
+  [[ -n "$WINDOWS" ]] && init=()
+  "$ni" \
     --enable-native-access=ALL-UNNAMED \
     --features=jui.ffi.NativeImageFeature \
-    --initialize-at-build-time=jui.ffi.Sigs,jui.ffi.Native \
-    -H:NativeLinkerOption=-mmacosx-version-min="$MACOS_MIN" \
+    "${init[@]}" \
+    "${macos_min[@]}" \
     -cp build/classes -o "$out" "$@" "$main"
 }
 
@@ -90,7 +114,7 @@ demo() {
   local name
   name=$(example_name "$@")
   if [[ $# -gt 0 && "$1" != -* ]]; then shift; fi
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes "jui.examples.${name}Demo" "$@"
+  "$JAVA" "${THREAD_FLAG[@]}" --enable-native-access=ALL-UNNAMED -cp build/classes "jui.examples.${name}Demo" "$@"
 }
 
 # native_demo builds an example into build/<name>-demo and runs it.
@@ -100,9 +124,14 @@ native_demo() {
   name=$(example_name "$@")
   if [[ $# -gt 0 && "$1" != -* ]]; then shift; fi
   lower=$(echo "$name" | tr '[:upper:]' '[:lower:]')
-  # This demo holds filenames and one body; bound the default native heap to its workload.
+  # This demo holds filenames and one body; bound the default native heap to
+  # its workload. The mac shapes it within 32 MB; the DirectWrite layout
+  # churns some 150 MB a reshape for now, so Windows gets more room until
+  # the text backend's allocations come down.
   if [[ "$name" == Notes ]]; then
-    native_image "jui.examples.${name}Demo" "build/${lower}-demo" -R:MaxHeapSize=33554432
+    local heap=33554432
+    [[ -n "$WINDOWS" ]] && heap=268435456
+    native_image "jui.examples.${name}Demo" "build/${lower}-demo" -R:MaxHeapSize=$heap
   else
     native_image "jui.examples.${name}Demo" "build/${lower}-demo"
   fi > "build/${lower}-demo-build.log"
@@ -114,7 +143,7 @@ alloc() {
   compile
   native_image jui.spike.AllocSpike build/alloc-spike > build/alloc-build.log
   build/alloc-spike
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.AllocSpike
+  "$JAVA" "${THREAD_FLAG[@]}" --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.AllocSpike
 }
 
 # listbench builds the scroll frame gate into a native image and runs it.
@@ -135,7 +164,7 @@ shellbench() {
   compile
   native_image jui.spike.ShellBench build/shell-bench > build/shell-bench-build.log
   build/shell-bench
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.ShellBench
+  "$JAVA" "${THREAD_FLAG[@]}" --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.ShellBench
 }
 
 # ffi_check calls Objective-C methods that take and return ranges, rects and
@@ -143,24 +172,36 @@ shellbench() {
 # unregistered would fail only at its first call.
 ffi_check() {
   compile
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.FfiCheck
+  "$JAVA" "${THREAD_FLAG[@]}" --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.FfiCheck
   native_image jui.spike.FfiCheck build/ffi-check > build/ffi-check-build.log
   build/ffi-check
 }
 
 run_jvm() {
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.Main "$@"
+  "$JAVA" "${THREAD_FLAG[@]}" --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.Main "$@"
 }
 
 # run_tests compiles the tests in src/test/java and runs them with the
 # zero-dependency runner; $1, if given, picks a class or a Class#method.
+# On Windows the macOS-only tests are left out of the compile.
 run_tests() {
   compile
   rm -rf build/test-classes
   mkdir -p build/test-classes
-  "$GRAALVM_HOME/bin/javac" -cp build/classes -d build/test-classes $(find src/test/java -name '*.java')
-  "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -Djui.dev=true \
-    -cp build/classes:build/test-classes jui.testing.RunTests "$@"
+  local sources=()
+  if [[ -n "$WINDOWS" ]]; then
+    mapfile -t sources < <(find src/test/java \
+      -path src/test/java/jui/platform/mac -prune -o \
+      -path src/test/java/jui/render/metal -prune -o \
+      -path src/test/java/jui/ffi -prune -o \
+      -name AtlasGpuTest.java -prune -o \
+      -name '*.java' -print)
+  else
+    mapfile -t sources < <(find src/test/java -name '*.java')
+  fi
+  "$GRAALVM_HOME/bin/javac" -cp build/classes -d build/test-classes "${sources[@]}"
+  "$JAVA" "${THREAD_FLAG[@]}" --enable-native-access=ALL-UNNAMED -Djui.dev=true \
+    -cp "build/classes$CP_SEP""build/test-classes" jui.testing.RunTests "$@"
 }
 
 # median reads numbers, one a line.
@@ -230,7 +271,7 @@ bench() {
   echo "Memory: physical footprint after 3 s idle."
   printf "%-7s %10s %10s %10s %10s %10s %10s\n" mode "main()" launched window committed "1st frame" memory
   measure native "$runs" "$BIN"
-  measure jvm "$runs" "$JAVA" -XstartOnFirstThread --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.Main
+  measure jvm "$runs" "$JAVA" "${THREAD_FLAG[@]}" --enable-native-access=ALL-UNNAMED -cp build/classes jui.spike.Main
   # The control: the same app in Objective-C, for what macOS itself costs.
   clang -fobjc-arc -O2 -mmacosx-version-min=14.0 -framework AppKit -framework Metal -framework QuartzCore \
     baseline/spike.m -o build/objc-spike
