@@ -10,7 +10,7 @@ import static jui.ffi.ObjC.send;
  * MyGO writes through an NSPasteboardItem that provides its data lazily;
  * with plain text alone, the string is written as it is.
  */
-public final class MacPasteboard {
+public final class MacPasteboard implements jui.platform.Clipboard {
     /** NSPasteboardTypeString (public.utf8-plain-text), an AppKit NSString constant. */
     private static final long TYPE_STRING = ObjC.symbol(ObjC.framework("AppKit"), "NSPasteboardTypeString")
             .reinterpret(8).get(JAVA_LONG, 0);

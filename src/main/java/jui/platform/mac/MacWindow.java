@@ -24,105 +24,17 @@ import static jui.ffi.ObjC.send;
  * the view, after a resize too, and a frame is drawn then. Nothing draws
  * while nothing changes.
  */
-public final class MacWindow {
+public final class MacWindow implements jui.platform.PlatformWindow {
 
     /** Paints the boxes of a frame of {@code width} by {@code height} points. */
-    public interface Painter {
-        void paint(Scene scene, double width, double height);
-    }
+    public interface Painter extends jui.platform.PlatformWindow.Painter {}
 
     /**
      * What the window's view receives, as MyGO's surface sends it: points
      * from the view's top left, buttons 0 (primary) and 1 (secondary),
      * modifiers as {@link jui.ui.Mod} bits. On the main thread.
      */
-    public interface Input {
-        void pointerMove(double x, double y, int mods);
-
-        void pointerDown(double x, double y, int button, int clicks, int mods);
-
-        void pointerUp(double x, double y, int button, int mods);
-
-        void pointerLeave();
-
-        void keyDown(jui.ui.Key key, int mods, boolean repeat);
-        default boolean dispatchKeyDown(jui.ui.Key key, int mods, boolean repeat) { keyDown(key, mods, repeat); return false; }
-        default void keyUp(jui.ui.Key key, int mods) {}
-
-        void modifiersChanged(int mods);
-
-        void windowFocusChanged(boolean focused);
-
-        void appearanceChanged(boolean dark);
-
-        default void windowClosed() {}
-
-        /** The window's engine, for the app's menu bar to report a choice in; null for a view without one. */
-        default jui.ui.engine.Engine engine() {
-            return null;
-        }
-
-        void scroll(double x, double y, double dx, double dy, boolean precise, int mods);
-
-        // Text input, for the view's NSTextInputClient: ranges count UTF-16 units of the shown text
-        // (the committed text with the marked text in it); -1 is no range. Without a text input
-        // that takes text they do nothing.
-
-        /** Whether a text input takes text now: keys then go through the input method. */
-        default boolean textActive() {
-            return false;
-        }
-
-        /** Whether keys go through the input method; with it off, a key types its characters (as MyGO's NoInputMethod). */
-        default boolean textInputMethod() {
-            return true;
-        }
-
-        default boolean textComposing() {
-            return false;
-        }
-
-        default void textInsert(String s, int replStart, int replLength) {}
-
-        default void textMark(String s, int selStart, int selLength, int replStart, int replLength) {}
-
-        default void textUnmark() {}
-
-        default boolean textMarkedRange(int[] out) {
-            return false;
-        }
-
-        default boolean textSelectedRange(int[] out) {
-            return false;
-        }
-
-        default int textLength() {
-            return -1;
-        }
-
-        default String textIn(int start, int end) {
-            return null;
-        }
-
-        default String textIn(int start, int end, int[] actual) {
-            actual[0] = start;
-            actual[1] = end;
-            return textIn(start, end);
-        }
-
-        /** The rect of [start, end) in view points: x, y, width, height, and the end of the range it covers in out[4]. */
-        default boolean textRect(int start, int end, float[] out) {
-            return false;
-        }
-
-        /** The index nearest a point in view points, or -1. */
-        default int textIndexAt(double x, double y) {
-            return -1;
-        }
-
-        /** A command of the Edit menu. */
-        default void editCommand(jui.ui.EditCommand c) {}
-    }
+    public interface Input extends jui.platform.PlatformWindow.Input {}
 
     private static final long STYLE_TITLED = 1, STYLE_CLOSABLE = 2, STYLE_MINIATURIZABLE = 4, STYLE_RESIZABLE = 8;
     private static final long BACKING_BUFFERED = 2;
@@ -147,8 +59,8 @@ public final class MacWindow {
     private final long window;
     private final long view;
     private final MetalRenderer renderer;
-    private final Painter painter;
-    private final Input input;
+    private final jui.platform.PlatformWindow.Painter painter;
+    private final jui.platform.PlatformWindow.Input input;
     private final long delegate;
     /** The view's display link (macOS 14): runs while frames come one after another, paused otherwise. */
     private final long displayLink;
@@ -198,8 +110,13 @@ public final class MacWindow {
     /** Wall-clock microseconds at which the first frame was committed. */
     public long firstCommitMicros;
 
-    private MacWindow(String title, double width, double height, int background, TextEngine text, Painter painter,
-                      Input input) {
+    /** Wall-clock microseconds at which the first frame was committed. */
+    public long firstCommitMicros() {
+        return firstCommitMicros;
+    }
+
+    private MacWindow(String title, double width, double height, int background, TextEngine text,
+                      jui.platform.PlatformWindow.Painter painter, jui.platform.PlatformWindow.Input input) {
         this.painter = painter;
         this.input = input;
         this.background = background;
@@ -242,13 +159,13 @@ public final class MacWindow {
      * main thread once the app is ready.
      */
     public static MacWindow open(String title, double width, double height, int background, TextEngine text,
-                                 Painter painter) {
+                                 jui.platform.PlatformWindow.Painter painter) {
         return open(title, width, height, background, text, painter, null);
     }
 
     /** As {@link #open(String, double, double, int, TextEngine, Painter)}, with input sent to {@code input}. */
     public static MacWindow open(String title, double width, double height, int background, TextEngine text,
-                                 Painter painter, Input input) {
+                                 jui.platform.PlatformWindow.Painter painter, jui.platform.PlatformWindow.Input input) {
         long pool = ObjC.poolPush();
         try {
             return new MacWindow(title, width, height, background, text, painter, input);
@@ -308,7 +225,7 @@ public final class MacWindow {
     public void cancelMenu() { if (menus != null) menus.cancel(); }
 
     /** The window's engine, as its input gives it: for the app's menu bar. */
-    jui.ui.engine.Engine engine() {
+    public jui.ui.engine.Engine engine() {
         return input == null ? null : input.engine();
     }
 

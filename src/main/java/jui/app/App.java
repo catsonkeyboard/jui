@@ -1,6 +1,8 @@
 package jui.app;
 
+import jui.platform.Platform;
 import jui.platform.mac.MacApp;
+import jui.platform.win.WinApp;
 import jui.text.TextEngine;
 
 /** The application: run it from main, on the main thread. */
@@ -12,7 +14,11 @@ public final class App {
 
     /** Runs the app until it quits; whenReady runs once it has launched, to open windows. */
     public static void run(Runnable whenReady) {
-        MacApp.run(whenReady, menuBuild);
+        if (Platform.windows()) {
+            WinApp.run(whenReady, menuBuild);
+        } else {
+            MacApp.run(whenReady, menuBuild);
+        }
     }
 
 

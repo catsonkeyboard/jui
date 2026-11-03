@@ -1,7 +1,11 @@
 package jui.app;
 
+import jui.platform.Platform;
+import jui.platform.PlatformWindow;
 import jui.platform.mac.MacApp;
 import jui.platform.mac.MacWindow;
+import jui.platform.win.WinApp;
+import jui.platform.win.WinWindow;
 import jui.ui.Key;
 import jui.ui.Theme;
 import jui.ui.View;
@@ -9,28 +13,43 @@ import jui.ui.engine.Engine;
 
 /**
  * A window showing a view, drawn by the UI engine on the GPU. Frames are
- * drawn only when asked for: when AppKit displays the window (as it opens
- * or resizes), or when the view or the app invalidates it.
+ * drawn only when asked for: when the platform displays the window (as it
+ * opens or resizes), or when the view or the app invalidates it.
  */
-public final class Window implements MacWindow.Input, jui.ui.engine.Host {
+public final class Window implements PlatformWindow.Input, jui.ui.engine.Host {
     private final Engine engine;
+    private final PlatformWindow platform;
+    /** The macOS window, for the presentation observers Windows does without; null on Windows. */
     private final MacWindow mac;
+    private final jui.platform.win.WinWindow win;
+    private final jui.platform.Clipboard clipboard;
     private boolean closed;
     private long menuGeneration;
-    private final jui.platform.mac.MacPasteboard pasteboard = jui.platform.mac.MacPasteboard.general();
 
     private Window(WindowOptions options) {
         View view = options.content() != null ? options.content() : c -> {};
         Theme theme = Theme.light();
         engine = new Engine(App.text(), theme, this::invalidate);
         engine.setHost(this);
-        mac = MacWindow.open(options.title(), options.width(), options.height(), theme.background().rgba() >>> 8,
-                App.text(), (scene, w, h) -> {
-                    engine.buildAndLayout(view, (float) w, (float) h);
-                    engine.paint(scene);
-                    armTimer();
-                }, this);
-        appearanceChanged(mac.dark());
+        PlatformWindow.Painter painter = (scene, w, h) -> {
+            engine.buildAndLayout(view, (float) w, (float) h);
+            engine.paint(scene);
+            scheduleTimer();
+        };
+        if (Platform.windows()) {
+            win = WinWindow.open(options.title(), options.width(), options.height(),
+                    theme.background().rgba() >>> 8, App.text(), painter, this);
+            mac = null;
+            platform = win;
+            clipboard = jui.platform.win.WinClipboard.general();
+        } else {
+            mac = MacWindow.open(options.title(), options.width(), options.height(),
+                    theme.background().rgba() >>> 8, App.text(), painter, this);
+            win = null;
+            platform = mac;
+            clipboard = jui.platform.mac.MacPasteboard.general();
+        }
+        appearanceChanged(platform.dark());
     }
 
     /** Opens a window; call it on the main thread once the app is ready. */
@@ -41,16 +60,28 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
     /** Asks for a frame; any thread may call it. */
     public void invalidate() {
         if (closed) return;
-        if (!MacApp.onMainThread()) {
-            MacApp.post(this::invalidate);
+        if (!onMainThread()) {
+            post(this::invalidate);
             return;
         }
-        if (mac != null) {
-            mac.requestFrame();
+        if (platform != null) {
+            platform.requestFrame();
         }
     }
 
-    /** The window's engine, for the app's menu bar to report a choice in (MacWindow.Input). */
+    private static boolean onMainThread() {
+        return Platform.windows() ? WinApp.onMainThread() : MacApp.onMainThread();
+    }
+
+    private static void post(Runnable task) {
+        if (Platform.windows()) {
+            WinApp.post(task);
+        } else {
+            MacApp.post(task);
+        }
+    }
+
+    /** The window's engine, for the app's menu bar to report a choice in (PlatformWindow.Input). */
     @Override
     public jui.ui.engine.Engine engine() {
         return engine;
@@ -61,8 +92,8 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
      * call it, as threads that scan or index do when they are done.
      */
     public void update(Runnable change) {
-        if (!MacApp.onMainThread()) {
-            MacApp.post(() -> update(change));
+        if (!onMainThread()) {
+            post(() -> update(change));
             return;
         }
         change.run();
@@ -70,22 +101,22 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
     }
 
     /** Arms the window's timer for the wake-up the frame asked for (c.after), or cancels it. */
-    private void armTimer() {
-        if (mac == null) {
+    private void scheduleTimer() {
+        if (platform == null) {
             return;
         }
         long wake = engine.nextWake();
         if (wake == Long.MAX_VALUE) {
-            mac.cancelTimer();
+            platform.cancelTimer();
         } else {
-            mac.armTimer(wake - engine.now());
+            platform.armTimer(wake - engine.now());
         }
     }
 
     /** Closes the window. */
     public void close() {
         windowClosed();
-        mac.close();
+        platform.close();
     }
 
     @Override
@@ -98,17 +129,17 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
     @Override
     public void cancelMenu() {
         menuGeneration++;
-        if (mac != null) mac.cancelMenu();
+        if (platform != null) platform.cancelMenu();
     }
 
     @Override
     public void popupMenu(jui.platform.MenuModel model, float x, float y, java.util.function.IntConsumer result) {
         cancelMenu();
         long generation = menuGeneration;
-        MacApp.post(() -> {
+        post(() -> {
             if (closed || generation != menuGeneration) { result.accept(0); return; }
             try {
-                mac.popupMenu(model, x, y, choice -> result.accept(closed || generation != menuGeneration ? 0 : choice));
+                platform.popupMenu(model, x, y, choice -> result.accept(closed || generation != menuGeneration ? 0 : choice));
             } catch (RuntimeException | Error failure) {
                 result.accept(0);
                 throw failure;
@@ -161,7 +192,7 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
         engine.scroll((float) x, (float) y, (float) dx, (float) dy, precise, mods);
     }
 
-    // Text input, from the view's NSTextInputClient.
+    // Text input, from the platform's text input method.
 
     @Override
     public boolean textActive() {
@@ -234,32 +265,32 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
 
     @Override
     public String readClipboard() {
-        return pasteboard.read();
+        return clipboard.read();
     }
 
     @Override
     public void writeClipboard(String s) {
-        pasteboard.write(s);
+        clipboard.write(s);
     }
 
     @Override
     public void setCursor(jui.ui.Cursor c) {
-        if (mac != null) {
-            mac.setCursor(c);
+        if (platform != null) {
+            platform.setCursor(c);
         }
     }
 
     @Override
     public void discardMarkedText() {
-        if (mac != null) {
-            mac.discardMarkedText();
+        if (platform != null) {
+            platform.discardMarkedText();
         }
     }
 
     @Override
     public void textInputChanged() {
-        if (mac != null) {
-            mac.invalidateCharacterCoordinates();
+        if (platform != null) {
+            platform.invalidateCharacterCoordinates();
         }
     }
 
@@ -267,23 +298,37 @@ public final class Window implements MacWindow.Input, jui.ui.engine.Host {
     @Override
     public void appearanceChanged(boolean dark) {
         engine.setDark(dark);
-        if (mac != null) {
-            mac.setBackground(engine.theme().background().rgba() >>> 8);
+        if (platform != null) {
+            platform.setBackground(engine.theme().background().rgba() >>> 8);
         }
     }
 
-    /** Optional actual drawable presentation timestamps, in uptime seconds, on the UI thread. */
-    public void onPresented(MacWindow.FrameObserver done) { mac.onPresented(done); }
-    public long refreshNanos() { return mac.refreshNanos(); }
+    // Observability of the platform window, for tools and demos.
+
+    /** The platform's number for the window, as its own tools capture it by. */
+    public long windowNumber() {
+        return platform == null ? 0 : platform.windowNumber();
+    }
+
+    /** The display's refresh period in nanoseconds, as well as it is known. */
+    public long refreshNanos() {
+        return platform == null ? 16_666_667L : platform.refreshNanos();
+    }
 
     /** Wall-clock microseconds of the first CPU submission, for startup diagnostics. */
-    public long firstCommitMicros() { return mac.firstCommitMicros; }
+    public long firstCommitMicros() {
+        return platform == null ? 0 : platform.firstCommitMicros();
+    }
 
     /** Called on the UI thread when the first GPU frame completes (0 on failure). */
-    public void onFirstFrame(java.util.function.LongConsumer done) { mac.onFirstFrame(done); }
+    public void onFirstFrame(java.util.function.LongConsumer done) {
+        if (platform != null) {
+            platform.onFirstFrame(done);
+        }
+    }
 
-    /** The window server's number for the window, as screencapture -l takes: for tools. */
-    public long windowNumber() {
-        return mac.windowNumber();
+    /** Optional actual drawable presentation timestamps, in uptime seconds, on the UI thread; macOS only. */
+    public void onPresented(MacWindow.FrameObserver done) {
+        if (mac != null) mac.onPresented(done);
     }
 }
