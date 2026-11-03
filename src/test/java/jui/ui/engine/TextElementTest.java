@@ -14,8 +14,10 @@ public final class TextElementTest {
     final Engine e = new Engine(new TextEngine("zh-Hans"), Theme.light(), () -> {});
     static final String LONG = "Java 通过 FFM 直接调用 Core Text：由它找字体，为缺字的字体回退，再整形和断行。";
 
+    /** One line of the text these tests lay out, whose height the platform's
+     * fonts pick; measuring the text itself keeps clear of per-script metrics. */
     float oneLine() {
-        e.buildAndLayout(c -> column(c).children(() -> text(c, "一行").label("t")), 2000, 200);
+        e.buildAndLayout(c -> column(c).children(() -> text(c, LONG).label("t")), 2000, 200);
         return e.bounds("t").height();
     }
 

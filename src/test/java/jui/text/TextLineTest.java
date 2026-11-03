@@ -42,7 +42,9 @@ public final class TextLineTest {
         Check.isTrue(oversized == engine.layout("\n".repeat(200001), 13, 400, 100), "oversized layout still cached");
     }
 
+    /** Caret offsets are checked against Core Text itself, which only macOS has. */
     public void testCachedCaretOffsetsMatchCoreTextForLigaturesAndKerning() {
+        if (jui.platform.Platform.windows()) return;
         String source = "office AV é 中文";
         TextLayout layout = engine.layout(source, 13, 400, 0);
         long string = CoreText.string(source);
