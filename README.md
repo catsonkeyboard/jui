@@ -641,7 +641,9 @@ JUI_FRAME_STATS=all ./build.sh native-demo Notes --quit-after-first-frame
 
 ## 运行
 
-需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
+需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 或 `/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
+
+构建由 Gradle 9.4.1 管理，仓库自带 Wrapper，无须全局安装 Gradle。首次运行会下载并校验 Gradle 发行包，需要联网；此后没有新增依赖时可以离线构建。现有 `build.sh` 命令和参数保持可用。
 
 ```bash
 ./build.sh test            # 运行全部测试（零依赖运行器）；./build.sh test FlexLayoutTest 只跑一个类
@@ -656,6 +658,25 @@ JUI_FRAME_STATS=all ./build.sh native-demo Notes --quit-after-first-frame
 ./build.sh native          # 原型，编译成 native image：build/jui-spike
 ./build.sh bench 10        # 原型的启动时间、内存和体积（每种模式跑 10 次取中位数）
 ```
+
+也可以直接使用 Gradle（IDE 以 Gradle 项目导入）：
+
+```bash
+./gradlew build                     # 编译、打 JAR、运行现有零依赖测试
+./gradlew test                      # 每次执行测试，Java 编译保持增量
+./gradlew test '-PtestFilter=LongMapTest#testClear'
+./gradlew classes                   # 仅编译 Java、Metal 和复制资源
+./gradlew nativeCompile             # 原型 native image，输出 build/jui-spike
+./gradlew clean                     # 删除构建产物，下次完整构建
+python3 scripts/test-gradle-build.py # 在临时目录检查增量编译和测试退出码
+JUI_TEST_NATIVE=1 python3 scripts/test-gradle-build.py # 额外检查干净构建、native 别名复用和参数变化
+```
+
+直接调用 Wrapper 时，Gradle 的启动 JVM 由 `JAVA_HOME`/`PATH` 决定，需要 JDK 17+；项目编译工具链仍为 GraalVM 25。若已经设置 `GRAALVM_HOME`，可用 `JAVA_HOME="$GRAALVM_HOME" ./gradlew build` 启动；`build.sh` 会自动处理该设置。
+
+Java 使用 Gradle 增量编译；Metal 按源码、编译器、SDK 和 `MACOS_MIN`（默认 14.0）判断是否重建。native image 按 classpath、GraalVM、主类、部署目标和构建参数判断：无变化时复用二进制，有变化时重新执行整次 native-image 编译。重复运行 `./build.sh native-demo Notes` 仍会启动窗口，但跳过不需要的编译；`NotesMotion` 兼容命令复用同一产物。可在 `build/notes-demo-build.log` 查看 `UP-TO-DATE`。
+
+依赖在 `build.gradle` 的标准 `dependencies` 配置中声明，运行脚本从 Gradle 获取完整 runtime classpath。当前没有第三方 Java 依赖；GraalVM hosted API 来自 GraalVM 25 自带模块。Java 类和资源采用 Gradle 标准输出目录（`build/classes/java/main`、`build/resources/main`），可执行文件路径保持不变。最低系统版本也可直接传 `./gradlew classes -PmacosMin=14.0`。
 
 ## 代码结构
 
