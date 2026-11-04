@@ -70,7 +70,7 @@ public final class RunTests {
         try (Stream<Path> files = Files.walk(dir)) {
             return files.map(p -> dir.relativize(p).toString())
                     .filter(p -> p.endsWith("Test.class") && !p.contains("$"))
-                    .map(p -> p.substring(0, p.length() - ".class".length()).replace('\\', '.'))
+                    .map(p -> p.substring(0, p.length() - ".class".length()).replace('\\', '/').replace('/', '.'))
                     .toList();
         }
     }
