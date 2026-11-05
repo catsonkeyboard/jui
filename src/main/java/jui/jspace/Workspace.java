@@ -28,6 +28,11 @@ final class Workspace implements View {
         this.store = new jui.jspace.store.FileStore(publish);
         this.sidebar = new Sidebar(this);
         this.actions = new Actions(this);
+        for (Model.PaneState p : m.panes) {                     // startup (and a restored workspace) load at once
+            for (Model.TabState t : p.tabs) {
+                if (t.dir != null) store.scan(t.dir);
+            }
+        }
     }
 
     Model model() { return m; }
@@ -191,16 +196,16 @@ final class Workspace implements View {
         if (!m.status.note.isEmpty() && c.now() - m.status.noteAt > 5_000_000_000L) {
             m.status.note = "";
         }
-        row(c).height(24).fillWidth().padding(0, 12).background(pal.bar())
+        row(c).height(22).fillWidth().padding(0, 12).background(pal.bar())
                 .alignItems(jui.ui.Align.CENTER).label("statusbar").children(() -> {
             String left = t.rowCount + " 项";
             if (t.selected != null && t.selected.getFileName() != null) {
                 left += " · 已选 " + t.selected.getFileName();
             }
-            text(c, left).fontSize(11).textColor(c.theme().textMuted());
+            text(c, left).fontSize(10.5f).textColor(c.theme().textMuted());
             spacer(c).grow(1);
             if (!m.status.note.isEmpty()) {
-                text(c, m.status.note).fontSize(11).textColor(pal.warn());
+                text(c, m.status.note).fontSize(10.5f).textColor(pal.warn());
             }
         });
     }
@@ -257,29 +262,31 @@ final class Workspace implements View {
     private void toolbar(Context c) {
         JspaceTheme.Palette pal = JspaceTheme.palette(c);
         Model.TabState t = m.panes[m.active].tab();
-        row(c).height(44).fillWidth().padding(0, 12).gap(8)
+        row(c).height(40).fillWidth().padding(0, 10).gap(6)
                 .background(pal.bar()).alignItems(jui.ui.Align.CENTER).label("toolbar").children(() -> {
-            text(c, PaneTabs.title(t)).fontSize(14).bold().textColor(c.theme().text());
+            nav(c, "tb-back", !t.back.isEmpty(), "‹", () -> goBack(m.active));
+            nav(c, "tb-forward", !t.forward.isEmpty(), "›", () -> goForward(m.active));
+            text(c, PaneTabs.title(t)).fontSize(13).bold().textColor(c.theme().text());
             spacer(c).grow(1);
 
             segButton(c, "view-list", t.view == Model.ViewMode.LIST, "列表",
                     () -> t.view = Model.ViewMode.LIST);
             segButton(c, "view-grid", t.view == Model.ViewMode.GRID, "图标",
                     () -> t.view = Model.ViewMode.GRID);
-            box(c).width(8);
-            segButton(c, "layout-single", m.layout == Model.Layout.SINGLE, "单栏",
+            box(c).width(10);
+            segButton(c, "layout-single", m.layout == Model.Layout.SINGLE, "1×1",
                     () -> m.layout = Model.Layout.SINGLE);
-            segButton(c, "layout-double", m.layout == Model.Layout.DOUBLE, "双栏",
+            segButton(c, "layout-double", m.layout == Model.Layout.DOUBLE, "1×2",
                     () -> m.layout = Model.Layout.DOUBLE);
-            segButton(c, "layout-grid", m.layout == Model.Layout.GRID, "四栏",
+            segButton(c, "layout-grid", m.layout == Model.Layout.GRID, "2×2",
                     () -> m.layout = Model.Layout.GRID);
-            box(c).width(8);
+            box(c).width(10);
 
             sortPopover(c, t);
             plainButton(c, "toggle-sidebar", "边栏", this::toggleSidebar);
             plainButton(c, "open-settings", "设置", this::openSettings);
 
-            box(c).width(140).height(28).radius(6).border(1, c.theme().border()).label("search-box")
+            box(c).width(150).height(26).radius(6).border(1, c.theme().border()).label("search-box")
                     .padding(0, 6).children(() -> {
                         jui.ui.Element in = textInput(c, searchRef).placeholder("搜索");
                         in.bind(searchHandle);
@@ -288,12 +295,23 @@ final class Workspace implements View {
         });
     }
 
+    /** A small square arrow button, as a pane's ‹ › at the toolbar's left. */
+    private void nav(Context c, String id, boolean enabled, String glyph, Runnable go) {
+        jui.ui.Element b = buttonBase(c).width(26).height(26).radius(6).label(id)
+                .alignItems(jui.ui.Align.CENTER)
+                .children(() -> text(c, glyph).fontSize(15)
+                        .textColor(enabled ? c.theme().text() : c.theme().border()));
+        if (enabled && b.hovered()) b.background(JspaceTheme.palette(c).hover());
+        if (enabled && b.clicked()) go.run();
+    }
+
     private void segButton(Context c, String id, boolean on, String label, Runnable go) {
-        jui.ui.Element b = buttonBase(c).height(28).padding(0, 10).radius(6).label(id)
+        jui.ui.Element b = buttonBase(c).height(26).padding(0, 9).radius(6).label(id)
                 .alignItems(jui.ui.Align.CENTER)
                 .children(() -> text(c, label).fontSize(12)
                         .textColor(on ? c.theme().accent() : c.theme().textMuted()));
         if (on) b.background(c.theme().selection());
+        else if (b.hovered()) b.background(JspaceTheme.palette(c).hover());
         if (b.clicked()) {
             go.run();
             snapshot();
@@ -301,16 +319,18 @@ final class Workspace implements View {
     }
 
     private void plainButton(Context c, String id, String label, Runnable go) {
-        jui.ui.Element b = buttonBase(c).height(28).padding(0, 10).radius(6).label(id)
+        jui.ui.Element b = buttonBase(c).height(26).padding(0, 9).radius(6).label(id)
                 .alignItems(jui.ui.Align.CENTER)
-                .children(() -> text(c, label).fontSize(12).textColor(c.theme().text()));
+                .children(() -> text(c, label).fontSize(12).textColor(c.theme().textMuted()));
+        if (b.hovered()) b.background(JspaceTheme.palette(c).hover());
         if (b.clicked()) go.run();
     }
 
     private void sortPopover(Context c, Model.TabState t) {
-        jui.ui.Element anchor = buttonBase(c).height(28).padding(0, 10).radius(6).label("sort-menu")
+        jui.ui.Element anchor = buttonBase(c).height(26).padding(0, 9).radius(6).label("sort-menu")
                 .alignItems(jui.ui.Align.CENTER)
-                .children(() -> text(c, "排序").fontSize(12).textColor(c.theme().text()));
+                .children(() -> text(c, "排序").fontSize(12).textColor(c.theme().textMuted()));
+        if (anchor.hovered()) anchor.background(JspaceTheme.palette(c).hover());
         popover(c, anchor, sortOpen, () -> {
             column(c).padding(6, 4).gap(2).children(() -> {
                 sortItem(c, "按名称", Entries.SortKey.NAME, t);

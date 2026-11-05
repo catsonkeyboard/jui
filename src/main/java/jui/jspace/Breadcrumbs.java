@@ -22,25 +22,25 @@ final class Breadcrumbs {
         Model.TabState t = ws.model().panes[pane].tab();
         boolean active = ws.model().active == pane;
         JspaceTheme.Palette pal = JspaceTheme.palette(c);
-        row(c).height(28).padding(0, 6).gap(4).alignItems(Align.CENTER)
-                .radius(4)
-                .background(active ? Color.rgba(c.theme().accent().rgba() >>> 8, 0.08f) : pal.bar())
+        row(c).height(26).fillWidth().padding(0, 8).gap(2).alignItems(Align.CENTER)
+                .background(active ? Color.rgba(c.theme().accent().rgba() >>> 8, 0.12f) : pal.bar())
                 .label("crumbs-" + pane)
                 .children(() -> {
                     arrow(c, "nav-back", !t.back.isEmpty(), () -> ws.goBack(pane), "‹");
                     arrow(c, "nav-forward", !t.forward.isEmpty(), () -> ws.goForward(pane), "›");
                     home(c);
                     for (Path step : steps(t.dir)) {
-                        text(c, "›").fontSize(12).textColor(c.theme().textMuted());
+                        text(c, "›").fontSize(10).textColor(c.theme().textMuted());
                         crumb(c, step);
                     }
                 });
     }
 
     private void arrow(Context c, String id, boolean enabled, Runnable go, String glyph) {
-        Element b = buttonBase(c).width(20).height(20).radius(4).label(id).alignItems(Align.CENTER)
-                .children(() -> text(c, glyph).fontSize(14)
-                        .textColor(enabled ? c.theme().text() : c.theme().textMuted()));
+        Element b = buttonBase(c).width(18).height(18).radius(4).label(id).alignItems(Align.CENTER)
+                .children(() -> text(c, glyph).fontSize(13)
+                        .textColor(enabled ? c.theme().text() : c.theme().border()));
+        if (enabled && b.hovered()) b.background(JspaceTheme.palette(c).hover());
         if (enabled && b.clicked()) go.run();
     }
 
@@ -66,17 +66,23 @@ final class Breadcrumbs {
     }
 
     private void home(Context c) {
-        Element h = buttonBase(c).height(20).radius(4).label("crumb-home").alignItems(Align.CENTER)
-                .padding(0, 4)
-                .children(() -> text(c, "⌂").fontSize(14).textColor(c.theme().textMuted()));
+        Element h = buttonBase(c).width(20).height(18).radius(4).label("crumb-home")
+                .alignItems(Align.CENTER)
+                .children(() -> box(c).size(13, 13)
+                        .draw(FileIcons.mini("home", c.theme().textMuted())));
+        if (h.hovered()) h.background(JspaceTheme.palette(c).hover());
         if (h.clicked()) ws.navigate(pane, Path.of(System.getProperty("user.home")));
     }
 
     private void crumb(Context c, Path step) {
         String name = step.getFileName() == null ? "/" : step.getFileName().toString();
-        Element b = buttonBase(c).height(20).radius(4).padding(0, 4).alignItems(Align.CENTER)
+        Model.TabState t = ws.model().panes[pane].tab();
+        boolean here = step.equals(t.dir);                       // the level on screen reads strongest
+        Element b = buttonBase(c).height(18).radius(4).padding(0, 4).alignItems(Align.CENTER)
                 .label("crumb-" + name)
-                .children(() -> text(c, name).fontSize(12).textColor(c.theme().text()));
+                .children(() -> text(c, name).fontSize(11.5f)
+                        .textColor(here ? c.theme().text() : c.theme().textMuted()));
+        if (b.hovered()) b.background(JspaceTheme.palette(c).hover());
         if (b.clicked()) ws.navigate(pane, step);
     }
 }

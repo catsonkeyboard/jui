@@ -9,7 +9,7 @@ import java.nio.file.Path;
 public final class WorkspaceStateTest {
     public void testRoundTrip() throws IOException {
         Path f = Files.createTempFile("jspace-ws", ".properties");
-        jui.jspace.store.Settings st = new jui.jspace.store.Settings();
+        jui.jspace.store.Settings st = jui.jspace.store.Settings.forTests();
         Model m = new Model(st);
         m.layout = Model.Layout.DOUBLE;
         m.active = 1;
@@ -24,7 +24,7 @@ public final class WorkspaceStateTest {
     }
 
     public void testMissingFileLeavesTheModelAlone() {
-        Model m = new Model(new jui.jspace.store.Settings());
+        Model m = new Model(jui.jspace.store.Settings.forTests());
         Path home = m.panes[0].tab().dir;
         WorkspaceState.apply(m, Path.of("/no/such/workspace.properties"));
         Check.equal(home, m.panes[0].tab().dir);

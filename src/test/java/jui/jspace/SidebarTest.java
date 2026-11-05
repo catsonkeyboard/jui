@@ -7,7 +7,7 @@ import java.nio.file.Path;
 
 public final class SidebarTest {
     static Model model() {
-        Model m = new Model(new jui.jspace.store.Settings());
+        Model m = new Model(jui.jspace.store.Settings.forTests());
         m.layout = Model.Layout.SINGLE;
         return m;
     }

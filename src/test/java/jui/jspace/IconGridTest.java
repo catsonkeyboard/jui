@@ -10,7 +10,7 @@ import java.nio.file.Path;
 public final class IconGridTest {
     static Model grid(Path dir) throws IOException {
         for (int i = 0; i < 7; i++) Files.writeString(dir.resolve("f" + i + ".txt"), "x");
-        jui.jspace.store.Settings st = new jui.jspace.store.Settings();
+        jui.jspace.store.Settings st = jui.jspace.store.Settings.forTests();
         Model m = new Model(st);
         m.layout = Model.Layout.SINGLE;
         m.panes[0].tabs.clear();

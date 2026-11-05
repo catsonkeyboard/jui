@@ -24,7 +24,7 @@ final class FileList {
         FileStore.DirSnap snap = ws.store().snap(t.dir);
         List<Entries.Row> rows = Entries.view(snap.entries(), ws.store()::snap, t.sort,
                 ws.settings().foldersFirst, t.search, ws.settings().showHidden, t.expanded);
-        float rowH = ws.settings().density == jui.jspace.store.Settings.Density.COMPACT ? 24 : 28;
+        float rowH = ws.settings().density == jui.jspace.store.Settings.Density.COMPACT ? 22 : 26;
         t.rowCount = rows.size();
         t.listRows.keys(i -> rows.get(i).entry().path().hashCode());
 
@@ -37,22 +37,22 @@ final class FileList {
 
     private void header(Context c, Model.TabState t) {
         JspaceTheme.Palette pal = JspaceTheme.palette(c);
-        row(c).height(24).fillWidth().background(pal.bar()).children(() -> {
+        row(c).height(22).fillWidth().background(pal.bar()).children(() -> {
             head(c, "名称", Entries.SortKey.NAME, "sort-name", t).grow(1);
-            head(c, "修改日期", Entries.SortKey.DATE, "sort-date", t).width(110);
+            head(c, "修改日期", Entries.SortKey.DATE, "sort-date", t).width(112);
             head(c, "大小", Entries.SortKey.SIZE, "sort-size", t).width(72);
-            head(c, "种类", Entries.SortKey.KIND, "sort-kind", t).width(100);
+            head(c, "种类", Entries.SortKey.KIND, "sort-kind", t).width(104);
         });
     }
 
     private jui.ui.Element head(Context c, String label, Entries.SortKey key, String id, Model.TabState t) {
         boolean on = t.sort.key == key;
-        jui.ui.Element b = buttonBase(c).height(24).fillWidth().padding(0, 6).label(id)
+        jui.ui.Element b = buttonBase(c).height(22).fillWidth().padding(0, 6).label(id)
                 .alignItems(jui.ui.Align.CENTER)
                 .children(() -> row(c).gap(4).alignItems(jui.ui.Align.CENTER).children(() -> {
-                    text(c, label).fontSize(11)
+                    text(c, label).fontSize(10.5f)
                             .textColor(on ? c.theme().accent() : c.theme().textMuted());
-                    if (on) text(c, t.sort.asc ? "∧" : "∨").fontSize(10).textColor(c.theme().accent());
+                    if (on) text(c, t.sort.asc ? "∧" : "∨").fontSize(9).textColor(c.theme().accent());
                 }));
         if (b.clicked()) {
             if (on) t.sort.asc = !t.sort.asc; else { t.sort.key = key; t.sort.asc = true; }
@@ -63,25 +63,27 @@ final class FileList {
     private void listRow(Context c, Model.TabState t, Entries.Row r, int i, float rowH) {
         FileEntry e = r.entry();
         boolean sel = e.path().equals(t.selected);
-        jui.ui.Element rowBtn = buttonBase(c).fillWidth().height(rowH).padding(0, 6)
+        jui.ui.Element rowBtn = buttonBase(c).fillWidth().height(rowH).padding(0, 8)
                 .label("row-" + e.name())
-                .alignItems(jui.ui.Align.CENTER)
+                .justify(jui.ui.Justify.CENTER)
                 .children(() -> row(c).gap(4).alignItems(jui.ui.Align.CENTER).children(() -> {
                     box(c).width(r.depth() * 16);
                     if (e.dir()) disclosure(c, t, e);
-                    else box(c).width(14);
-                    box(c).width(18).height(18).draw(FileIcons.draw(e.icon(), false));
+                    else box(c).width(12);
+                    box(c).width(16).height(16).draw(FileIcons.draw(e.icon(), false));
                     text(c, Texts.fit(c, e.name(), 12, 400,
-                                    Math.max(60, t.paneWidth - r.depth() * 16 - 320)))
+                                    Math.max(60, t.paneWidth - r.depth() * 16 - 310)))
                             .fontSize(12).textColor(sel ? c.theme().accentText() : c.theme().text());
                     spacer(c).grow(1);
                     text(c, RelativeDate.format(e.mtimeMillis(), ZonedDateTime.now()))
-                            .fontSize(11).textColor(c.theme().textMuted()).width(104);
-                    text(c, size(e)).fontSize(11).textColor(c.theme().textMuted()).width(66);
-                    box(c).width(96).alignItems(jui.ui.Align.END).children(() ->
+                            .fontSize(11).textColor(c.theme().textMuted()).width(106);
+                    box(c).width(66).alignItems(jui.ui.Align.END).children(() ->
+                            text(c, size(e)).fontSize(11).textColor(c.theme().textMuted()));
+                    box(c).width(98).children(() ->
                             text(c, e.kind()).fontSize(11).textColor(c.theme().textMuted()));
                 }));
         if (sel) rowBtn.background(c.theme().selection());
+        else if (rowBtn.hovered()) rowBtn.background(JspaceTheme.palette(c).hover());
         else if (i % 2 == 1) rowBtn.background(JspaceTheme.palette(c).zebra());
         if (rowBtn.clicked()) t.selected = e.path();
         if (rowBtn.doubleClicked()) ws.openEntry(pane, e);
@@ -107,9 +109,9 @@ final class FileList {
 
     private void disclosure(Context c, Model.TabState t, FileEntry e) {
         boolean open = t.expanded.contains(e.path());
-        jui.ui.Element d = buttonBase(c).width(14).height(rowH(t)).label("disc-" + e.name())
+        jui.ui.Element d = buttonBase(c).width(12).height(rowH(t)).label("disc-" + e.name())
                 .alignItems(jui.ui.Align.CENTER)
-                .children(() -> text(c, open ? "▾" : "▸").fontSize(10).textColor(c.theme().textMuted()));
+                .children(() -> text(c, open ? "▾" : "▸").fontSize(9).textColor(c.theme().textMuted()));
         if (d.clicked()) {
             if (open) t.expanded.remove(e.path());
             else { t.expanded.add(e.path()); ws.store().scan(e.path()); }
@@ -117,7 +119,7 @@ final class FileList {
     }
 
     private float rowH(Model.TabState t) {
-        return ws.settings().density == jui.jspace.store.Settings.Density.COMPACT ? 24 : 28;
+        return ws.settings().density == jui.jspace.store.Settings.Density.COMPACT ? 22 : 26;
     }
 
     static String size(FileEntry e) {

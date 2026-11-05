@@ -22,15 +22,15 @@ final class JspaceTheme {
 
     /** Colors beyond the Theme record's roles, per appearance. */
     record Palette(Color sidebar, Color sidebarHover, Color pill, Color pillSel,
-                   Color bar, Color panel, Color warn, Color zebra) {}
+                   Color bar, Color panel, Color warn, Color zebra, Color hover) {}
 
     private static final Palette LIGHT_X = new Palette(Color.rgb(0xF2F2F4), Color.rgb(0xE6E6EA),
-            Color.rgb(0xEDEDF0), Color.rgb(0xD9E4FF), Color.rgb(0xF7F7F9), Color.rgb(0xFFFFFF),
-            Color.rgb(0xC66100), Color.rgb(0xF7F7F9));
+            Color.rgb(0xE9E9EC), Color.rgb(0xD6E4FF), Color.rgb(0xF6F6F8), Color.rgb(0xFFFFFF),
+            Color.rgb(0xC66100), Color.rgb(0xF7F7F9), Color.rgba(0x000000, 0.05f));
 
     private static final Palette DARK_X = new Palette(Color.rgb(0x1A1A1C), Color.rgb(0x2C2C30),
-            Color.rgb(0x38383D), Color.rgb(0x2E4A66), Color.rgb(0x2E2E32), Color.rgb(0x232326),
-            Color.rgb(0xFFB340), Color.rgb(0x27272B));
+            Color.rgb(0x38383D), Color.rgb(0x2E4E75), Color.rgb(0x2A2A2E), Color.rgb(0x232326),
+            Color.rgb(0xFFB340), Color.rgb(0x27272B), Color.rgba(0xFFFFFF, 0.06f));
 
     static Palette palette(Context c) {
         return c.theme().isDark() ? DARK_X : LIGHT_X;

@@ -19,7 +19,7 @@ public final class FileListTest {
     }
 
     static Model wired(Path dir) {
-        jui.jspace.store.Settings st = new jui.jspace.store.Settings();
+        jui.jspace.store.Settings st = jui.jspace.store.Settings.forTests();
         Model m = new Model(st);
         m.layout = Model.Layout.SINGLE;
         m.panes[0].tabs.clear();

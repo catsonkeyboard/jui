@@ -10,7 +10,7 @@ import static jui.ui.Ui.*;
 
 /** The pane's grid view: fixed cells in wrapping rows, virtualized row by row. */
 final class IconGrid {
-    private static final float CELL_W = 96, CELL_H = 116;
+    private static final float CELL_W = 92, CELL_H = 108;
     private final Workspace ws;
     private final int pane;
 
@@ -43,14 +43,15 @@ final class IconGrid {
 
     private void cell(Context c, Model.TabState t, FileEntry e) {
         boolean sel = e.path().equals(t.selected);
-        jui.ui.Element cellBtn = buttonBase(c).width(CELL_W).height(CELL_H).padding(6, 4)
+        jui.ui.Element cellBtn = buttonBase(c).width(CELL_W).height(CELL_H).padding(8, 4)
                 .label("cell-" + e.name())
-                .children(() -> column(c).gap(6).alignItems(jui.ui.Align.CENTER).children(() -> {
-                    box(c).size(48, 48).draw(FileIcons.draw(e.icon(), true));
-                    text(c, Texts.fit(c, e.name(), 11, 400, CELL_W - 8)).fontSize(11)
+                .children(() -> column(c).gap(5).alignItems(jui.ui.Align.CENTER).children(() -> {
+                    box(c).size(44, 44).draw(FileIcons.draw(e.icon(), true));
+                    text(c, Texts.fit(c, e.name(), 11, 400, CELL_W - 10)).fontSize(11)
                             .textColor(sel ? c.theme().accent() : c.theme().text());
                 }));
-        if (sel) cellBtn.border(1.5f, c.theme().accent()).radius(8);
+        if (sel) cellBtn.border(1.5f, c.theme().accent()).radius(10);
+        else if (cellBtn.hovered()) cellBtn.background(JspaceTheme.palette(c).hover());
         if (cellBtn.clicked()) t.selected = e.path();
         if (cellBtn.doubleClicked()) ws.openEntry(pane, e);
     }

@@ -17,9 +17,10 @@ final class FilePane {
         JspaceTheme.Palette p = JspaceTheme.palette(c);
         boolean active = m.active == pane;
         // A button base as the root: hovering or clicking its empty parts makes the pane active.
-        jui.ui.Element root = buttonBase(c).fill().border(1.5f, active ? c.theme().accent() : p.panel())
-                .radius(6).clip().background(p.panel()).label("pane-" + pane + "-frame")
-                .padding(4).children(() -> {
+        // Panes sit flush like QSpace's: no card look, the active one carries a thin accent line.
+        jui.ui.Element root = buttonBase(c).fill().clip().background(p.panel())
+                .label("pane-" + pane + "-frame")
+                .children(() -> {
                     column(c).fill().children(() -> {
                         new PaneTabs(ws, pane).build(c);
                         new Breadcrumbs(ws, pane).build(c);
@@ -27,6 +28,7 @@ final class FilePane {
                         content(c);
                     });
                 });
+        if (active) root.border(1, c.theme().accent());
         if (root.hovered() || root.clicked()) m.active = pane;
     }
 
@@ -103,17 +105,22 @@ final class FilePane {
 
     private void centerNote(Context c, String s) {
         box(c).grow(1).fillWidth().children(() ->
-                text(c, s).textColor(c.theme().textMuted()));
+                column(c).grow(1).fillWidth().alignItems(jui.ui.Align.CENTER).children(() -> {
+                    spacer(c);
+                    text(c, s).fontSize(12).textColor(c.theme().textMuted());
+                    spacer(c);
+                }));
     }
 
     /** The one-shot inline rename field, right under the breadcrumbs. */
     private void renameRow(Context c) {
         Model.TabState t = ws.model().panes[pane].tab();
         if (t.renameNew == null) return;
-        box(c).height(30).fillWidth().padding(0, 4).children(() -> {
-            jui.ui.Element in = textInput(c, ws.renameRef).label("rename-input").autoFocus();
-            in.setTextSelection(0, ws.renameRef.get().length());
-            if (in.submitted()) ws.actions().submitRename(pane, ws.renameRef.get());
-        });
+        box(c).height(28).fillWidth().padding(0, 8).background(JspaceTheme.palette(c).bar())
+                .children(() -> {
+                    jui.ui.Element in = textInput(c, ws.renameRef).label("rename-input").autoFocus();
+                    in.setTextSelection(0, ws.renameRef.get().length());
+                    if (in.submitted()) ws.actions().submitRename(pane, ws.renameRef.get());
+                });
     }
 }

@@ -32,6 +32,13 @@ public final class Settings {
 
     public static Settings load() { return load(defaultFile()); }
 
+    /** Defaults with the workspace file left alone, for tests that navigate around. */
+    public static Settings forTests() {
+        Settings s = new Settings();
+        s.restoreWorkspace = false;
+        return s;
+    }
+
     public static Settings load(Path file) {
         Settings s = new Settings();
         Properties p = new Properties();

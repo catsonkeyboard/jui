@@ -15,7 +15,7 @@ public final class KeysTest {
         Files.createDirectories(d.resolve("a/b"));
         Files.writeString(d.resolve("a/b/leaf.txt"), "x");
         Files.writeString(d.resolve("top.txt"), "x");
-        jui.jspace.store.Settings st = new jui.jspace.store.Settings();
+        jui.jspace.store.Settings st = jui.jspace.store.Settings.forTests();
         Model m = new Model(st);
         m.layout = Model.Layout.SINGLE;
         m.panes[0].tabs.clear();

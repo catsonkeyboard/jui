@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class SettingsWindowTest {
     public void testNavAndGeneralPage() {
         SettingsWindow sw = new SettingsWindow(
-                new Workspace(new Model(new jui.jspace.store.Settings())),
+                new Workspace(new Model(jui.jspace.store.Settings.forTests())),
                 () -> {});
         Tester tt = Tester.of(sw.view(), 560, 480);
         for (String id : new String[] { "set-通用", "set-外观", "set-面板", "set-标签页", "set-书签",

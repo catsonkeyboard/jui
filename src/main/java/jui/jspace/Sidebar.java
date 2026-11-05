@@ -88,8 +88,8 @@ final class Sidebar {
     }
 
     private void group(Context c, String title) {
-        text(c, title).fontSize(11).bold().textColor(c.theme().textMuted())
-                .padding(10, 6, 2, 6).label("group-" + title);
+        text(c, title).fontSize(10.5f).bold().textColor(c.theme().textMuted())
+                .padding(12, 6, 3, 6).label("group-" + title);
     }
 
     private void note(Context c, String s) {
@@ -98,22 +98,22 @@ final class Sidebar {
 
     private void item(Context c, Item it) {
         JspaceTheme.Palette pal = JspaceTheme.palette(c);
-        jui.ui.Element row = buttonBase(c).fillWidth().height(26).radius(6).label("side-" + it.label())
-                .alignItems(jui.ui.Align.CENTER)
+        jui.ui.Element row = buttonBase(c).fillWidth().height(27).radius(6).label("side-" + it.label())
+                .padding(0, 6).justify(jui.ui.Justify.CENTER)
                 .children(() -> row(c).gap(8).alignItems(jui.ui.Align.CENTER).children(() -> {
                     if (it.icon() != null) {
-                        box(c).size(16, 16).draw(FileIcons.mini(it.icon(), c.theme().textMuted()));
+                        box(c).size(15, 15).draw(FileIcons.mini(it.icon(), c.theme().textMuted()));
                     } else {
-                        box(c).size(16, 16);
+                        box(c).size(15, 15);
                     }
-                    text(c, it.label()).fontSize(13).textColor(c.theme().text());
+                    text(c, it.label()).fontSize(12.5f).textColor(c.theme().text());
                 }));
         if (row.hovered()) row.background(pal.sidebarHover());
         if (row.clicked() && it.path() != null) ws.navigate(ws.model().active, it.path());
     }
 
     private void tagRow(Context c, String name, Color dot) {
-        row(c).height(24).fillWidth().padding(0, 6).gap(8).alignItems(jui.ui.Align.CENTER)
+        row(c).height(25).fillWidth().padding(0, 14).gap(8).alignItems(jui.ui.Align.CENTER)
                 .label("side-" + name)
                 .children(() -> {
                     box(c).size(10, 10).radius(5).background(dot);

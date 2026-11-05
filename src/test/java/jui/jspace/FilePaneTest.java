@@ -9,7 +9,7 @@ public final class FilePaneTest {
     static final Path HOME = Path.of(System.getProperty("user.home"));
 
     static Model model() {
-        Model m = new Model(new jui.jspace.store.Settings());
+        Model m = new Model(jui.jspace.store.Settings.forTests());
         m.panes[0].tabs.clear();
         m.panes[0].tabs.add(new Model.TabState(HOME));
         m.panes[0].tabs.add(new Model.TabState(HOME.resolve("Downloads")));

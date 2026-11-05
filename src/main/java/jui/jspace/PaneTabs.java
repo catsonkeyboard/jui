@@ -18,13 +18,15 @@ final class PaneTabs {
     void build(Context c) {
         Model.PaneState p = ws.model().panes[pane];
         JspaceTheme.Palette pal = JspaceTheme.palette(c);
-        row(c).gap(4).padding(2, 2, 0, 2).children(() -> {
+        row(c).height(32).fillWidth().padding(3, 6).gap(4)
+                .background(pal.bar()).alignItems(Align.CENTER).children(() -> {
             for (int i = 0; i < p.tabs.size(); i++) {
                 pill(c, p, i, pal);
             }
             Element plus = buttonBase(c).width(24).height(24).radius(6).label("new-tab")
                     .alignItems(Align.CENTER)
                     .children(() -> text(c, "+").fontSize(13).textColor(c.theme().textMuted()));
+            if (plus.hovered()) plus.background(pal.hover());
             if (plus.clicked()) ws.newTab(pane);
         });
     }
@@ -32,19 +34,22 @@ final class PaneTabs {
     private void pill(Context c, Model.PaneState p, int i, JspaceTheme.Palette pal) {
         boolean sel = i == p.current;
         Model.TabState t = p.tabs.get(i);
-        Element pill = buttonBase(c).height(26).padding(0, 10).radius(6)
-                .background(sel ? pal.pillSel() : pal.pill()).label("tab-" + i)
+        Element pill = buttonBase(c).height(24).padding(0, 9).radius(6).label("tab-" + i)
                 .alignItems(Align.CENTER)
-                .children(() -> row(c).gap(6).alignItems(Align.CENTER).children(() -> {
-                    text(c, title(t)).fontSize(12)
+                .children(() -> row(c).gap(5).alignItems(Align.CENTER).children(() -> {
+                    box(c).size(13, 13).draw(FileIcons.draw(jui.jspace.store.FileEntry.IconType.FOLDER, false));
+                    text(c, title(t)).fontSize(11)
                             .textColor(sel ? c.theme().text() : c.theme().textMuted());
                     if (sel && p.tabs.size() > 1) {
-                        Element x = buttonBase(c).width(16).height(16).label("tab-" + i + "-close")
+                        Element x = buttonBase(c).width(14).height(14).label("tab-" + i + "-close")
                                 .alignItems(Align.CENTER)
-                                .children(() -> text(c, "✕").fontSize(10).textColor(c.theme().textMuted()));
+                                .children(() -> text(c, "✕").fontSize(9).textColor(c.theme().textMuted()));
+                        if (x.hovered()) x.background(pal.hover());
                         if (x.clicked()) ws.closeTab(pane);
                     }
                 }));
+        if (sel) pill.background(pal.pillSel());
+        else if (pill.hovered()) pill.background(pal.pill());
         if (pill.clicked()) p.current = i;
     }
 
