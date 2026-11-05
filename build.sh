@@ -115,20 +115,30 @@ example_name() {
   fi
 }
 
+# demo_class prints an example's main class: jui.examples.<Name>Demo, or
+# jui.jspace.JspaceApp for QSpace.
+demo_class() {
+  local name
+  name=$(example_name "$@")
+  if [[ "$name" == QSpace ]]; then echo "jui.jspace.JspaceApp"; else echo "jui.examples.${name}Demo"; fi
+}
+
 # demo runs an example on the JVM.
 demo() {
   compile
-  local name
+  local name cls
   name=$(example_name "$@")
+  cls=$(demo_class "$@")
   if [[ $# -gt 0 && "$1" != -* ]]; then shift; fi
-  "$JAVA" "${THREAD_FLAG[@]}" --enable-native-access=ALL-UNNAMED -cp "${CLASSPATH:-build/classes}" "jui.examples.${name}Demo" "$@"
+  "$JAVA" "${THREAD_FLAG[@]}" --enable-native-access=ALL-UNNAMED -cp "${CLASSPATH:-build/classes}" "$cls" "$@"
 }
 
 # native_demo builds an example into build/<name>-demo and runs it.
 native_demo() {
   compile
-  local name lower
+  local name lower cls
   name=$(example_name "$@")
+  cls=$(demo_class "$@")
   if [[ $# -gt 0 && "$1" != -* ]]; then shift; fi
   lower=$(echo "$name" | tr '[:upper:]' '[:lower:]')
   # This demo holds filenames and one body; bound the default native heap to
@@ -138,9 +148,9 @@ native_demo() {
   if [[ "$name" == Notes ]]; then
     local heap=33554432
     [[ -n "$WINDOWS" ]] && heap=268435456
-    native_image "jui.examples.${name}Demo" "build/${lower}-demo" -R:MaxHeapSize=$heap
+    native_image "$cls" "build/${lower}-demo" -R:MaxHeapSize=$heap
   else
-    native_image "jui.examples.${name}Demo" "build/${lower}-demo"
+    native_image "$cls" "build/${lower}-demo"
   fi > "build/${lower}-demo-build.log"
   "build/${lower}-demo" "$@"
 }
