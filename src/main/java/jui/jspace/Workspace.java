@@ -46,6 +46,9 @@ final class Workspace implements View {
     /** Run when a setting changed the look; the app resets its windows' theme pairs. */
     Runnable onAppearanceChange = () -> {};
 
+    /** Run when the settings window is asked for; the app owns that window. */
+    Runnable onSettings = () -> {};
+
     final jui.ui.TextRef searchRef = new jui.ui.TextRef("");
     final jui.ui.Handle searchHandle = new jui.ui.Handle();
     final jui.ui.BoolRef sortOpen = new jui.ui.BoolRef(false);
@@ -67,6 +70,12 @@ final class Workspace implements View {
         t.dir = dir;
         t.selected = null;
         store.scan(dir);
+        snapshot();
+    }
+
+    /** Keeps the restore file near the current shape, off the main thread. */
+    private void snapshot() {
+        if (settings.restoreWorkspace) WorkspaceState.saveAsync(m, WorkspaceState.defaultFile());
     }
 
     void goBack(int pane) {
@@ -76,6 +85,7 @@ final class Workspace implements View {
         t.dir = t.back.pop();
         t.selected = null;
         store.scan(t.dir);
+        snapshot();
     }
 
     void goForward(int pane) {
@@ -85,6 +95,7 @@ final class Workspace implements View {
         t.dir = t.forward.pop();
         t.selected = null;
         store.scan(t.dir);
+        snapshot();
     }
 
     /** A new tab in the pane, opening where the setting says. */
@@ -98,6 +109,7 @@ final class Workspace implements View {
         m.panes[pane].tabs.add(t);
         m.panes[pane].current = m.panes[pane].tabs.size() - 1;
         store.scan(at);
+        snapshot();
     }
 
     /** Closes the pane's tab; the last one reopens at home instead of leaving none. */
@@ -112,6 +124,7 @@ final class Workspace implements View {
         }
         p.tabs.remove(p.current);
         if (p.current >= p.tabs.size()) p.current = p.tabs.size() - 1;
+        snapshot();
     }
 
     /** Menu: a new tab in the active pane. */
@@ -149,8 +162,8 @@ final class Workspace implements View {
 
     void startRename(int pane) { actions.startRename(pane); }
 
-    /** Menu: open the settings window (Task 15 fills it in). */
-    void openSettings() {}
+    /** Menu: open the settings window (the app owns it, through onSettings). */
+    void openSettings() { onSettings.run(); }
 
     // Building -----------------------------------------------------------------
 
@@ -281,7 +294,10 @@ final class Workspace implements View {
                 .children(() -> text(c, label).fontSize(12)
                         .textColor(on ? c.theme().accent() : c.theme().textMuted()));
         if (on) b.background(c.theme().selection());
-        if (b.clicked()) go.run();
+        if (b.clicked()) {
+            go.run();
+            snapshot();
+        }
     }
 
     private void plainButton(Context c, String id, String label, Runnable go) {

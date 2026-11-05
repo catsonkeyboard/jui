@@ -639,6 +639,25 @@ JUI_FRAME_STATS=all ./build.sh native-demo Notes --quit-after-first-frame
 
 正文仍为只读预览，新建与分组只在内存中保存；Last 7 Days仍是示例分类，没有真实日期筛选。完整编辑器/磁盘保存、真实呈现延迟及普通scroll布局缓存命中问题不在本次整合范围。实现与本轮数据见[统一示例审查记录](docs/reviews/2026-11-01-unified-notes-demo-review.md)。
 
+## QSpace 文件管理器（2026-11-05）
+
+按[设计文档](docs/superpowers/specs/2026-11-05-jspace-clone-design.md)与[实施计划](docs/superpowers/plans/2026-11-05-jspace-clone.md)复刻的 QSpace 风格文件管理器，浏览真实文件系统（java.nio，后台虚拟线程扫描、不可变快照），全部界面用 j-ui / Metal 自绘。
+
+```bash
+./build.sh demo QSpace          # JVM
+./build.sh native-demo QSpace   # native image
+```
+
+- **多面板工作区**：单面板 / 双面板 / 2×2 三档布局（工具栏切换，分割线可拖动可键盘微调，收缩保留左上面板）；点击或悬停面板即激活（强调色描边 + 面包屑蓝底）。
+- **每面板多标签**：胶囊标签 + 「+」新建；⌘N/⌘W；标签独立记忆路径、视图、排序、展开状态与前进后退历史。
+- **两种视图**：列表（四列排序表头、树形 ▸/▾ 展开平铺、斑马纹、虚拟化变行高）；图标网格（96×116 单元格、按行分组虚拟化、蓝紫叠色文件夹）。↑↓←→/↩ 键盘导航（→ 展开/进入，← 折叠/跳父级），双击或 ↩ 打开（文件经 `/usr/bin/open`）。
+- **侧栏**：书签（桌面/下载/文稿/图片/音乐/影片/主目录/应用程序/废纸篓）、iCloud 云盘（存在才显示）、Macintosh HD、访达标签（静态彩点）、工作区；底部过滤框。
+- **安全文件操作**（全部后台线程 + 状态栏反馈）：新建文件夹、内联重命名、删除（modal 确认，目录递归）、复制/剪切/粘贴（⌘C/⌘X/⌘V，跨面板移动，同名冲突 modal 三选，同目录粘贴自动「副本」后缀）。
+- **设置窗口**（⌘,）：系统设置风格——彩色贴片导航 + 分组卡片；通用页 8 项真实生效并持久化到 `~/Library/Application Support/jui-jspace/settings.properties`（外观跟随/浅/深、默认布局、新标签页位置、显示隐藏文件、文件夹置顶、列表密度、默认排序、启动恢复工作区），其余页占位。
+- **工作区恢复**：导航/标签/布局变化即原子写 `workspace.properties`，退出（⌘Q）保存，启动按设置还原。
+
+**已知边界**：单选（无 ⌘/⇧ 多选）、无拖拽、无 WatchService 自动刷新（⌘R 手动）、文件图标为自绘类型图标（非系统缩略图）、彩色 emoji 不绘制。真实目录操作的人工验收清单见规格 §8.2（应在临时目录 fixture 上执行）。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 或 `/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。
