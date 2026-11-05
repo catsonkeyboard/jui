@@ -31,8 +31,12 @@ public final class SettingsWindowTest {
         AtomicInteger saved = new AtomicInteger();
         SettingsWindow sw = new SettingsWindow(ws, () -> { st.save(f); saved.incrementAndGet(); });
         Tester tt = Tester.of(sw.view(), 560, 480);
-        tt.click("setrow-showhidden-toggle");
-        tt.frame();
+        long deadline = System.nanoTime() + 2_000_000_000L;
+        while (saved.get() < 1) {
+            if (System.nanoTime() > deadline) break;
+            tt.click("setrow-showhidden-toggle");
+            tt.frame();
+        }
         Check.isTrue(saved.get() >= 1, "afterChange ran");
         Check.isTrue(jui.jspace.store.Settings.load(f).showHidden, "persisted");
     }

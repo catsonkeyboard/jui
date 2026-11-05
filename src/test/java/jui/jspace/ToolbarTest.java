@@ -78,7 +78,8 @@ public final class ToolbarTest {
         Tester tt = open(m);
         tt.frame();
         tt.move(700, 500);                                       // somewhere in pane 3
-        tt.frame();
+        tt.frame();                                              // the hit list picks the pointer up
+        tt.frame();                                              // the next build sees the hover
         Check.equal(3, m.active);
     }
 }
