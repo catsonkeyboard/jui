@@ -137,47 +137,72 @@ public final class Ui {
      * changed() reports a move.
      */
     public static Element split(Context c, FloatRef firstWidth, Runnable first, Runnable second) {
-        Element e = row(c).alignItems(Align.STRETCH);
+        return splitPane(c, firstWidth, first, second, false);
+    }
+
+    /**
+     * A column that shares its room the same way, top and bottom: firstHeight
+     * is the first's height, the arrows are up and down, and the rest is as
+     * split's.
+     */
+    public static Element splitVertical(Context c, FloatRef firstHeight, Runnable first, Runnable second) {
+        return splitPane(c, firstHeight, first, second, true);
+    }
+
+    private static Element splitPane(Context c, FloatRef firstSize, Runnable first, Runnable second,
+                                     boolean vertical) {
+        Element e = (vertical ? column(c) : row(c)).alignItems(Align.STRETCH);
         jui.ui.engine.Engine en = c.engine();
         int outer = en.enter(e.index);
         try {
             // The room the panes share, as the last frame laid it out.
-            Element room = row(c).grow(1).alignItems(Align.STRETCH);
+            Element room = (vertical ? column(c) : row(c)).grow(1).alignItems(Align.STRETCH);
             int inner = en.enter(room.index);
             try {
-                float size = firstWidth.get();
-                float total = en.state(room.index).w;   // the room as last laid out, 0 before the first
+                float size = firstSize.get();
+                float total = vertical ? en.state(room.index).h : en.state(room.index).w;   // the room as last laid out, 0 before the first
                 float shown = total <= 0 || size <= MIN_PANE ? size : Math.max(MIN_PANE, Math.min(size, total - 1 - MIN_PANE));
                 // The panes meet at the line, whatever the room: the flexbox gives way for them.
-                box(c).width(size).minWidth(Math.min(size, MIN_PANE)).shrink(1).clip().label("first-pane").children(first);
-                box(c).width(1); // the line's place in the flow
-                box(c).grow(1).minWidth(MIN_PANE).shrink(1).clip().children(second);
+                if (vertical) {
+                    box(c).height(size).minHeight(Math.min(size, MIN_PANE)).shrink(1).clip().label("first-pane").children(first);
+                    box(c).height(1); // the line's place in the flow
+                    box(c).grow(1).minHeight(MIN_PANE).shrink(1).clip().children(second);
+                } else {
+                    box(c).width(size).minWidth(Math.min(size, MIN_PANE)).shrink(1).clip().label("first-pane").children(first);
+                    box(c).width(1); // the line's place in the flow
+                    box(c).grow(1).minWidth(MIN_PANE).shrink(1).clip().children(second);
+                }
 
                 // The divider: an 8 DIP handle over the line, with the line as its child.
-                Element div = box(c).absolute().alignItems(Align.CENTER).width(8).left(shown - 3.5f).top(0).bottom(0)
-                        .focusable().cursor(Cursor.RESIZE_EW).label("divider");
+                Element div = vertical
+                        ? box(c).absolute().alignItems(Align.CENTER).height(8).top(shown - 3.5f).left(0).right(0)
+                                .focusable().cursor(Cursor.RESIZE_NS).label("divider")
+                        : box(c).absolute().alignItems(Align.CENTER).width(8).left(shown - 3.5f).top(0).bottom(0)
+                                .focusable().cursor(Cursor.RESIZE_EW).label("divider");
                 Node n = div.node();
                 n.flags |= Node.DRAG | Node.HOVER | Node.KEYS;
                 jui.ui.engine.ElementState ds = en.state(div.index);
                 boolean off = en.disabled(div.index);
                 boolean held = ds.pressed && !off;
-                float move = held ? ds.dragX : 0;
+                float move = held ? (vertical ? ds.dragY : ds.dragX) : 0;
                 if (!off && move != 0) {
-                    setSplitWidth(en, e.index, firstWidth, shown + move, total);
+                    setSplitWidth(en, e.index, firstSize, shown + move, total);
                 }
                 for (int k = 0; !off && k < ds.keyCount; k++) {
-                    if (ds.keys[k] == Key.LEFT) {
-                        setSplitWidth(en, e.index, firstWidth, shown - 8, total);
+                    if (ds.keys[k] == (vertical ? Key.UP : Key.LEFT)) {
+                        setSplitWidth(en, e.index, firstSize, shown - 8, total);
                     }
-                    if (ds.keys[k] == Key.RIGHT) {
-                        setSplitWidth(en, e.index, firstWidth, shown + 8, total);
+                    if (ds.keys[k] == (vertical ? Key.DOWN : Key.RIGHT)) {
+                        setSplitWidth(en, e.index, firstSize, shown + 8, total);
                     }
                 }
                 Theme t = c.theme();
                 int line = held || en.hovered(div.index) ? t.accent().rgba() : t.border().rgba();
                 int into = en.enter(div.index);
                 try {
-                    Element l = box(c).width(1).fillHeight().label("line");
+                    Element l = vertical
+                            ? box(c).height(1).fillWidth().label("line")
+                            : box(c).width(1).fillHeight().label("line");
                     if (l.node() != null) {
                         l.node().background = line;     // the 1 DIP line, centered in the handle
                     }
