@@ -322,8 +322,9 @@ final class Workspace implements View {
 
     /** Window-level keys that act on the active pane's list: arrows walk, Enter opens. */
     private void keys(Context c) {
-        if (c.shortcut(jui.ui.Shortcut.of(jui.ui.Key.UP))) selectionKey(c, -1);
-        if (c.shortcut(jui.ui.Shortcut.of(jui.ui.Key.DOWN))) selectionKey(c, 1);
+        for (jui.ui.Key k : new jui.ui.Key[] { jui.ui.Key.UP, jui.ui.Key.DOWN, jui.ui.Key.LEFT, jui.ui.Key.RIGHT }) {
+            if (c.shortcut(jui.ui.Shortcut.of(k))) arrowKey(k);
+        }
         if (c.shortcut(jui.ui.Shortcut.of(jui.ui.Key.ENTER))) {
             Model.TabState t = m.panes[m.active].tab();
             if (t.selected != null) {
@@ -351,7 +352,9 @@ final class Workspace implements View {
         }
     }
 
-    private void selectionKey(Context c, int step) {
+    /** Moves the selection in the active pane: a line at a time in the list, a cell in the grid;
+     *  → expands or enters a folder, ← collapses one or jumps to its parent. */
+    private void arrowKey(jui.ui.Key k) {
         Model.TabState t = m.panes[m.active].tab();
         if (t.dir == null) return;
         List<Entries.Row> rows = wsEntries(t);
@@ -360,9 +363,57 @@ final class Workspace implements View {
         for (int i = 0; i < rows.size(); i++) {
             if (rows.get(i).entry().path().equals(t.selected)) { at = i; break; }
         }
-        int to = Math.max(0, Math.min(rows.size() - 1, at < 0 ? 0 : at + step));
-        t.selected = rows.get(to).entry().path();
-        t.listRows.scrollTo(to);
+        if (t.view == Model.ViewMode.LIST) {
+            switch (k) {
+                case UP, DOWN -> {
+                    int step = k == jui.ui.Key.DOWN ? 1 : -1;
+                    int to = Math.max(0, Math.min(rows.size() - 1, at < 0 ? 0 : at + step));
+                    t.selected = rows.get(to).entry().path();
+                    t.listRows.scrollTo(to);
+                }
+                case RIGHT -> {
+                    if (at < 0) { t.selected = rows.get(0).entry().path(); return; }
+                    jui.jspace.store.FileEntry e = rows.get(at).entry();
+                    if (!e.dir()) return;
+                    if (!t.expanded.contains(e.path())) {
+                        t.expanded.add(e.path());
+                        store.scan(e.path());
+                    } else {
+                        navigate(m.active, e.path());
+                    }
+                }
+                case LEFT -> {
+                    if (at < 0) { t.selected = rows.get(0).entry().path(); return; }
+                    Entries.Row r = rows.get(at);
+                    jui.jspace.store.FileEntry e = r.entry();
+                    if (e.dir() && t.expanded.contains(e.path())) {
+                        t.expanded.remove(e.path());
+                    } else if (r.depth() > 0) {
+                        Path parent = e.path().getParent();     // jump to the folder's own row
+                        for (Entries.Row q : rows) {
+                            if (q.entry().path().equals(parent)) t.selected = parent;
+                        }
+                    } else {
+                        Path home = Path.of(System.getProperty("user.home"));
+                        if (!t.dir.equals(home) && t.dir.getParent() != null) {
+                            navigate(m.active, t.dir.getParent());
+                        }
+                    }
+                }
+                default -> { }
+            }
+        } else {                                                 // the grid: a cell per press, a row on up/down
+            int perRow = Math.max(1, (int) (t.paneWidth / 96));
+            int step = switch (k) {
+                case DOWN -> perRow;
+                case UP -> -perRow;
+                case RIGHT -> 1;
+                default -> -1;
+            };
+            int to = Math.max(0, Math.min(rows.size() - 1, at < 0 ? 0 : at + step));
+            t.selected = rows.get(to).entry().path();
+            t.gridRows.scrollTo(to / Math.max(1, perRow));
+        }
     }
 
     private List<Entries.Row> wsEntries(Model.TabState t) {
