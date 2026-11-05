@@ -34,6 +34,10 @@ final class Workspace implements View {
     /** Run when a setting changed the look; the app resets its windows' theme pairs. */
     Runnable onAppearanceChange = () -> {};
 
+    final jui.ui.TextRef searchRef = new jui.ui.TextRef("");
+    final jui.ui.Handle searchHandle = new jui.ui.Handle();
+    final jui.ui.BoolRef sortOpen = new jui.ui.BoolRef(false);
+
     /** Re-applies the appearance choice to the open windows (through onAppearanceChange). */
     void applyAppearance() {
         onAppearanceChange.run();
@@ -118,8 +122,8 @@ final class Workspace implements View {
         }
     }
 
-    /** Menu: show or hide the sidebar (Task 11 fills it in). */
-    void toggleSidebar() {}
+    /** Menu: show or hide the sidebar. */
+    void toggleSidebar() { m.sidebarOpen = !m.sidebarOpen; }
 
     /** Menu: open the settings window (Task 15 fills it in). */
     void openSettings() {}
@@ -128,9 +132,10 @@ final class Workspace implements View {
 
     @Override
     public void build(Context c) {
+        syncSearch();
         keys(c);
         column(c).fill().children(() -> {
-            toolbarPlaceholder(c);
+            toolbar(c);
             row(c).grow(1).children(() -> {
                 if (m.sidebarOpen) {
                     box(c).width(230).background(JspaceTheme.palette(c).sidebar()).label("sidebar");
@@ -139,6 +144,93 @@ final class Workspace implements View {
             });
             statusPlaceholder(c);
         });
+    }
+
+    /** The search box shows the active tab's word unless it is being typed in. */
+    private void syncSearch() {
+        Model.TabState t = m.panes[m.active].tab();
+        if (!searchHandle.focused() && !searchRef.get().equals(t.search)) {
+            searchRef.set(t.search);
+        }
+    }
+
+    private void toolbar(Context c) {
+        JspaceTheme.Palette pal = JspaceTheme.palette(c);
+        Model.TabState t = m.panes[m.active].tab();
+        row(c).height(44).fillWidth().padding(0, 12).gap(8)
+                .background(pal.bar()).alignItems(jui.ui.Align.CENTER).label("toolbar").children(() -> {
+            text(c, PaneTabs.title(t)).fontSize(14).bold().textColor(c.theme().text());
+            spacer(c).grow(1);
+
+            segButton(c, "view-list", t.view == Model.ViewMode.LIST, "列表",
+                    () -> t.view = Model.ViewMode.LIST);
+            segButton(c, "view-grid", t.view == Model.ViewMode.GRID, "图标",
+                    () -> t.view = Model.ViewMode.GRID);
+            box(c).width(8);
+            segButton(c, "layout-single", m.layout == Model.Layout.SINGLE, "单栏",
+                    () -> m.layout = Model.Layout.SINGLE);
+            segButton(c, "layout-double", m.layout == Model.Layout.DOUBLE, "双栏",
+                    () -> m.layout = Model.Layout.DOUBLE);
+            segButton(c, "layout-grid", m.layout == Model.Layout.GRID, "四栏",
+                    () -> m.layout = Model.Layout.GRID);
+            box(c).width(8);
+
+            sortPopover(c, t);
+            plainButton(c, "toggle-sidebar", "边栏", this::toggleSidebar);
+            plainButton(c, "open-settings", "设置", this::openSettings);
+
+            box(c).width(140).height(28).radius(6).border(1, c.theme().border()).label("search-box")
+                    .padding(0, 6).children(() -> {
+                        jui.ui.Element in = textInput(c, searchRef).placeholder("搜索");
+                        in.bind(searchHandle);
+                        if (in.changed()) t.search = searchRef.get();
+                    });
+        });
+    }
+
+    private void segButton(Context c, String id, boolean on, String label, Runnable go) {
+        jui.ui.Element b = buttonBase(c).height(28).padding(0, 10).radius(6).label(id)
+                .alignItems(jui.ui.Align.CENTER)
+                .children(() -> text(c, label).fontSize(12)
+                        .textColor(on ? c.theme().accent() : c.theme().textMuted()));
+        if (on) b.background(c.theme().selection());
+        if (b.clicked()) go.run();
+    }
+
+    private void plainButton(Context c, String id, String label, Runnable go) {
+        jui.ui.Element b = buttonBase(c).height(28).padding(0, 10).radius(6).label(id)
+                .alignItems(jui.ui.Align.CENTER)
+                .children(() -> text(c, label).fontSize(12).textColor(c.theme().text()));
+        if (b.clicked()) go.run();
+    }
+
+    private void sortPopover(Context c, Model.TabState t) {
+        jui.ui.Element anchor = buttonBase(c).height(28).padding(0, 10).radius(6).label("sort-menu")
+                .alignItems(jui.ui.Align.CENTER)
+                .children(() -> text(c, "排序").fontSize(12).textColor(c.theme().text()));
+        popover(c, anchor, sortOpen, () -> {
+            column(c).padding(6, 4).gap(2).children(() -> {
+                sortItem(c, "按名称", Entries.SortKey.NAME, t);
+                sortItem(c, "按修改日期", Entries.SortKey.DATE, t);
+                sortItem(c, "按大小", Entries.SortKey.SIZE, t);
+                sortItem(c, "按种类", Entries.SortKey.KIND, t);
+                jui.ui.Element asc = buttonBase(c).height(24).padding(0, 8).radius(4)
+                        .children(() -> text(c, t.sort.asc ? "升序 ✓" : "升序").fontSize(12)
+                                .textColor(c.theme().text()));
+                if (asc.clicked()) { t.sort.asc = true; sortOpen.set(false); }
+                jui.ui.Element desc = buttonBase(c).height(24).padding(0, 8).radius(4)
+                        .children(() -> text(c, !t.sort.asc ? "降序 ✓" : "降序").fontSize(12)
+                                .textColor(c.theme().text()));
+                if (desc.clicked()) { t.sort.asc = false; sortOpen.set(false); }
+            });
+        });
+    }
+
+    private void sortItem(Context c, String label, Entries.SortKey key, Model.TabState t) {
+        boolean on = t.sort.key == key;
+        jui.ui.Element b = buttonBase(c).height(24).padding(0, 8).radius(4)
+                .children(() -> text(c, on ? label + " ✓" : label).fontSize(12).textColor(c.theme().text()));
+        if (b.clicked()) { t.sort.key = key; t.sort.asc = true; sortOpen.set(false); }
     }
 
     /** Window-level keys that act on the active pane's list: arrows walk, Enter opens. */
@@ -151,6 +243,18 @@ final class Workspace implements View {
                 for (Entries.Row r : wsEntries(t)) {
                     if (r.entry().path().equals(t.selected)) { openEntry(m.active, r.entry()); break; }
                 }
+            }
+        }
+        if (c.shortcut(jui.ui.Shortcut.cmd(jui.ui.Key.F))) searchHandle.focus();
+        if (c.shortcut(jui.ui.Shortcut.of(jui.ui.Key.ESCAPE))) {
+            m.panes[m.active].tab().search = "";
+            searchRef.set("");
+        }
+        if (c.shortcut(jui.ui.Shortcut.cmd(jui.ui.Key.R))) {
+            Model.TabState t = m.panes[m.active].tab();
+            if (t.dir != null) {
+                store.scan(t.dir);
+                for (java.nio.file.Path e : t.expanded) store.scan(e);
             }
         }
     }

@@ -15,7 +15,8 @@ final class FilePane {
         Model m = ws.model();
         JspaceTheme.Palette p = JspaceTheme.palette(c);
         boolean active = m.active == pane;
-        box(c).fill().border(1.5f, active ? c.theme().accent() : p.panel())
+        // A button base as the root: hovering or clicking its empty parts makes the pane active.
+        jui.ui.Element root = buttonBase(c).fill().border(1.5f, active ? c.theme().accent() : p.panel())
                 .radius(6).clip().background(p.panel()).label("pane-" + pane + "-frame")
                 .padding(4).children(() -> {
                     column(c).fill().children(() -> {
@@ -24,6 +25,7 @@ final class FilePane {
                         content(c);
                     });
                 });
+        if (root.hovered() || root.clicked()) m.active = pane;
     }
 
     private void content(Context c) {
