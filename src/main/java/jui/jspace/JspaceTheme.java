@@ -36,5 +36,15 @@ final class JspaceTheme {
         return c.theme().isDark() ? DARK_X : LIGHT_X;
     }
 
+    /** The pair a window installs for an appearance choice: FOLLOW keeps both of ours, a forced
+     *  choice pins the one look. */
+    static Theme[] pair(jui.jspace.store.Settings.Appearance a) {
+        return switch (a) {
+            case FOLLOW -> new Theme[] { LIGHT, DARK };
+            case LIGHT -> new Theme[] { LIGHT, LIGHT };
+            case DARK -> new Theme[] { DARK, DARK };
+        };
+    }
+
     private JspaceTheme() {}
 }

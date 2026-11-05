@@ -11,14 +11,14 @@ import java.util.Set;
 import java.util.function.Function;
 
 /** Sorting, filtering and tree flattening of one directory's entries, pure and main-thread only. */
-final class Entries {
-    enum SortKey { NAME, DATE, SIZE, KIND }
+public final class Entries {
+    public enum SortKey { NAME, DATE, SIZE, KIND }
 
-    record Row(FileEntry entry, int depth) {}
+    public record Row(FileEntry entry, int depth) {}
 
-    static List<Row> view(FileEntry[] entries, Function<Path, jui.jspace.store.FileStore.DirSnap> snapOf,
-                          Model.SortState sort, boolean foldersFirst, String search,
-                          boolean showHidden, Set<Path> expanded) {
+    public static List<Row> view(FileEntry[] entries, Function<Path, jui.jspace.store.FileStore.DirSnap> snapOf,
+                                 Model.SortState sort, boolean foldersFirst, String search,
+                                 boolean showHidden, Set<Path> expanded) {
         List<Row> out = new ArrayList<>();
         append(out, entries, snapOf, sort, foldersFirst, search, showHidden, expanded, 0);
         return out;

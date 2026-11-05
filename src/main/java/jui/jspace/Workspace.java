@@ -9,13 +9,33 @@ import static jui.ui.Ui.*;
 /** The main window: toolbar, sidebar, the pane grid and the status line. */
 final class Workspace implements View {
     private final Model m;
+    private final jui.jspace.store.Settings settings;
+    private final jui.jspace.store.FileStore store;
 
-    Workspace(Model m) { this.m = m; }
+    Workspace(Model m) { this(m, new jui.jspace.store.Settings(), Runnable::run); }
+
+    Workspace(Model m, jui.jspace.store.Settings settings, jui.jspace.store.FileStore.Publish publish) {
+        this.m = m;
+        this.settings = settings;
+        this.store = new jui.jspace.store.FileStore(publish);
+    }
 
     Model model() { return m; }
 
+    jui.jspace.store.Settings settings() { return settings; }
+
+    jui.jspace.store.FileStore store() { return store; }
+
     /** The view this workspace builds itself as. */
     View view() { return this; }
+
+    /** Run when a setting changed the look; the app resets its windows' theme pairs. */
+    Runnable onAppearanceChange = () -> {};
+
+    /** Re-applies the appearance choice to the open windows (through onAppearanceChange). */
+    void applyAppearance() {
+        onAppearanceChange.run();
+    }
 
     /** Menu: a new tab in the active pane (Task 8 fills it in). */
     void newTab() {}

@@ -64,8 +64,21 @@ final class Model {
     final Status status = new Status();
     boolean sidebarOpen = true;
 
-    Model() {
+    Model() { this(new jui.jspace.store.Settings()); }
+
+    /** Takes its defaults (layout, sort, density) from the loaded settings. */
+    Model(jui.jspace.store.Settings s) {
+        layout = switch (s.defaultLayout) {
+            case SINGLE -> Layout.SINGLE;
+            case DOUBLE -> Layout.DOUBLE;
+            case GRID -> Layout.GRID;
+        };
         Path home = Path.of(System.getProperty("user.home"));
-        for (PaneState p : panes) p.tabs.add(new TabState(home));
+        for (PaneState p : panes) {
+            TabState t = new TabState(home);
+            t.sort.key = s.defaultSort;
+            t.sort.asc = s.defaultSortAsc;
+            p.tabs.add(t);
+        }
     }
 }

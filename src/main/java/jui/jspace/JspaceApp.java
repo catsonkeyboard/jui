@@ -3,22 +3,41 @@ package jui.jspace;
 import jui.app.App;
 import jui.app.Window;
 import jui.app.WindowOptions;
+import jui.jspace.store.Settings;
 import jui.ui.Key;
 import jui.ui.Menu;
 import jui.ui.Shortcut;
+import jui.ui.Theme;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 /** QSpace, a file manager built on j-ui. Run: ./build.sh demo QSpace */
 public final class JspaceApp {
-    private static Window main;
+    private static final AtomicReference<Window> main = new AtomicReference<>();
     private static Workspace workspace;
+    private static Settings settings;
 
     public static void main(String[] args) {
+        settings = Settings.load();
+        Model model = new Model(settings);
         App.menu(JspaceApp::menus);
         App.run(() -> {
-            workspace = new Workspace(new Model());
-            main = Window.open(WindowOptions.of("QSpace").size(1280, 800).content(workspace::build));
-            main.setThemePair(JspaceTheme.LIGHT, JspaceTheme.DARK);
+            workspace = new Workspace(model, settings, r -> {
+                Window w = main.get();               // set just below, before any scan runs
+                if (w != null) w.update(r);
+            });
+            workspace.onAppearanceChange = JspaceApp::applyAppearance;
+            main.set(Window.open(WindowOptions.of("QSpace").size(1280, 800).content(workspace::build)));
+            applyAppearance();
         });
+    }
+
+    /** Installs the pair the appearance choice picks on every open window. */
+    static void applyAppearance() {
+        Window w = main.get();
+        if (w == null) return;
+        Theme[] pair = JspaceTheme.pair(settings.appearance);
+        w.setThemePair(pair[0], pair[1]);
     }
 
     private static void menus(Menu bar) {
