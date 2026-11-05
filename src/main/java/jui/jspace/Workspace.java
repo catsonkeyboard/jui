@@ -28,7 +28,12 @@ final class Workspace implements View {
         this.store = new jui.jspace.store.FileStore(publish);
         this.sidebar = new Sidebar(this);
         this.actions = new Actions(this);
-        for (Model.PaneState p : m.panes) {                     // startup (and a restored workspace) load at once
+        rescanAll();                                            // startup (and a restored workspace) load at once
+    }
+
+    /** Scans every open tab again; after the window exists this is what makes the first list show. */
+    void rescanAll() {
+        for (Model.PaneState p : m.panes) {
             for (Model.TabState t : p.tabs) {
                 if (t.dir != null) store.scan(t.dir);
             }
@@ -463,11 +468,12 @@ final class Workspace implements View {
 
     private void paneGrid(Context c) {
         switch (m.layout) {
-            case SINGLE -> box(c).fill().label("pane-grid").children(() -> pane(c, 0));
-            case DOUBLE -> split(c, m.hSplit[0], () -> pane(c, 0), () -> pane(c, 1)).label("pane-grid");
+            case SINGLE -> box(c).grow(1).label("pane-grid").children(() -> pane(c, 0));
+            case DOUBLE -> split(c, m.hSplit[0], () -> pane(c, 0), () -> pane(c, 1)).grow(1).label("pane-grid");
             case GRID -> splitVertical(c, m.vSplit,
-                    () -> split(c, m.hSplit[0], () -> pane(c, 0), () -> pane(c, 1)),
-                    () -> split(c, m.hSplit[1], () -> pane(c, 2), () -> pane(c, 3))).label("pane-grid");
+                    () -> split(c, m.hSplit[0], () -> pane(c, 0), () -> pane(c, 1)).grow(1),
+                    () -> split(c, m.hSplit[1], () -> pane(c, 2), () -> pane(c, 3)).grow(1)).grow(1)
+                    .label("pane-grid");
         }
     }
 

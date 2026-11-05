@@ -35,6 +35,7 @@ public final class JspaceApp {
             workspace.onSettings = JspaceApp::openSettings;
             main.set(Window.open(WindowOptions.of("QSpace").size(1280, 800).content(workspace::build)));
             applyAppearance();
+            workspace.rescanAll();      // scans fired before the window existed would drop their results
         });
     }
 
