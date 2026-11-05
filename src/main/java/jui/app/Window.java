@@ -100,6 +100,11 @@ public final class Window implements PlatformWindow.Input, jui.ui.engine.Host {
         invalidate();
     }
 
+    /** The window's own light and dark palettes; the system appearance picks between them. */
+    public void setThemePair(Theme light, Theme dark) {
+        engine.setThemePair(light, dark);
+    }
+
     /** Arms the window's timer for the wake-up the frame asked for (c.after), or cancels it. */
     private void scheduleTimer() {
         if (platform == null) {

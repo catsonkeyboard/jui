@@ -18,6 +18,8 @@ public final class Engine {
     private final TextEngine text;
     private final FrameStats frameStats = FrameStats.create();
     private Theme theme;
+    private Theme lightTheme = Theme.light();
+    private Theme darkTheme = Theme.dark();
     private final Runnable requestFrame;
     private final java.util.function.LongSupplier clock;
     private final NodePool pool = new NodePool();
@@ -1609,13 +1611,21 @@ public final class Engine {
     public boolean dispatchKeyDown(jui.ui.Key key, int mods, boolean repeat) { return closed || input.dispatchKeyDown(key, mods, repeat); }
     public void keyUp(jui.ui.Key key, int mods) { input.rawFocus(jui.ui.InputEvent.Kind.KEY_UP, key, mods, false, null); }
 
-    /** Follows the system's appearance: the dark theme or the light one. Asks for a frame if it changed. */
+    /** Follows the system's appearance: the dark theme of the pair, or the light one. Asks for a frame if it changed. */
     public void setDark(boolean dark) {
-        Theme next = Theme.of(dark);
+        Theme next = dark ? darkTheme : lightTheme;
         if (next != theme) {
             theme = next;
             requestFrame.run();
         }
+    }
+
+    /** The app's own light and dark themes, which the system appearance then picks
+     *  between; resolves the current mode again at once. */
+    public void setThemePair(Theme light, Theme dark) {
+        lightTheme = light;
+        darkTheme = dark;
+        setDark(theme.isDark());
     }
 
     /** The modifier keys held changed; asks for no frame. */
