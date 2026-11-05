@@ -31,6 +31,13 @@ tasks.withType(JavaCompile).configureEach {
 tasks.named('compileJava', JavaCompile) {
     // GraalVM's hosted API lives in its JDK, not in a Maven dependency.
     options.compilerArgs.addAll(['--add-modules', 'org.graalvm.nativeimage'])
+    // SevenWDb Studio carries its own classpath via run-studio.sh; its jar is
+    // not a dependency of this build.
+    exclude '**/jui/sevenwdb/**'
+}
+
+tasks.named('compileTestJava', JavaCompile) {
+    exclude '**/jui/sevenwdb/**'
 }
 
 if (isMac) {
