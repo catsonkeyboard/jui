@@ -17,6 +17,7 @@ public final class DropdownButton {
                                          jui.ui.BoolRef open, java.util.function.IntConsumer pick,
                                          String... items) {
         Element anchor = Button.button(c, label, v, s, null, false, false, false, false, true);
+                if (anchor.clicked()) open.set(true);
         popover(c, anchor, open, () -> column(c).width(160).padding(4).gap(2).children(() -> {
             for (int i = 0; i < items.length; i++) {
                 int idx = i;
