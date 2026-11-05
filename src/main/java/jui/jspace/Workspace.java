@@ -13,6 +13,7 @@ final class Workspace implements View {
     private final Model m;
     private final jui.jspace.store.Settings settings;
     private final jui.jspace.store.FileStore store;
+    private final Sidebar sidebar;
 
     Workspace(Model m) { this(m, new jui.jspace.store.Settings(), Runnable::run); }
 
@@ -20,6 +21,7 @@ final class Workspace implements View {
         this.m = m;
         this.settings = settings;
         this.store = new jui.jspace.store.FileStore(publish);
+        this.sidebar = new Sidebar(this);
     }
 
     Model model() { return m; }
@@ -138,7 +140,7 @@ final class Workspace implements View {
             toolbar(c);
             row(c).grow(1).children(() -> {
                 if (m.sidebarOpen) {
-                    box(c).width(230).background(JspaceTheme.palette(c).sidebar()).label("sidebar");
+                    box(c).width(230).fillHeight().children(() -> sidebar.build(c));
                 }
                 paneGrid(c);
             });
