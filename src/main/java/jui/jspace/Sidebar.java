@@ -99,15 +99,15 @@ final class Sidebar {
     private void item(Context c, Item it) {
         JspaceTheme.Palette pal = JspaceTheme.palette(c);
         jui.ui.Element row = buttonBase(c).fillWidth().height(27).radius(6).label("side-" + it.label())
-                .padding(0, 6).justify(jui.ui.Justify.CENTER)
-                .children(() -> row(c).gap(8).alignItems(jui.ui.Align.CENTER).children(() -> {
+                .padding(0, 10).gap(8).justify(jui.ui.Justify.START)
+                .children(() -> {
                     if (it.icon() != null) {
                         box(c).size(15, 15).draw(FileIcons.mini(it.icon(), c.theme().textMuted()));
                     } else {
                         box(c).size(15, 15);
                     }
                     text(c, it.label()).fontSize(12.5f).textColor(c.theme().text());
-                }));
+                });
         if (row.hovered()) row.background(pal.sidebarHover());
         if (row.clicked() && it.path() != null) ws.navigate(ws.model().active, it.path());
     }

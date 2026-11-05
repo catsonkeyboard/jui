@@ -468,12 +468,13 @@ final class Workspace implements View {
 
     private void paneGrid(Context c) {
         switch (m.layout) {
-            case SINGLE -> box(c).grow(1).label("pane-grid").children(() -> pane(c, 0));
-            case DOUBLE -> split(c, m.hSplit[0], () -> pane(c, 0), () -> pane(c, 1)).grow(1).label("pane-grid");
+            case SINGLE -> box(c).grow(1).fillHeight().label("pane-grid").children(() -> pane(c, 0));
+            case DOUBLE -> split(c, m.hSplit[0], () -> pane(c, 0), () -> pane(c, 1))
+                    .grow(1).fillHeight().label("pane-grid");
             case GRID -> splitVertical(c, m.vSplit,
-                    () -> split(c, m.hSplit[0], () -> pane(c, 0), () -> pane(c, 1)).grow(1),
-                    () -> split(c, m.hSplit[1], () -> pane(c, 2), () -> pane(c, 3)).grow(1)).grow(1)
-                    .label("pane-grid");
+                    () -> split(c, m.hSplit[0], () -> pane(c, 0), () -> pane(c, 1)),
+                    () -> split(c, m.hSplit[1], () -> pane(c, 2), () -> pane(c, 3)))
+                    .grow(1).fillHeight().label("pane-grid");
         }
     }
 

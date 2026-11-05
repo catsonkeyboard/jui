@@ -39,16 +39,17 @@ final class FileList {
         JspaceTheme.Palette pal = JspaceTheme.palette(c);
         row(c).height(22).fillWidth().background(pal.bar()).children(() -> {
             head(c, "名称", Entries.SortKey.NAME, "sort-name", t).grow(1);
-            head(c, "修改日期", Entries.SortKey.DATE, "sort-date", t).width(112);
-            head(c, "大小", Entries.SortKey.SIZE, "sort-size", t).width(72);
-            head(c, "种类", Entries.SortKey.KIND, "sort-kind", t).width(104);
+            head(c, "修改日期", Entries.SortKey.DATE, "sort-date", t).width(106);
+            head(c, "大小", Entries.SortKey.SIZE, "sort-size", t).width(66);
+            head(c, "种类", Entries.SortKey.KIND, "sort-kind", t).width(98);
         });
     }
 
     private jui.ui.Element head(Context c, String label, Entries.SortKey key, String id, Model.TabState t) {
         boolean on = t.sort.key == key;
-        jui.ui.Element b = buttonBase(c).height(22).fillWidth().padding(0, 6).label(id)
-                .alignItems(jui.ui.Align.CENTER)
+        boolean right = key == Entries.SortKey.SIZE;             // the size column reads from the right
+        jui.ui.Element b = buttonBase(c).height(22).padding(0, 6).label(id)
+                .justify(right ? jui.ui.Justify.END : jui.ui.Justify.START)
                 .children(() -> row(c).gap(4).alignItems(jui.ui.Align.CENTER).children(() -> {
                     text(c, label).fontSize(10.5f)
                             .textColor(on ? c.theme().accent() : c.theme().textMuted());
@@ -65,23 +66,22 @@ final class FileList {
         boolean sel = e.path().equals(t.selected);
         jui.ui.Element rowBtn = buttonBase(c).fillWidth().height(rowH).padding(0, 8)
                 .label("row-" + e.name())
-                .justify(jui.ui.Justify.CENTER)
-                .children(() -> row(c).gap(4).alignItems(jui.ui.Align.CENTER).children(() -> {
+                .justify(jui.ui.Justify.START)
+                .gap(4)
+                .children(() -> {
                     box(c).width(r.depth() * 16);
                     if (e.dir()) disclosure(c, t, e);
                     else box(c).width(12);
                     box(c).width(16).height(16).draw(FileIcons.draw(e.icon(), false));
                     text(c, Texts.fit(c, e.name(), 12, 400,
-                                    Math.max(60, t.paneWidth - r.depth() * 16 - 310)))
+                                    Math.max(60, t.paneWidth - r.depth() * 16 - 300)))
                             .fontSize(12).textColor(sel ? c.theme().accentText() : c.theme().text());
                     spacer(c).grow(1);
                     text(c, RelativeDate.format(e.mtimeMillis(), ZonedDateTime.now()))
                             .fontSize(11).textColor(c.theme().textMuted()).width(106);
-                    box(c).width(66).alignItems(jui.ui.Align.END).children(() ->
-                            text(c, size(e)).fontSize(11).textColor(c.theme().textMuted()));
-                    box(c).width(98).children(() ->
-                            text(c, e.kind()).fontSize(11).textColor(c.theme().textMuted()));
-                }));
+                    text(c, size(e)).fontSize(11).textColor(c.theme().textMuted()).width(66);
+                    text(c, e.kind()).fontSize(11).textColor(c.theme().textMuted()).width(98);
+                });
         if (sel) rowBtn.background(c.theme().selection());
         else if (rowBtn.hovered()) rowBtn.background(JspaceTheme.palette(c).hover());
         else if (i % 2 == 1) rowBtn.background(JspaceTheme.palette(c).zebra());
