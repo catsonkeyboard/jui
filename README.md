@@ -658,6 +658,21 @@ JUI_FRAME_STATS=all ./build.sh native-demo Notes --quit-after-first-frame
 
 **已知边界**：单选（无 ⌘/⇧ 多选）、无拖拽、无 WatchService 自动刷新（⌘R 手动）、文件图标为自绘类型图标（非系统缩略图）、彩色 emoji 不绘制。真实目录操作的人工验收清单见规格 §8.2（应在临时目录 fixture 上执行）。
 
+## jui-kit 组件库（2026-11-06）
+
+参考 [gpui-kit](https://gpui-kit.com/) 的组件面实现的爱尔兰式封装库：`jui/kit/` 一组件一文件，全部即时模式静态函数 + `Kit.Variant`（9 变体）/ `Kit.Size`（4 档）令牌，外观随全局 Theme 深浅自动切换。
+
+```bash
+./build.sh demo Kit              # 组件画廊：所有组件可交互实例
+```
+
+- **Basic（32）**：Button（变体/尺寸/outline/loading/disabled/selected/caret/ButtonGroup）、Icon（40+ 自绘单色图标注册表）、Badge、Tag（filled/soft/outline + 关闭）、Kbd、Label、Avatar（姓名 initials + 在线点）、Skeleton（脉冲）、Spinner（旋转刻度）、Progress（条+环）、Rating（点击星星）、Marker、Alert（4 色 + 可关闭）、Accordion（单开/多开）、Collapsible、Radio、Stepper、Pagination、Tooltip、DropdownButton、TextView（markdown-lite：**粗体**、`code`）、Image（占位/自绘像素）、Attachment、Bubble/Message/MessageScroller（对话流，跟随末尾虚拟化）、Questionnaire。
+- **Form（12）**：Input/Textarea（标签字段）、Editor（代码区）、Select、Combobox（输入过滤）、NumberInput（边界+步进）、DatePicker+Calendar（月历翻页/选日）、TimeField、OtpInput、ColorPicker（RGB 滑块+色板）、Form（标签行+提交）。
+- **Layout（13）**：GroupBox、DescriptionList、Dialog（modal+OK/Cancel）、Notifications（toast 队列，3.5s 自散）、Sheet（右侧滑出）、Sidebar（分组导航选中）、StatusBar/Toolbar（三插槽条栏）、Popover/Resizable/Scrollable/List/Menu/Theme/Root（框架既有能力的 kit 门面，见 `Containers`）。
+- **Advanced（14）**：Tabs、Menu、List/VirtualList、Tree（折叠/缩进）、Calendar、Carousel（页点指示）、Command（⌘K 过滤面板，pick 索引回调）、Chart（折线/柱状 Painter 绘制）、Settings（label 左控件右行）、DataTable（点击表头排序）、Dock（底部停靠激活点）、Root。
+
+测试：`jui/kit` 五个测试类 30 个交互用例（`./build.sh test KitBasicTest` 等）。已知边界：Image 无像素解码器（占位/自绘接入点已留）、Command v1 为按钮触发的过滤面板（modal 焦点交接在合成测试环境未可靠）、Tooltip v1 固定下方弹出。
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 或 `/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。

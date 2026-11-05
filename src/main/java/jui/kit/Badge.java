@@ -31,5 +31,10 @@ public final class Badge {
         return badge(c, count <= 0 ? "" : count > 99 ? "99+" : Integer.toString(count), Kit.Variant.DANGER);
     }
 
+    /** The dot-only badge, no text at all. */
+    public static Element badgeDot(Context c) {
+        return badge(c, "", Kit.Variant.DANGER);
+    }
+
     private Badge() {}
 }
