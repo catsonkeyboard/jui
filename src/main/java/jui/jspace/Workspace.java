@@ -13,15 +13,21 @@ final class Workspace implements View {
     private final Model m;
     private final jui.jspace.store.Settings settings;
     private final jui.jspace.store.FileStore store;
+    private final jui.jspace.store.FileStore.Publish publish;
     private final Sidebar sidebar;
+    private final Actions actions;
+
+    final jui.ui.TextRef renameRef = new jui.ui.TextRef("");
 
     Workspace(Model m) { this(m, new jui.jspace.store.Settings(), Runnable::run); }
 
     Workspace(Model m, jui.jspace.store.Settings settings, jui.jspace.store.FileStore.Publish publish) {
         this.m = m;
         this.settings = settings;
+        this.publish = publish;
         this.store = new jui.jspace.store.FileStore(publish);
         this.sidebar = new Sidebar(this);
+        this.actions = new Actions(this);
     }
 
     Model model() { return m; }
@@ -29,6 +35,10 @@ final class Workspace implements View {
     jui.jspace.store.Settings settings() { return settings; }
 
     jui.jspace.store.FileStore store() { return store; }
+
+    jui.jspace.store.FileStore.Publish opsPublish() { return publish; }
+
+    Actions actions() { return actions; }
 
     /** The view this workspace builds itself as. */
     View view() { return this; }
@@ -127,6 +137,18 @@ final class Workspace implements View {
     /** Menu: show or hide the sidebar. */
     void toggleSidebar() { m.sidebarOpen = !m.sidebarOpen; }
 
+    // The operations the menus and keys drive ------------------------------------
+
+    void newFolder(int pane) { actions.newFolder(pane); }
+
+    void askDelete(int pane) { actions.askDelete(pane); }
+
+    void copy(int pane, boolean cut) { actions.copy(pane, cut); }
+
+    void paste(int pane) { actions.paste(pane); }
+
+    void startRename(int pane) { actions.startRename(pane); }
+
     /** Menu: open the settings window (Task 15 fills it in). */
     void openSettings() {}
 
@@ -144,7 +166,70 @@ final class Workspace implements View {
                 }
                 paneGrid(c);
             });
-            statusPlaceholder(c);
+            statusbar(c);
+            deleteModal(c);
+            clashModal(c);
+        });
+    }
+
+    private void statusbar(Context c) {
+        JspaceTheme.Palette pal = JspaceTheme.palette(c);
+        Model.TabState t = m.panes[m.active].tab();
+        if (!m.status.note.isEmpty() && c.now() - m.status.noteAt > 5_000_000_000L) {
+            m.status.note = "";
+        }
+        row(c).height(24).fillWidth().padding(0, 12).background(pal.bar())
+                .alignItems(jui.ui.Align.CENTER).label("statusbar").children(() -> {
+            String left = t.rowCount + " 项";
+            if (t.selected != null && t.selected.getFileName() != null) {
+                left += " · 已选 " + t.selected.getFileName();
+            }
+            text(c, left).fontSize(11).textColor(c.theme().textMuted());
+            spacer(c).grow(1);
+            if (!m.status.note.isEmpty()) {
+                text(c, m.status.note).fontSize(11).textColor(pal.warn());
+            }
+        });
+    }
+
+    private void deleteModal(Context c) {
+        modal(c, actions.deleteOpen, () -> {
+            Path p = actions.pendingDelete();
+            String name = p == null ? "" : p.getFileName().toString();
+            column(c).width(320).padding(18, 20).gap(12)
+                    .background(c.theme().surface()).radius(10)
+                    .children(() -> {
+                        text(c, "确认删除「" + name + "」？").fontSize(14).bold().textColor(c.theme().text());
+                        if (actions.pendingCount() > 1) {
+                            text(c, "其中包含 " + actions.pendingCount() + " 项")
+                                    .fontSize(12).textColor(c.theme().textMuted());
+                        }
+                        row(c).gap(8).children(() -> {
+                            jui.ui.Element ok = primaryButton(c, "删除").label("confirm-delete-ok");
+                            if (ok.clicked()) actions.doDelete();
+                            jui.ui.Element no = button(c, "取消").label("confirm-delete-cancel");
+                            if (no.clicked()) actions.cancelDelete();
+                        });
+                    });
+        });
+    }
+
+    private void clashModal(Context c) {
+        modal(c, actions.clashOpen, () -> {
+            column(c).width(320).padding(18, 20).gap(12)
+                    .background(c.theme().surface()).radius(10)
+                    .children(() -> {
+                        text(c, "「" + actions.clashName() + "」已存在").fontSize(14).bold()
+                                .textColor(c.theme().text());
+                        row(c).gap(8).children(() -> {
+                            jui.ui.Element over = primaryButton(c, "覆盖").label("confirm-overwrite-overwrite");
+                            if (over.clicked()) actions.decideClash(jui.jspace.store.FileOps.Decision.OVERWRITE);
+                            jui.ui.Element skip = button(c, "跳过").label("confirm-overwrite-skip");
+                            if (skip.clicked()) actions.decideClash(jui.jspace.store.FileOps.Decision.SKIP);
+                            jui.ui.Element cancel = button(c, "取消").label("confirm-overwrite-cancel");
+                            if (cancel.clicked()) actions.decideClash(jui.jspace.store.FileOps.Decision.CANCEL);
+                        });
+                    });
         });
     }
 
@@ -248,9 +333,14 @@ final class Workspace implements View {
             }
         }
         if (c.shortcut(jui.ui.Shortcut.cmd(jui.ui.Key.F))) searchHandle.focus();
+        if (c.shortcut(jui.ui.Shortcut.cmd(jui.ui.Key.C))) copy(m.active, false);
+        if (c.shortcut(jui.ui.Shortcut.cmd(jui.ui.Key.X))) copy(m.active, true);
+        if (c.shortcut(jui.ui.Shortcut.cmd(jui.ui.Key.V))) paste(m.active);
+        if (c.shortcut(jui.ui.Shortcut.of(jui.ui.Key.BACKSPACE))) askDelete(m.active);
         if (c.shortcut(jui.ui.Shortcut.of(jui.ui.Key.ESCAPE))) {
-            m.panes[m.active].tab().search = "";
-            searchRef.set("");
+            Model.TabState t = m.panes[m.active].tab();
+            if (t.renameNew != null) t.renameNew = null;         // a rename in progress closes first
+            else { t.search = ""; searchRef.set(""); }
         }
         if (c.shortcut(jui.ui.Shortcut.cmd(jui.ui.Key.R))) {
             Model.TabState t = m.panes[m.active].tab();
@@ -296,9 +386,5 @@ final class Workspace implements View {
 
     private void pane(Context c, int i) {
         new FilePane(this, i).build(c);
-    }
-
-    private void statusPlaceholder(Context c) {
-        box(c).height(24).fillWidth().background(JspaceTheme.palette(c).bar()).label("statusbar");
     }
 }

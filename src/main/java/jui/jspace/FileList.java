@@ -25,6 +25,7 @@ final class FileList {
         List<Entries.Row> rows = Entries.view(snap.entries(), ws.store()::snap, t.sort,
                 ws.settings().foldersFirst, t.search, ws.settings().showHidden, t.expanded);
         float rowH = ws.settings().density == jui.jspace.store.Settings.Density.COMPACT ? 24 : 28;
+        t.rowCount = rows.size();
         t.listRows.keys(i -> rows.get(i).entry().path().hashCode());
 
         column(c).fill().children(() -> {
@@ -84,6 +85,24 @@ final class FileList {
         else if (i % 2 == 1) rowBtn.background(JspaceTheme.palette(c).zebra());
         if (rowBtn.clicked()) t.selected = e.path();
         if (rowBtn.doubleClicked()) ws.openEntry(pane, e);
+        entryMenu(c, rowBtn, e);
+    }
+
+    /** The right-click menu on one entry. */
+    private void entryMenu(Context c, jui.ui.Element target, FileEntry e) {
+        contextMenu(c, target, menu -> {
+            if (menu.item("打开").chosen()) ws.openEntry(pane, e);
+            if (e.dir() && menu.item("在新标签页中打开").chosen()) {
+                ws.newTab(pane);
+                ws.navigate(pane, e.path());
+            }
+            if (menu.item("重命名").chosen()) ws.startRename(pane);
+            menu.separator();
+            if (menu.item("拷贝").chosen()) ws.copy(pane, false);
+            if (menu.item("剪切").chosen()) ws.copy(pane, true);
+            menu.separator();
+            if (menu.item("删除").chosen()) ws.askDelete(pane);
+        });
     }
 
     private void disclosure(Context c, Model.TabState t, FileEntry e) {

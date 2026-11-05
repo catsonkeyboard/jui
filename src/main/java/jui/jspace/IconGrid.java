@@ -25,6 +25,7 @@ final class IconGrid {
         int perRow = Math.max(1, (int) (t.paneWidth / CELL_W));
         int rowCount = (rows.size() + perRow - 1) / perRow;
         int pr = perRow;
+        t.rowCount = rows.size();
         t.gridRows.keys(i -> i * pr);                            // anchor on the row's first entry
 
         box(c).fill().clip().children(() ->

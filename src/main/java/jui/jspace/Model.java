@@ -31,6 +31,7 @@ final class Model {
         Path selected;                    // the one selected entry, null for none
         String search = "";
         String renameNew;                 // the inline rename input's initial text, null hides it
+        int rowCount;                     // last frame's visible row count, for the status line
         float paneWidth;                  // last frame's content width, for the grid's columns
 
         TabState(Path dir) { this.dir = dir; }
