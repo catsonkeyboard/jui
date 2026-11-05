@@ -11,7 +11,7 @@ import jui.ui.Theme;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-/** QSpace, a file manager built on j-ui. Run: ./build.sh demo QSpace */
+/** jspace, a QSpace-style file manager built on j-ui. Run: ./build.sh demo jspace */
 public final class JspaceApp {
     private static final AtomicReference<Window> main = new AtomicReference<>();
     private static final AtomicReference<Window> settingsWin = new AtomicReference<>();
@@ -33,7 +33,7 @@ public final class JspaceApp {
             });
             workspace.onAppearanceChange = JspaceApp::applyAppearance;
             workspace.onSettings = JspaceApp::openSettings;
-            main.set(Window.open(WindowOptions.of("QSpace").size(1280, 800).content(workspace::build)));
+            main.set(Window.open(WindowOptions.of("jspace").size(1280, 800).content(workspace::build)));
             applyAppearance();
             workspace.rescanAll();      // scans fired before the window existed would drop their results
         });
@@ -64,7 +64,7 @@ public final class JspaceApp {
         bar.submenu("视图", view -> {
             if (view.item("显示边栏").shortcut(Shortcut.cmd(Key.B)).chosen()) workspace.toggleSidebar();
         });
-        bar.submenu("QSpace", app -> {
+        bar.submenu("jspace", app -> {
             if (app.item("设置…").shortcut(Shortcut.cmd(Key.COMMA)).chosen()) openSettings();
             app.separator();
             if (app.item("退出").shortcut(Shortcut.cmd(Key.Q)).chosen()) quit();

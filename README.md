@@ -639,13 +639,13 @@ JUI_FRAME_STATS=all ./build.sh native-demo Notes --quit-after-first-frame
 
 正文仍为只读预览，新建与分组只在内存中保存；Last 7 Days仍是示例分类，没有真实日期筛选。完整编辑器/磁盘保存、真实呈现延迟及普通scroll布局缓存命中问题不在本次整合范围。实现与本轮数据见[统一示例审查记录](docs/reviews/2026-11-01-unified-notes-demo-review.md)。
 
-## QSpace 文件管理器（2026-11-05）
+## jspace 文件管理器（2026-11-05，QSpace 复刻）
 
 按[设计文档](docs/superpowers/specs/2026-11-05-jspace-clone-design.md)与[实施计划](docs/superpowers/plans/2026-11-05-jspace-clone.md)复刻的 QSpace 风格文件管理器，浏览真实文件系统（java.nio，后台虚拟线程扫描、不可变快照），全部界面用 j-ui / Metal 自绘。
 
 ```bash
-./build.sh demo QSpace          # JVM
-./build.sh native-demo QSpace   # native image
+./build.sh demo jspace          # JVM（别名 QSpace）
+./build.sh native-demo jspace   # native image
 ```
 
 - **多面板工作区**：单面板 / 双面板 / 2×2 三档布局（工具栏切换，分割线可拖动可键盘微调，收缩保留左上面板）；点击或悬停面板即激活（强调色描边 + 面包屑蓝底）。

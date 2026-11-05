@@ -82,7 +82,7 @@ public final class Settings {
         try {
             Files.createDirectories(file.getParent());
             try (var out = Files.newOutputStream(file)) {
-                p.store(out, "QSpace (j-ui)");
+                p.store(out, "jspace (j-ui)");
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);                  // saving settings failing is fatal-ish; surface it

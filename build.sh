@@ -120,7 +120,7 @@ example_name() {
 demo_class() {
   local name
   name=$(example_name "$@")
-  if [[ "$name" == QSpace ]]; then echo "jui.jspace.JspaceApp"; else echo "jui.examples.${name}Demo"; fi
+  if [[ "$name" == QSpace || "$name" == jspace ]]; then echo "jui.jspace.JspaceApp"; else echo "jui.examples.${name}Demo"; fi
 }
 
 # demo runs an example on the JVM.

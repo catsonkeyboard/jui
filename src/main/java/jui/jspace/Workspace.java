@@ -291,12 +291,10 @@ final class Workspace implements View {
             plainButton(c, "toggle-sidebar", "边栏", this::toggleSidebar);
             plainButton(c, "open-settings", "设置", this::openSettings);
 
-            box(c).width(150).height(26).radius(6).border(1, c.theme().border()).label("search-box")
-                    .padding(0, 6).children(() -> {
-                        jui.ui.Element in = textInput(c, searchRef).placeholder("搜索");
-                        in.bind(searchHandle);
-                        if (in.changed()) t.search = searchRef.get();
-                    });
+            jui.ui.Element in = textInput(c, searchRef).placeholder("搜索").width(150)
+                    .label("search-box");
+            in.bind(searchHandle);
+            if (in.changed()) t.search = searchRef.get();
         });
     }
 

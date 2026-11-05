@@ -43,12 +43,10 @@ final class Sidebar {
                 group(c, "工作区");
                 for (Item i : matched(List.of(new Item(null, "默认", null)))) item(c, i);
             });
-            box(c).height(36).fillWidth().padding(4, 8).children(() -> {
-                box(c).fillWidth().height(28).radius(6).background(pal.pill()).label("sidebar-filter")
-                        .padding(0, 6).children(() -> {
-                            jui.ui.Element in = textInput(c, filter).placeholder("过滤");
-                            in.fontSize(12);
-                        });
+            box(c).height(36).fillWidth().padding(4, 10).children(() -> {
+                jui.ui.Element in = textInput(c, filter).placeholder("过滤")
+                        .fillWidth().label("sidebar-filter");
+                in.fontSize(12);
             });
         });
     }
