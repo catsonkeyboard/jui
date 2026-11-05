@@ -47,7 +47,7 @@ final class FilePane {
                     } else if (t.view == Model.ViewMode.LIST) {
                         new FileList(ws, pane).build(c);
                     } else {
-                        centerNote(c, snap.entries().length + " 项");   // the grid view lands in Task 10
+                        new IconGrid(ws, pane).build(c);
                     }
                 });
         t.paneWidth = contentBox.bounds().width();              // last frame's width, 0 on the first

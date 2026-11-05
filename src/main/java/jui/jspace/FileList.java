@@ -69,7 +69,7 @@ final class FileList {
                     box(c).width(r.depth() * 16);
                     if (e.dir()) disclosure(c, t, e);
                     else box(c).width(14);
-                    box(c).width(18).height(18);                // FileIcons lands here in Task 10
+                    box(c).width(18).height(18).draw(FileIcons.draw(e.icon(), false));
                     text(c, Texts.fit(c, e.name(), 12, 400,
                                     Math.max(60, t.paneWidth - r.depth() * 16 - 320)))
                             .fontSize(12).textColor(sel ? c.theme().accentText() : c.theme().text());
