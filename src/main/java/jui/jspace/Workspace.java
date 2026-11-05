@@ -1,8 +1,9 @@
 package jui.jspace;
 
 import jui.ui.Context;
-import jui.ui.Element;
 import jui.ui.View;
+
+import java.nio.file.Path;
 
 import static jui.ui.Ui.*;
 
@@ -37,17 +38,78 @@ final class Workspace implements View {
         onAppearanceChange.run();
     }
 
-    /** Menu: a new tab in the active pane (Task 8 fills it in). */
-    void newTab() {}
+    // Navigation and tabs -----------------------------------------------------
 
-    /** Menu: close the active pane's tab (Task 8 fills it in). */
-    void closeTab() {}
+    /** Takes the pane's current tab to dir, remembering where it came from. */
+    void navigate(int pane, Path dir) {
+        if (dir == null) return;
+        Model.TabState t = m.panes[pane].tab();
+        if (dir.equals(t.dir)) return;
+        if (t.dir != null) t.back.push(t.dir);
+        t.forward.clear();
+        t.dir = dir;
+        t.selected = null;
+        store.scan(dir);
+    }
+
+    void goBack(int pane) {
+        Model.TabState t = m.panes[pane].tab();
+        if (t.back.isEmpty() || t.dir == null) return;
+        t.forward.push(t.dir);
+        t.dir = t.back.pop();
+        t.selected = null;
+        store.scan(t.dir);
+    }
+
+    void goForward(int pane) {
+        Model.TabState t = m.panes[pane].tab();
+        if (t.forward.isEmpty() || t.dir == null) return;
+        t.back.push(t.dir);
+        t.dir = t.forward.pop();
+        t.selected = null;
+        store.scan(t.dir);
+    }
+
+    /** A new tab in the pane, opening where the setting says. */
+    void newTab(int pane) {
+        Model.TabState cur = m.panes[pane].tab();
+        Path home = Path.of(System.getProperty("user.home"));
+        Path at = settings.newTabAt == jui.jspace.store.Settings.NewTabAt.CURRENT && cur.dir != null ? cur.dir : home;
+        Model.TabState t = new Model.TabState(at);
+        t.sort.key = cur.sort.key;
+        t.sort.asc = cur.sort.asc;
+        m.panes[pane].tabs.add(t);
+        m.panes[pane].current = m.panes[pane].tabs.size() - 1;
+        store.scan(at);
+    }
+
+    /** Closes the pane's tab; the last one reopens at home instead of leaving none. */
+    void closeTab(int pane) {
+        Model.PaneState p = m.panes[pane];
+        if (p.tabs.size() <= 1) {
+            p.tab().dir = Path.of(System.getProperty("user.home"));
+            p.tab().back.clear();
+            p.tab().forward.clear();
+            store.scan(p.tab().dir);
+            return;
+        }
+        p.tabs.remove(p.current);
+        if (p.current >= p.tabs.size()) p.current = p.tabs.size() - 1;
+    }
+
+    /** Menu: a new tab in the active pane. */
+    void newTab() { newTab(m.active); }
+
+    /** Menu: close the active pane's tab. */
+    void closeTab() { closeTab(m.active); }
 
     /** Menu: show or hide the sidebar (Task 11 fills it in). */
     void toggleSidebar() {}
 
     /** Menu: open the settings window (Task 15 fills it in). */
     void openSettings() {}
+
+    // Building -----------------------------------------------------------------
 
     @Override
     public void build(Context c) {
@@ -69,17 +131,16 @@ final class Workspace implements View {
 
     private void paneGrid(Context c) {
         switch (m.layout) {
-            case SINGLE -> box(c).fill().label("pane-grid")
-                    .children(() -> box(c).fill().label("pane-0"));
-            case DOUBLE -> split(c, m.hSplit[0],
-                    () -> box(c).fill().label("pane-0"),
-                    () -> box(c).fill().label("pane-1")).label("pane-grid");
+            case SINGLE -> box(c).fill().label("pane-grid").children(() -> pane(c, 0));
+            case DOUBLE -> split(c, m.hSplit[0], () -> pane(c, 0), () -> pane(c, 1)).label("pane-grid");
             case GRID -> splitVertical(c, m.vSplit,
-                    () -> split(c, m.hSplit[0], () -> box(c).fill().label("pane-0"),
-                            () -> box(c).fill().label("pane-1")),
-                    () -> split(c, m.hSplit[1], () -> box(c).fill().label("pane-2"),
-                            () -> box(c).fill().label("pane-3"))).label("pane-grid");
+                    () -> split(c, m.hSplit[0], () -> pane(c, 0), () -> pane(c, 1)),
+                    () -> split(c, m.hSplit[1], () -> pane(c, 2), () -> pane(c, 3))).label("pane-grid");
         }
+    }
+
+    private void pane(Context c, int i) {
+        new FilePane(this, i).build(c);
     }
 
     private void statusPlaceholder(Context c) {

@@ -22,17 +22,17 @@ public final class WorkspaceShellTest {
         Model m = new Model();
         Tester tt = open(m);
         for (int i = 0; i < 4; i++) {
-            Check.isTrue(tt.find("pane-" + i).width() > 0, "pane-" + i);
+            Check.isTrue(tt.find("pane-" + i + "-frame").width() > 0, "pane-" + i);
         }
     }
 
     public void testSingleAndDoubleLayouts() {
         Model single = new Model();
         single.layout = Model.Layout.SINGLE;
-        Check.isTrue(Tester.of(new Workspace(single).view(), 800, 600).find("pane-0").width() > 0, "single");
+        Check.isTrue(Tester.of(new Workspace(single).view(), 800, 600).find("pane-0-frame").width() > 0, "single");
         Model dbl = new Model();
         dbl.layout = Model.Layout.DOUBLE;
-        Check.isTrue(Tester.of(new Workspace(dbl).view(), 800, 600).find("pane-1").width() > 0, "double");
+        Check.isTrue(Tester.of(new Workspace(dbl).view(), 800, 600).find("pane-1-frame").width() > 0, "double");
     }
 
     public void testLayoutSwitchKeepsTheFirstPanes() {
@@ -40,6 +40,6 @@ public final class WorkspaceShellTest {
         m.layout = Model.Layout.GRID;
         m.layout = Model.Layout.SINGLE;                          // shrink: keep pane 0
         Tester tt = open(m);
-        Check.isTrue(tt.find("pane-0").width() > 0, "pane-0");
+        Check.isTrue(tt.find("pane-0-frame").width() > 0, "pane-0");
     }
 }

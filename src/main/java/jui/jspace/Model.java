@@ -30,6 +30,7 @@ final class Model {
         final jui.ui.ListState gridRows = new jui.ui.ListState();
         Path selected;                    // the one selected entry, null for none
         String search = "";
+        String renameNew;                 // the inline rename input's initial text, null hides it
         float paneWidth;                  // last frame's content width, for the grid's columns
 
         TabState(Path dir) { this.dir = dir; }
@@ -64,10 +65,15 @@ final class Model {
     final Status status = new Status();
     boolean sidebarOpen = true;
 
+    private final jui.jspace.store.Settings settings;
+
+    jui.jspace.store.Settings settings() { return settings; }
+
     Model() { this(new jui.jspace.store.Settings()); }
 
     /** Takes its defaults (layout, sort, density) from the loaded settings. */
     Model(jui.jspace.store.Settings s) {
+        this.settings = s;
         layout = switch (s.defaultLayout) {
             case SINGLE -> Layout.SINGLE;
             case DOUBLE -> Layout.DOUBLE;
