@@ -4,6 +4,7 @@ import jui.ui.Context;
 import jui.ui.View;
 
 import java.nio.file.Path;
+import java.util.List;
 
 import static jui.ui.Ui.*;
 
@@ -103,6 +104,20 @@ final class Workspace implements View {
     /** Menu: close the active pane's tab. */
     void closeTab() { closeTab(m.active); }
 
+    /** Opens one entry: into it when a folder, with /usr/bin/open when not. */
+    void openEntry(int pane, jui.jspace.store.FileEntry e) {
+        if (e.dir()) {
+            navigate(pane, e.path());
+        } else {
+            try {
+                new ProcessBuilder("/usr/bin/open", e.path().toString()).start();
+            } catch (java.io.IOException ex) {
+                m.status.note = "无法打开 " + e.name();
+                m.status.noteAt = System.nanoTime();
+            }
+        }
+    }
+
     /** Menu: show or hide the sidebar (Task 11 fills it in). */
     void toggleSidebar() {}
 
@@ -113,6 +128,7 @@ final class Workspace implements View {
 
     @Override
     public void build(Context c) {
+        keys(c);
         column(c).fill().children(() -> {
             toolbarPlaceholder(c);
             row(c).grow(1).children(() -> {
@@ -123,6 +139,39 @@ final class Workspace implements View {
             });
             statusPlaceholder(c);
         });
+    }
+
+    /** Window-level keys that act on the active pane's list: arrows walk, Enter opens. */
+    private void keys(Context c) {
+        if (c.shortcut(jui.ui.Shortcut.of(jui.ui.Key.UP))) selectionKey(c, -1);
+        if (c.shortcut(jui.ui.Shortcut.of(jui.ui.Key.DOWN))) selectionKey(c, 1);
+        if (c.shortcut(jui.ui.Shortcut.of(jui.ui.Key.ENTER))) {
+            Model.TabState t = m.panes[m.active].tab();
+            if (t.selected != null) {
+                for (Entries.Row r : wsEntries(t)) {
+                    if (r.entry().path().equals(t.selected)) { openEntry(m.active, r.entry()); break; }
+                }
+            }
+        }
+    }
+
+    private void selectionKey(Context c, int step) {
+        Model.TabState t = m.panes[m.active].tab();
+        if (t.dir == null) return;
+        List<Entries.Row> rows = wsEntries(t);
+        if (rows.isEmpty()) return;
+        int at = -1;
+        for (int i = 0; i < rows.size(); i++) {
+            if (rows.get(i).entry().path().equals(t.selected)) { at = i; break; }
+        }
+        int to = Math.max(0, Math.min(rows.size() - 1, at < 0 ? 0 : at + step));
+        t.selected = rows.get(to).entry().path();
+        t.listRows.scrollTo(to);
+    }
+
+    private List<Entries.Row> wsEntries(Model.TabState t) {
+        return Entries.view(store.snap(t.dir).entries(), store::snap, t.sort,
+                settings.foldersFirst, t.search, settings.showHidden, t.expanded);
     }
 
     private void toolbarPlaceholder(Context c) {

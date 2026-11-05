@@ -35,11 +35,19 @@ final class FilePane {
                     if (snap == null || snap.state() == jui.jspace.store.FileStore.State.LOADING) {
                         centerNote(c, "正在载入…");
                     } else if (snap.state() == jui.jspace.store.FileStore.State.ERROR) {
-                        centerNote(c, snap.error() == null ? "无法打开" : snap.error());
-                    } else if (snap.entries().length == 0) {
-                        centerNote(c, "此文件夹为空");
+                        column(c).grow(1).fillWidth().alignItems(jui.ui.Align.CENTER).children(() -> {
+                            spacer(c);
+                            text(c, snap.error() == null ? "无法打开" : snap.error())
+                                    .textColor(c.theme().textMuted());
+                            jui.ui.Element back = button(c, "返回主目录");
+                            if (back.clicked()) ws.navigate(pane,
+                                    java.nio.file.Path.of(System.getProperty("user.home")));
+                            spacer(c);
+                        });
+                    } else if (t.view == Model.ViewMode.LIST) {
+                        new FileList(ws, pane).build(c);
                     } else {
-                        text(c, snap.entries().length + " 项").textColor(c.theme().textMuted());
+                        centerNote(c, snap.entries().length + " 项");   // the grid view lands in Task 10
                     }
                 });
         t.paneWidth = contentBox.bounds().width();              // last frame's width, 0 on the first
