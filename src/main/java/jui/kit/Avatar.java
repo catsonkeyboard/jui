@@ -3,6 +3,7 @@ package jui.kit;
 import jui.ui.Align;
 import jui.ui.Color;
 import jui.ui.Context;
+import jui.ui.Painter;
 import jui.ui.Element;
 
 import static jui.ui.Ui.*;
