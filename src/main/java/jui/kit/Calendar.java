@@ -7,7 +7,6 @@ import jui.ui.Align;
 import jui.ui.Context;
 import jui.ui.Element;
 import jui.ui.IntRef;
-import jui.ui.Justify;
 
 import static jui.ui.Ui.*;
 
@@ -53,7 +52,6 @@ public final class Calendar {
                         boolean sel = day == selectedDay.get();
                         Element d = buttonBase(c).size(28, 24).radius(Kit.RADIUS_XS)
                                 .label("kit-cal-" + day)
-                                .justify(Justify.START)
                                 .children(() -> text(c, Integer.toString(day)).fontSize(11)
                                         .textColor(sel ? c.theme().accentText() : c.theme().text()));
                         if (sel) d.background(c.theme().accent());

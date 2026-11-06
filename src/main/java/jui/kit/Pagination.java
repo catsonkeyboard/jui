@@ -27,7 +27,6 @@ public final class Pagination {
                 boolean on = p == current;
                 Element b = buttonBase(c).size(24, 24).radius(Kit.RADIUS_XS)
                         .label("kit-page-" + (p + 1))
-                        .justify(Justify.START)
                         .children(() -> text(c, Integer.toString(p + 1)).fontSize(11)
                                 .textColor(on ? c.theme().accentText() : c.theme().text()));
                 if (on) b.background(c.theme().accent());
@@ -41,6 +40,7 @@ public final class Pagination {
     private static void nav(Context c, jui.ui.IntRef page, String id, boolean enabled,
                             String glyph, int target) {
         Element b = buttonBase(c).size(24, 24).radius(Kit.RADIUS_XS).label(id)
+                .alignItems(Align.CENTER)
                 .children(() -> box(c).size(12, 12)
                         .draw(Icon.draw(glyph, enabled ? c.theme().text() : c.theme().border())));
         if (enabled && b.clicked()) page.set(target);
