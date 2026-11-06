@@ -17,7 +17,8 @@ public final class TimeField {
                                     jui.ui.BoolRef openMinute) {
         return row(c).gap(4).alignItems(Align.CENTER).label("kit-time").children(() -> {
             dropdown(c, hour, openHour, 24, "kit-time-h", "%02d 时");
-            text(c, ":").fontSize(13).textColor(c.theme().textMuted());
+            box(c).width(10).alignItems(Align.CENTER)
+                    .children(() -> text(c, ":").fontSize(13).textColor(c.theme().textMuted()));
             dropdown(c, minute, openMinute, 60, "kit-time-m", "%02d 分");
         });
     }
