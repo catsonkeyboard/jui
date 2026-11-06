@@ -21,9 +21,9 @@ public final class OtpInput {
                 for (int i = 0; i < digits; i++) {
                     String digit = i < current.length() ? current.substring(i, i + 1) : "";
                     boolean next = i == Math.min(current.length(), digits - 1);
-                    box(c).size(boxSize, boxSize).radius(Kit.RADIUS_XS)
+                    box(c).size(boxSize, boxSize).shrink(0).radius(Kit.RADIUS_XS)
                             .border(next ? 1.5f : 1, next ? c.theme().accent() : Kit.line(c))
-                            .background(c.theme().background())
+                            .background(c.theme().surface())
                             .alignItems(Align.CENTER)
                             .label("kit-otp-" + i)
                             .children(() -> {
@@ -34,7 +34,7 @@ public final class OtpInput {
                             });
                 }
             });
-            Element capture = textInput(c, value).width(boxSize * 2.5f)
+            Element capture = textInput(c, value).width(boxSize * 1.6f)
                     .placeholder("输入验证码").label("kit-otp-capture");
             if (capture.changed()) {
                 String digits1 = value.get().replaceAll("[^0-9]", "");
