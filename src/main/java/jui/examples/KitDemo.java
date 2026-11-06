@@ -34,6 +34,7 @@ import jui.kit.Radio;
 import jui.kit.Rating;
 import jui.kit.Select;
 import jui.kit.Settings;
+import jui.kit.Sheet;
 import jui.kit.Skeleton;
 import jui.kit.Spinner;
 import jui.kit.Tabs;
@@ -118,21 +119,33 @@ public final class KitDemo implements View {
                         }
                         Element s = Button.button(c, "设置", Kit.Variant.DEFAULT, Kit.Size.SMALL, "gearshape");
                         if (s.clicked()) sheetOpen.set(true);
+                        Element k = Button.button(c, "命令", Kit.Variant.DEFAULT, Kit.Size.SMALL, "bolt");
+                        if (k.clicked()) paletteOpen.set(true);
                     });
-            row(c).grow(1).children(() -> {
-                box(c).width(300).fillHeight().clip().children(() ->
-                        scroll(c).fillHeight().padding(12, 16).children(() ->
-                                column(c).fillWidth().gap(18).children(() -> {
-                                    for (Section s : sections(c)) {
-                                        text(c, s.title()).fontSize(13).bold().textColor(c.theme().accent());
-                                        s.body().run();
-                                        divider(c);
-                                    }
-                                })));
-                box(c).grow(1).fillHeight().children(() -> Notifications.host(c));
-            });
+            box(c).grow(1).fillWidth().clip().children(() ->
+                    scroll(c).fillHeight().padding(12, 20).children(() ->
+                            column(c).fillWidth().gap(18).children(() -> {
+                                for (Section s : sections(c)) {
+                                    text(c, s.title()).fontSize(13).bold().textColor(c.theme().accent());
+                                    s.body().run();
+                                    divider(c);
+                                }
+                            })));
             Bars.statusBar(c, "jui-kit · " + sections(c).length + " 个组件分组 · 全部可交互",
                     () -> Label.label(c, "j-ui", Kit.Size.XSMALL, Label.Variant.MUTED));
+            // overlays build at the window root so their absolute positioning is never
+            // captured by the gallery's scroll clip
+            Dialog.dialog(c, dialogOpen, "删除确认",
+                    () -> text(c, "该操作不可撤销，确定继续？").fontSize(12)
+                            .textColor(c.theme().textMuted()),
+                    Dialog.Buttons.CONFIRM_CANCEL, ok -> { });
+            Sheet.sheet(c, sheetOpen, 260, () ->
+                    column(c).padding(16).gap(10).children(() -> {
+                        text(c, "设置抽屉").fontSize(14).bold().textColor(c.theme().text());
+                        text(c, "这里是从右侧滑出的面板内容。").fontSize(12)
+                                .textColor(c.theme().textMuted());
+                    }));
+            Notifications.host(c);
         });
     }
 
@@ -300,15 +313,8 @@ public final class KitDemo implements View {
                 row(c).gap(8).children(() -> {
                     Element d = Button.button(c, "打开对话框", Kit.Variant.PRIMARY, Kit.Size.SMALL);
                     if (d.clicked()) dialogOpen.set(true);
-                    Element p = Button.button(c, "命令面板", Kit.Variant.DEFAULT, Kit.Size.SMALL, "bolt");
-                    if (p.clicked()) paletteOpen.set(true);
+                    Label.label(c, "命令面板在右上角工具栏", Kit.Size.SMALL, Label.Variant.MUTED);
                 });
-                Dialog.dialog(c, dialogOpen, "删除确认",
-                        () -> text(c, "该操作不可撤销，确定继续？").fontSize(12)
-                                .textColor(c.theme().textMuted()),
-                        Dialog.Buttons.CONFIRM_CANCEL, ok -> { });
-                Command.palette(c, "命令", paletteOpen, query, picked::set,
-                        Command.cmd("新建文件"), Command.cmd("关闭窗口"));
             }),
             new Section("侧栏与停靠", () -> {
                 row(c).gap(16).alignItems(Align.CENTER).children(() -> {
