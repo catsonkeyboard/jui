@@ -27,6 +27,13 @@ public final class Command {
                                   TextRef query, java.util.function.IntConsumer pick, Cmd... commands) {
         Element anchor = Button.button(c, triggerLabel, Kit.Variant.DEFAULT, Kit.Size.MEDIUM,
                 "bolt", false, false, false, false, true);
+        attach(c, anchor, open, query, pick, commands);
+        return anchor;
+    }
+
+    /** Binds the palette to an anchor the caller built (a toolbar button, say). */
+    public static void attach(Context c, Element anchor, jui.ui.BoolRef open,
+                              TextRef query, java.util.function.IntConsumer pick, Cmd... commands) {
         popover(c, anchor, open, () -> {
             List<Cmd> matches = new ArrayList<>();
             String q = query.get().toLowerCase();
@@ -56,7 +63,6 @@ public final class Command {
                 }
             });
         });
-        return anchor;
     }
 
     private Command() {}

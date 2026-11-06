@@ -122,6 +122,8 @@ public final class KitDemo implements View {
                         if (s.clicked()) sheetOpen.set(true);
                         Element k = Button.button(c, "命令", Kit.Variant.DEFAULT, Kit.Size.SMALL, "bolt");
                         if (k.clicked()) paletteOpen.set(true);
+                        Command.attach(c, k, paletteOpen, query, picked::set,
+                                Command.cmd("新建文件"), Command.cmd("关闭窗口"));
                     });
             box(c).grow(1).fillWidth().clip().children(() ->
                     scroll(c).fillHeight().padding(12, 20).children(() ->
