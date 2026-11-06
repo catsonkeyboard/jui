@@ -13,6 +13,8 @@ import jui.kit.Collapsible;
 import jui.kit.Command;
 import jui.kit.DataTable;
 import jui.kit.DescriptionList;
+import jui.kit.Diff;
+import jui.kit.Speech;
 import jui.kit.Dialog;
 import jui.kit.Dock;
 import jui.kit.DropdownButton;
@@ -100,6 +102,8 @@ public final class KitDemo implements View {
     private final TextRef otp = new TextRef("");
     private final TextRef sidebarSel = new TextRef("常规/外观");
     private final TextRef treeOpen = new TextRef("");
+    private final BoolRef listening = new BoolRef(false);
+    private final TextRef transcript = new TextRef("");
     private final List<String> files = new ArrayList<>(List.of("报告.pdf", "设计稿.png"));
 
     /** One gallery section: a heading and the samples under it. */
@@ -333,6 +337,13 @@ public final class KitDemo implements View {
                 Settings.page(c, "", Settings.line("显示隐藏文件",
                                 () -> jui.ui.Ui.toggle(c, showHidden, "")),
                         Settings.line("密度", () -> Label.label(c, "舒适", Kit.Size.SMALL)));
+            }),
+            new Section("文本对比与语音", () -> {
+                java.util.List<Diff.Row> rows = Diff.lines(
+                        new String[] {"jui-kit 1.0", "按钮组件", "深色主题"},
+                        new String[] {"jui-kit 1.1", "按钮组件", "图标库", "深色主题"});
+                Diff.diff(c, rows);
+                Speech.speech(c, listening, transcript);
             }),
             new Section("布局基元", () -> {
                 jui.kit.GroupBox.groupBox(c, "分组", () ->

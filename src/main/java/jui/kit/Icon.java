@@ -53,7 +53,8 @@ public final class Icon {
             entry("bell", Icon::bell),
             entry("list-bullet", Icon::listBullet),
             entry("square-grid", Icon::grid),
-            entry("circle", Icon::dot));
+            entry("circle", Icon::dot),
+            entry("mic", Icon::mic));
 
     private static Map.Entry<String, BiConsumer<Painter, Rect>> entry(String n, BiConsumer<Painter, Rect> g) {
         return Map.entry(n, g);
@@ -78,6 +79,14 @@ public final class Icon {
     private static void stroke(Painter p, Rect b, float x0, float y0, float x1, float y1, float w, Color c) {
         float u = u(b);
         p.line(ox(b) + x0 * u, oy(b) + y0 * u, ox(b) + x1 * u, oy(b) + y1 * u, w * u, c);
+    }
+
+    private static void mic(Painter p, Rect b) {
+        // a rounded capsule on a stand
+        float u = u(b);
+        p.roundedBox(ox(b) + 6 * u, oy(b) + 2.5f * u, 4 * u, 7 * u, 2 * u, Color.rgb(0xFFFFFF));
+        p.line(ox(b) + 8 * u, oy(b) + 9.5f * u, ox(b) + 8 * u, oy(b) + 12 * u, 1.4f * u, Color.rgb(0xFFFFFF));
+        p.line(ox(b) + 5.5f * u, oy(b) + 12 * u, ox(b) + 10.5f * u, oy(b) + 12 * u, 1.4f * u, Color.rgb(0xFFFFFF));
     }
 
     private static void dot(Painter p, Rect b) {

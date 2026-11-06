@@ -667,11 +667,11 @@ JUI_FRAME_STATS=all ./build.sh native-demo Notes --quit-after-first-frame
 ```
 
 - **Basic（32）**：Button（变体/尺寸/outline/loading/disabled/selected/caret/ButtonGroup）、Icon（40+ 自绘单色图标注册表）、Badge、Tag（filled/soft/outline + 关闭）、Kbd、Label、Avatar（姓名 initials + 在线点）、Skeleton（脉冲）、Spinner（旋转刻度）、Progress（条+环）、Rating（点击星星）、Marker、Alert（4 色 + 可关闭）、Accordion（单开/多开）、Collapsible、Radio、Stepper、Pagination、Tooltip、DropdownButton、TextView（markdown-lite：**粗体**、`code`）、Image（占位/自绘像素）、Attachment、Bubble/Message/MessageScroller（对话流，跟随末尾虚拟化）、Questionnaire。
-- **Form（12）**：Input/Textarea（标签字段）、Editor（代码区）、Select、Combobox（输入过滤）、NumberInput（边界+步进）、DatePicker+Calendar（月历翻页/选日）、TimeField、OtpInput、ColorPicker（RGB 滑块+色板）、Form（标签行+提交）。
+- **Form（12）**：Input/Textarea（标签字段）、Editor（代码区）、Select、Combobox（输入过滤）、NumberInput（边界+步进）、DatePicker+Calendar（月历翻页/选日）、TimeField、OtpInput、ColorPicker（RGB 滑块+色板）、Form（标签行+提交）、Speech（麦克风开关+波形动画+转写区；真实识别需自行接入语音栈）。
 - **Layout（13）**：GroupBox、DescriptionList、Dialog（modal+OK/Cancel）、Notifications（toast 队列，3.5s 自散）、Sheet（右侧滑出）、Sidebar（分组导航选中）、StatusBar/Toolbar（三插槽条栏）、Popover/Resizable/Scrollable/List/Menu/Theme/Root（框架既有能力的 kit 门面，见 `Containers`）。
 - **Advanced（14）**：Tabs、Menu、List/VirtualList、Tree（折叠/缩进）、Calendar、Carousel（页点指示）、Command（⌘K 过滤面板，pick 索引回调）、Chart（折线/柱状 Painter 绘制）、Settings（label 左控件右行）、DataTable（点击表头排序）、Dock（底部停靠激活点）、Root。
 
-测试：`jui/kit` 五个测试类 30 个交互用例（`./build.sh test KitBasicTest` 等）。已知边界：Image 无像素解码器（占位/自绘接入点已留）、Command v1 为按钮触发的过滤面板（modal 焦点交接在合成测试环境未可靠）、Tooltip v1 固定下方弹出。
+测试：`jui/kit` 五个测试类 34 个交互用例（`./build.sh test KitBasicTest` 等）。已知边界：Image 无像素解码器（占位/自绘接入点已留）、Speech 无真实识别（交互与波形可用）、Command v1 为按钮触发的过滤面板、Tooltip v1 固定下方弹出；框架圆角矩形 shader 在 radius==半边长时切角，正圆请用 Painter.circle（Avatar 已按此实现）。
 
 ## 运行
 

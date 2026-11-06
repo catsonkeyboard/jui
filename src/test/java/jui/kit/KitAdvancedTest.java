@@ -112,6 +112,44 @@ public final class KitAdvancedTest {
         Check.isTrue(tt.find("全部").width() > 0, "tab titles render");
     }
 
+    public void testDiffWalkAndTints() {
+        java.util.List<Diff.Row> rows = Diff.lines(
+                new String[] {"a", "b", "c"},
+                new String[] {"a", "B", "b", "c"});
+        Check.equal(4, rows.size());                                   // insert B, keep b and c
+        Check.equal(Diff.Kind.SAME, rows.get(0).kind());
+        Check.equal(Diff.Kind.ADDED, rows.get(1).kind());
+        Check.equal("B", rows.get(1).text());
+        Check.equal(Diff.Kind.SAME, rows.get(2).kind());
+        Check.equal("b", rows.get(2).text());
+        Check.equal(Diff.Kind.SAME, rows.get(3).kind());
+
+        java.util.List<Diff.Row> gone = Diff.lines(
+                new String[] {"x"}, new String[] {});
+        Check.equal(1, gone.size());
+        Check.equal(Diff.Kind.REMOVED, gone.get(0).kind());
+
+        Tester tt = Tester.of(c -> Diff.diff(c, rows), 260, 160);
+        tt.frame();
+        Check.isTrue(tt.find("kit-diff").width() > 0, "diff renders");
+    }
+
+    public void testSpeechToggleAndTranscript() {
+        BoolRef listening = new BoolRef(false);
+        TextRef transcript = new TextRef("");
+        transcript.set("识别结果");
+        Tester tt = Tester.of(c -> Speech.speech(c, listening, transcript), 260, 100);
+        tt.frame();
+        Check.isTrue(tt.texts().contains("识别结果"), "transcript shown");
+        Check.isTrue(tt.texts().contains("点击说话"), "idle hint");
+        tt.click("kit-speech-toggle");
+        tt.frame();
+        Check.isTrue(tt.texts().contains("正在聆听…"), "listening hint");
+        tt.click("kit-speech-toggle");
+        tt.frame();
+        Check.isTrue(tt.texts().contains("点击说话"), "back to idle");
+    }
+
     public void testVirtualListAndRootViaApp() {
         IntRef page = new IntRef(0);
         jui.ui.ListState state = new jui.ui.ListState();
