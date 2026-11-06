@@ -70,6 +70,7 @@ public final class KitDemo implements View {
     private final DoubleRef progress = new DoubleRef(0.45);
     private final IntRef rating = new IntRef(3);
     private final IntRef radio = new IntRef(1);
+    private final IntRef surveyRadio = new IntRef(0);
     private final IntRef groupSel = new IntRef(0);
     private final IntRef tab = new IntRef(0);
     private final IntRef page = new IntRef(1);
@@ -278,7 +279,7 @@ public final class KitDemo implements View {
                         Accordion.item("第二节", () -> text(c, "第二节的内容")));
                 Questionnaire.questionnaire(c, "快速问卷",
                         Questionnaire.question("你最喜欢的颜色？",
-                                () -> Radio.radio(c, radio, true, "蓝", "绿")),
+                                () -> Radio.radio(c, surveyRadio, true, "蓝", "绿")),
                         Questionnaire.question("满意度？",
                                 () -> Rating.rating(c, rating, 5, 16)));
             }),
