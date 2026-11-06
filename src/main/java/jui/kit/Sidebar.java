@@ -27,6 +27,7 @@ public final class Sidebar {
                 .border(1, Kit.line(c))
                 .label("kit-sidebar")
                 .children(() -> {
+                    box(c).grow(1).fillWidth().clip().children(() ->
                     scroll(c).grow(1).padding(6, 8).children(() -> {
                         String shown = null;
                         for (Entry e : entries) {
@@ -51,7 +52,7 @@ public final class Sidebar {
                             else if (b.hovered()) b.background(c.theme().surfaceHover());
                             if (b.clicked()) selected.set(id);
                         }
-                    });
+                    }));
                 });
     }
 

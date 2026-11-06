@@ -19,7 +19,8 @@ public final class Settings {
     }
 
     public static Element page(Context c, String heading, Line... lines) {
-        return scroll(c).grow(1).children(() ->
+        return box(c).grow(1).fillWidth().clip().children(() ->
+                scroll(c).grow(1).children(() ->
                 column(c).fillWidth().padding(16, 20).gap(8).children(() -> {
                     if (heading != null && !heading.isEmpty()) {
                         text(c, heading).fontSize(15).bold().textColor(c.theme().text());
@@ -35,7 +36,7 @@ public final class Settings {
                                     line.control().run();
                                 });
                     }
-                }));
+                })));
     }
 
     private Settings() {}

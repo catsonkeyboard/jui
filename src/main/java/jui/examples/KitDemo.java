@@ -120,14 +120,15 @@ public final class KitDemo implements View {
                         if (s.clicked()) sheetOpen.set(true);
                     });
             row(c).grow(1).children(() -> {
-                scroll(c).width(300).padding(12, 16).children(() ->
-                        column(c).fillWidth().gap(18).children(() -> {
-                            for (Section s : sections(c)) {
-                                text(c, s.title()).fontSize(13).bold().textColor(c.theme().accent());
-                                s.body().run();
-                                divider(c);
-                            }
-                        }));
+                box(c).width(300).fillHeight().clip().children(() ->
+                        scroll(c).fillHeight().padding(12, 16).children(() ->
+                                column(c).fillWidth().gap(18).children(() -> {
+                                    for (Section s : sections(c)) {
+                                        text(c, s.title()).fontSize(13).bold().textColor(c.theme().accent());
+                                        s.body().run();
+                                        divider(c);
+                                    }
+                                })));
                 box(c).grow(1).fillHeight().children(() -> Notifications.host(c));
             });
             Bars.statusBar(c, "jui-kit · " + sections(c).length + " 个组件分组 · 全部可交互",

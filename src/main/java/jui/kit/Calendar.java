@@ -23,7 +23,7 @@ public final class Calendar {
         YearMonth month = YearMonth.of(epochMonth.get() / 12, 1 + (epochMonth.get() % 12));
         int firstDow = month.atDay(1).getDayOfWeek().getValue() - 1;          // Monday = 0
         int days = month.lengthOfMonth();
-        Element root = column(c).gap(6).children(() -> {
+        Element root = column(c).gap(6).alignItems(Align.CENTER).children(() -> {
             row(c).gap(6).alignItems(Align.CENTER).children(() -> {
                 nav(c, epochMonth, "kit-cal-prev", "chevron-left", -1);
                 spacer(c).grow(1);
