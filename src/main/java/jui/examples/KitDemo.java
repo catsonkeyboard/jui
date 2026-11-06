@@ -139,7 +139,7 @@ public final class KitDemo implements View {
     private Section[] sections(Context c) {
         return new Section[] {
             new Section("按钮与状态", () -> {
-                row(c).gap(8).children(() -> {
+                row(c).gap(8).wrap().children(() -> {
                     Button.button(c, "主要", Kit.Variant.PRIMARY);
                     Button.button(c, "危险", Kit.Variant.DANGER);
                     Button.button(c, "成功", Kit.Variant.SUCCESS);
@@ -173,14 +173,14 @@ public final class KitDemo implements View {
                 Button.buttonGroup(c, groupSel, "天", "周", "月");
             }),
             new Section("图标与标记", () -> {
-                row(c).gap(10).alignItems(Align.CENTER).children(() -> {
+                row(c).gap(10).gapY(8).alignItems(Align.CENTER).wrap().children(() -> {
                     for (String ic : new String[] { "house", "magnifyingglass", "gearshape", "trash",
                             "folder", "star", "heart", "bookmark", "clock", "calendar", "bell",
                             "download", "share", "bolt", "lock", "doc", "photo", "person" }) {
                         box(c).size(18, 18).draw(Icon.draw(ic, c.theme().textMuted()));
                     }
                 });
-                row(c).gap(10).alignItems(Align.CENTER).children(() -> {
+                row(c).gap(10).gapY(8).alignItems(Align.CENTER).wrap().children(() -> {
                     Badge.badge(c, 3);
                     Badge.badge(c, 120);
                     Badge.badgeDot(c);                                       // dot-only
@@ -193,7 +193,7 @@ public final class KitDemo implements View {
                 });
             }),
             new Section("头像与加载", () -> {
-                row(c).gap(10).alignItems(Align.CENTER).children(() -> {
+                row(c).gap(10).gapY(8).alignItems(Align.CENTER).wrap().children(() -> {
                     Avatar.avatar(c, "Li Ming", 36, true);
                     Avatar.avatar(c, "Wang", 28);
                     Avatar.avatar(c, "Chen Jing", 24);

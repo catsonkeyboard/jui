@@ -33,7 +33,7 @@ public final class Spinner {
 
     /** A spinning element of the given square size. */
     public static jui.ui.Element spinner(Context c, float size) {
-        return jui.ui.Ui.box(c).size(size, size).draw(draw(c)).label("kit-spinner");
+        return jui.ui.Ui.box(c).size(size, size).shrink(0).draw(draw(c)).label("kit-spinner");
     }
 
     private Spinner() {}

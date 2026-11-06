@@ -15,7 +15,7 @@ public final class Marker {
     public static Element marker(Context c, Kit.Variant v, String count) {
         Kit.Tone tone = Kit.tone(c, v);
         boolean dotOnly = count == null || count.isEmpty();
-        return row(c).gap(4).alignItems(Align.CENTER).label("kit-marker").children(() -> {
+        return row(c).gap(4).alignItems(Align.CENTER).shrink(0).label("kit-marker").children(() -> {
             box(c).size(7, 7).radius(3.5f).background(tone.fill());
             if (!dotOnly) {
                 text(c, count).fontSize(10.5f).textColor(c.theme().textMuted());

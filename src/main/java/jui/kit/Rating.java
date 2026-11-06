@@ -16,7 +16,7 @@ public final class Rating {
             for (int i = 1; i <= max; i++) {
                 int star = i;
                 boolean filled = star <= current;
-                Element b = buttonBase(c).size(size, size).label("kit-star-" + star)
+                Element b = buttonBase(c).size(size, size).shrink(0).label("kit-star-" + star)
                         .children(() -> box(c).size(size, size).draw(starDraw(filled)));
                 if (b.clicked()) {
                     value.set(current == star ? 0 : star);           // click the same star to clear

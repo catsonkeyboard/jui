@@ -18,7 +18,7 @@ public final class Tag {
     public static Element tag(Context c, String text, Kit.Variant v, Kind kind, boolean dot,
                               boolean dismissible, Runnable onDismiss) {
         Kit.Tone tone = Kit.tone(c, v);
-        Element t = row(c).height(20).padding(0, 8).gap(5).radius(10)
+        Element t = row(c).height(20).padding(0, 8).gap(5).radius(10).shrink(0)
                 .label("kit-tag-" + text)
                 .alignItems(Align.CENTER)
                 .children(() -> {

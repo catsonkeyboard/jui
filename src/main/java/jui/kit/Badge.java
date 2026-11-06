@@ -16,7 +16,7 @@ public final class Badge {
     public static Element badge(Context c, String text, Kit.Variant v) {
         Kit.Tone tone = Kit.tone(c, v);
         boolean dot = text == null || text.isEmpty();
-        return box(c).height(16).padding(0, dot ? 6 : 5).radius(8)
+        return box(c).height(16).padding(0, dot ? 6 : 5).radius(8).shrink(0)
                 .background(tone.fill()).label("kit-badge-" + (dot ? "dot" : text))
                 .justify(Justify.START)
                 .children(() -> {

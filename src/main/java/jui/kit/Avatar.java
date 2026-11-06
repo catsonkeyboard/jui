@@ -52,7 +52,7 @@ public final class Avatar {
     public static Element avatar(Context c, String name, float size, boolean presence) {
         String face = initials(name);
         float d = size / 3.2f;
-        Element a = box(c).size(size, size).radius(size / 2).background(face(name))
+        Element a = box(c).size(size, size).radius(size / 2).shrink(0).background(face(name))
                 .label("kit-avatar-" + name)
                 .alignItems(Align.CENTER)
                 .children(() -> {

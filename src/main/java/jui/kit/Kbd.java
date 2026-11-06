@@ -12,7 +12,7 @@ import static jui.ui.Ui.*;
  */
 public final class Kbd {
     public static Element kbd(Context c, String keys) {
-        return box(c).height(18).padding(0, 5).radius(4)
+        return box(c).height(18).padding(0, 5).radius(4).shrink(0)
                 .border(1, Kit.line(c))
                 .background(c.theme().surface())
                 .label("kit-kbd-" + keys)
