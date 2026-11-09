@@ -1,5 +1,7 @@
 # j-ui
 
+新增 **[lobe-jui 组件库](docs/lobe-jui.md)**：Lobe 风格的原生 Java 组件、明暗主题和交互画廊，运行 `./build.sh demo lobe-jui`。
+
 在 GPU 上自绘界面的 Java 桌面 UI 框架的技术验证：Java 通过 FFM（`java.lang.foreign`）直接调用 macOS 的 AppKit、Metal 和 Core Text，不写一行 C/Objective-C，再用 GraalVM Native Image 编译成原生可执行文件。
 
 结构参照 [egoist/mygo](https://github.com/egoist/mygo)（MIT）的 `internal/darwin`、`internal/gpu/metal` 和 `internal/text`：MyGO 用 purego 做的事，这里用 FFM 做。

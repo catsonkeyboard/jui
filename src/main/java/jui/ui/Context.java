@@ -32,6 +32,11 @@ public final class Context {
         return engine.theme();
     }
 
+    /** Installs an application's palette pair while retaining system appearance changes. */
+    public void setThemePair(Theme light, Theme dark) {
+        if (serviceThread()) engine.setThemePair(light, dark);
+    }
+
     public jui.text.TextLayout layoutText(String text, float size, int weight, float maxWidth) {
         return serviceThread() ? engine.text().layout(text, size, weight, maxWidth) : null;
     }

@@ -15,6 +15,7 @@
 #   ./build.sh ffi-check          call Objective-C methods of every struct shape, on the JVM and in a native image
 #   ./build.sh demo [Name] [args]        run an example on the JVM: Card (default), Counter, Todo, Files, Scroll, Form, TextArea, ContextMenu, EditorPrimitives, Notes or Graph (NotesMotion aliases Notes)
 #   ./build.sh native-demo [Name] [args] build an example into build/<name>-demo and run it
+#   ./build.sh demo lobe-jui [--light|--dark]  Lobe-style native component gallery (alias Lobe)
 #
 # JUI_FRAME_STATS=1 logs frames over 8 ms; all logs every frame; a number is ms; off disables.
 # Needs GraalVM 25 (GRAALVM_HOME, or found in ~/Library/Java/JavaVirtualMachines)
@@ -120,6 +121,7 @@ example_name() {
 demo_class() {
   local name
   name=$(example_name "$@")
+  if [[ "$name" == lobe-jui || "$name" == Lobe ]]; then echo "jui.examples.LobeDemo"; return; fi
   if [[ "$name" == QSpace || "$name" == jspace ]]; then echo "jui.jspace.JspaceApp"; else echo "jui.examples.${name}Demo"; fi
 }
 
