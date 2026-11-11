@@ -9,6 +9,10 @@ import java.util.Properties;
 /** What the panes had open, so the next launch can put it back. */
 final class WorkspaceState {
     static Path defaultFile() {
+        String appData = System.getenv("APPDATA");
+        if (appData != null && !appData.isBlank()) {
+            return Path.of(appData, "jui-jspace", "workspace.properties");
+        }
         return Path.of(System.getProperty("user.home"),
                 "Library/Application Support/jui-jspace/workspace.properties");
     }

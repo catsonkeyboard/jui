@@ -71,10 +71,16 @@ compile() {
     mkdir -p build/classes/jui/shaders
     cp src/main/resources/jui/shaders/shader.metal build/classes/jui/shaders/
     cp src/main/resources/jui/shaders/shader.hlsl build/classes/jui/shaders/
+    # SevenWDb Studio carries its own classpath via run-studio.sh: without the
+    # sibling sevenwdb jar in it, it is no dependency of this build.
+    local sources=()
+    mapfile -t sources < <(find src/main/java \
+      -path src/main/java/jui/sevenwdb -prune -o \
+      -name '*.java' -print)
     # NativeImageFeature compiles against GraalVM's own module (which --release
     # cannot see); only native-image loads it.
     "$GRAALVM_HOME/bin/javac" --add-modules org.graalvm.nativeimage \
-      -d build/classes $(find src/main/java -name '*.java')
+      -d build/classes "${sources[@]}"
     CLASSPATH="build/classes"
   else
     gradle_build runtimeClasspath
@@ -213,6 +219,7 @@ run_tests() {
       -path src/test/java/jui/platform/mac -prune -o \
       -path src/test/java/jui/render/metal -prune -o \
       -path src/test/java/jui/ffi -prune -o \
+      -path src/test/java/jui/sevenwdb -prune -o \
       -name AtlasGpuTest.java -prune -o \
       -name '*.java' -print)
     "$GRAALVM_HOME/bin/javac" -cp build/classes -d build/test-classes "${sources[@]}"

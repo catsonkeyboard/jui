@@ -8,7 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
 
-/** The eight settings that really work, in ~/Library/Application Support/jui-jspace/settings.properties. */
+/** The eight settings that really work, in the per-user app-data directory's
+ * jui-jspace/settings.properties. */
 public final class Settings {
     public enum Appearance { FOLLOW, LIGHT, DARK }
     public enum Layout { SINGLE, DOUBLE, GRID }
@@ -25,9 +26,17 @@ public final class Settings {
     public boolean defaultSortAsc = true;
     public boolean restoreWorkspace = true;
 
+    /** The per-user app-data directory: %APPDATA% on Windows, ~/Library/Application Support on the mac. */
+    private static Path appDataDir() {
+        String appData = System.getenv("APPDATA");
+        if (appData != null && !appData.isBlank()) {
+            return Path.of(appData);
+        }
+        return Path.of(System.getProperty("user.home"), "Library", "Application Support");
+    }
+
     private static Path defaultFile() {
-        return Path.of(System.getProperty("user.home"),
-                "Library/Application Support/jui-jspace/settings.properties");
+        return appDataDir().resolve("jui-jspace").resolve("settings.properties");
     }
 
     public static Settings load() { return load(defaultFile()); }

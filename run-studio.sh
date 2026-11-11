@@ -27,6 +27,12 @@ else
   JAVAC_BIN="$(which javac)"
 fi
 
+# Windows needs ; as the classpath separator and cannot take -XstartOnFirstThread.
+case "$(uname -s)" in
+  CYGWIN*|MINGW*|MSYS*|Windows_NT) CP_SEP=";" ;;
+  *) CP_SEP=":"; THREAD_FLAG=(-XstartOnFirstThread) ;;
+esac
+
 echo "================================================================="
 echo "       🚀 启动 SevenWDB Studio 可视化查询分析器 (Powered by j-ui)    "
 echo "================================================================="
@@ -46,6 +52,7 @@ SEVENWDB_JAR="$SEVENWDB_DIR/target/sevenwdb-1.0.0-SNAPSHOT.jar"
 BUILD_DIR="$JUI_DIR/build/studio-classes"
 mkdir -p "$BUILD_DIR/jui/shaders"
 cp -f "$JUI_DIR/src/main/resources/jui/shaders/shader.metal" "$BUILD_DIR/jui/shaders/"
+cp -f "$JUI_DIR/src/main/resources/jui/shaders/shader.hlsl" "$BUILD_DIR/jui/shaders/"
 
 echo "编译界面与着色器..."
 "$JAVAC_BIN" --enable-preview --source 26 \
@@ -57,6 +64,6 @@ echo "启动 GPU 渲染窗口..."
 exec "$JAVA_BIN" \
   --enable-preview \
   --enable-native-access=ALL-UNNAMED \
-  -XstartOnFirstThread \
-  -cp "$SEVENWDB_JAR:$BUILD_DIR" \
+  ${THREAD_FLAG[@]+"${THREAD_FLAG[@]}"} \
+  -cp "$SEVENWDB_JAR$CP_SEP$BUILD_DIR" \
   jui.sevenwdb.SevenWDbStudio "$@"

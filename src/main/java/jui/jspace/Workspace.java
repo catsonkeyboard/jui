@@ -143,13 +143,13 @@ final class Workspace implements View {
     /** Menu: close the active pane's tab. */
     void closeTab() { closeTab(m.active); }
 
-    /** Opens one entry: into it when a folder, with /usr/bin/open when not. */
+    /** Opens one entry: into it when a folder, with the system's opener when not. */
     void openEntry(int pane, jui.jspace.store.FileEntry e) {
         if (e.dir()) {
             navigate(pane, e.path());
         } else {
             try {
-                new ProcessBuilder("/usr/bin/open", e.path().toString()).start();
+                new ProcessBuilder(openCommand(e.path().toString())).start();
             } catch (java.io.IOException ex) {
                 m.status.note = "无法打开 " + e.name();
                 m.status.noteAt = System.nanoTime();
@@ -478,5 +478,17 @@ final class Workspace implements View {
 
     private void pane(Context c, int i) {
         new FilePane(this, i).build(c);
+    }
+
+    /** The system's "open this path" command: the platform picks its own. */
+    private static String[] openCommand(String path) {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (os.contains("win")) {
+            return new String[] {"cmd", "/c", "start", "", path};
+        }
+        if (os.contains("mac")) {
+            return new String[] {"/usr/bin/open", path};
+        }
+        return new String[] {"xdg-open", path};
     }
 }
