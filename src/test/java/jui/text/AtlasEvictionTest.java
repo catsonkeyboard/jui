@@ -48,7 +48,9 @@ public final class AtlasEvictionTest {
         GlyphAtlas.Entry active = atlas.get(text, w.font(0), w.glyph(0), 2, 0, 1, 3);
         byte[] before = bitmap(atlas, active);
         int generation = atlas.generation();
-        TextLayout m = text.layout("M", 48, 400, 0);
+        // An M tall enough to overflow the shelf space left over on either
+        // platform's metrics, yet to fit once the cold glyphs move out.
+        TextLayout m = text.layout("M", 56, 400, 0);
         GlyphAtlas.Entry large = atlas.get(text, m.font(0), m.glyph(0), 2, 0, 1, 0);
         Check.isTrue(large != null && atlas.generation() > generation, "pressure repacks at same dimensions");
         Check.isTrue(Arrays.equals(before, bitmap(atlas, active)), "active glyph remains resident");

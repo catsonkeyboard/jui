@@ -87,6 +87,8 @@ public final class DWrite {
     public static final int LAYOUT_HIT_TEST_TEXT_POSITION = 65;
 
     // IDWriteGlyphRunAnalysis
+    /** 3: IDWriteGlyphRunAnalysis::GetAlphaTextureBounds. */
+    public static final int GRA_GET_ALPHA_TEXTURE_BOUNDS = 3;
     /** 4: IDWriteGlyphRunAnalysis::CreateAlphaTexture. */
     public static final int GRA_CREATE_ALPHA_TEXTURE = 4;
 
@@ -202,9 +204,11 @@ public final class DWrite {
     // GetDesignGlyphMetrics(indices, count, metrics, isSideways)
     private static final MethodHandle GET_DESIGN_GLYPH_METRICS = com(FunctionDescriptor.of(
             JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT));
-    // CreateAlphaTexture(type, &rect, buffer, size)
+    // CreateAlphaTexture(type, &rect, buffer, size) / GetAlphaTextureBounds(type, &rect)
     private static final MethodHandle CREATE_ALPHA_TEXTURE = com(FunctionDescriptor.of(
             JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, JAVA_INT));
+    private static final MethodHandle GET_ALPHA_TEXTURE_BOUNDS = com(FunctionDescriptor.of(
+            JAVA_INT, ADDRESS, JAVA_INT, ADDRESS));
     // SetFontFamilyName(family, range) / SetFontWeight(weight, range)
     // SetFontStyle(style, range) / SetFontSize(size, range). DWRITE_TEXT_RANGE
     // passes by value: its 8 bytes travel whole in one integer register, so
@@ -528,6 +532,18 @@ public final class DWrite {
             throw Native.rethrow(t);
         }
         if (hr != OK) throw failed("CreateGlyphRunAnalysis", hr);
+    }
+
+    /** IDWriteGlyphRunAnalysis::GetAlphaTextureBounds, slot 3; true when the rect holds ink. */
+    public static boolean getAlphaTextureBounds(MemorySegment analysis, int textureType, MemorySegment rect) {
+        int hr;
+        try {
+            hr = (int) GET_ALPHA_TEXTURE_BOUNDS.invokeExact(
+                    method(analysis, GRA_GET_ALPHA_TEXTURE_BOUNDS), analysis, textureType, rect);
+        } catch (Throwable t) {
+            throw Native.rethrow(t);
+        }
+        return hr == OK;
     }
 
     /** IDWriteGlyphRunAnalysis::CreateAlphaTexture, slot 4. */

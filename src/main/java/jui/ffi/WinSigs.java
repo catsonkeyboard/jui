@@ -177,6 +177,9 @@ public final class WinSigs {
     /** IDWriteGlyphRunAnalysis::CreateAlphaTexture(type, rect, buffer, size). */
     public static final FunctionDescriptor CREATE_ALPHA_TEXTURE = down(FunctionDescriptor.of(
             JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, JAVA_INT));
+    /** IDWriteGlyphRunAnalysis::GetAlphaTextureBounds(type, rect). */
+    public static final FunctionDescriptor GET_ALPHA_TEXTURE_BOUNDS = down(FunctionDescriptor.of(
+            JAVA_INT, ADDRESS, JAVA_INT, ADDRESS));
     /** IDWriteTextLayout::SetFontFamilyName(family, range as value). */
     public static final FunctionDescriptor SET_FONT_FAMILY_NAME = down(FunctionDescriptor.of(
             JAVA_INT, ADDRESS, ADDRESS, JAVA_LONG));

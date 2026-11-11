@@ -221,7 +221,8 @@ final class DirectWriteBackend implements TextBackend {
                     int runEnd = boundaries[b];
                     if (runEnd <= runStart) continue;
                     jui.ui.Spans.Shape style = styleAt(spans, runStart);
-                    count = shapeRun(text, wide, runStart, runEnd, style, size, weight, baseline, arena,
+                    count = shapeRun(text, wide, runStart, runEnd, style, size, weight, baseline,
+                            hitTest(layout, runStart, false), arena,
                             fonts, glyphs, xs, ys, sizes, indices, count);
                     previous = b;
                 }
@@ -367,6 +368,11 @@ final class DirectWriteBackend implements TextBackend {
 
     /** The script families jui picks fonts by. */
     private static int scriptOf(int codePoint) {
+        // CJK punctuation (，。、《》 fullwidth forms) reports script COMMON,
+        // but Segoe UI has none of their glyphs: they belong with the CJK font.
+        if ((codePoint >= 0x3000 && codePoint <= 0x303F) || (codePoint >= 0xFF00 && codePoint <= 0xFFEF)) {
+            return HAN;
+        }
         Character.UnicodeScript script = Character.UnicodeScript.of(codePoint);
         return switch (script) {
             case HAN -> HAN;
@@ -393,10 +399,12 @@ final class DirectWriteBackend implements TextBackend {
     /**
      * Shapes one run of one span style and script in its font with the
      * analyzer, appending its glyphs in point coordinates relative to the
-     * paragraph; returns the new glyph count.
+     * paragraph: {@code runX}, the x the layout reports for the run's first
+     * text position, offsets the run's local advances; returns the new glyph
+     * count.
      */
     private int shapeRun(String text, MemorySegment wide, int start, int end, jui.ui.Spans.Shape style,
-                         float size, int weight, float baseline, Arena arena,
+                         float size, int weight, float baseline, float runX, Arena arena,
                          long[] fonts, short[] glyphs, float[] xs, float[] ys, float[] sizes,
                          int[] indices, int count) {
         float runSize = style == null || style.size() == 0 ? size : style.size();
@@ -432,7 +440,7 @@ final class DirectWriteBackend implements TextBackend {
             sizes = Arrays.copyOf(sizes, grown);
             indices = Arrays.copyOf(indices, grown);
         }
-        float x = 0;
+        float x = runX;
         for (int j = 0; j < glyphCount; j++) {
             float advance = advances.get(JAVA_FLOAT, 4L * j);
             MemorySegment offset = offsets.asSlice(j * DWrite.GLYPH_OFFSET.byteSize(), DWrite.GLYPH_OFFSET);
@@ -468,27 +476,22 @@ final class DirectWriteBackend implements TextBackend {
             try (Arena arena = Arena.ofConfined()) {
                 MemorySegment index = arena.allocate(JAVA_SHORT);
                 index.set(JAVA_SHORT, 0, (short) glyph);
-                // The ink box in design units, from the glyph's metrics.
-                MemorySegment metrics = arena.allocate(DWrite.GLYPH_METRICS);
-                DWrite.getDesignGlyphMetrics(face, index, 1, metrics);
                 TextEngine.FontMetrics fm = held.metrics();
                 float unitsPerEm = designUnitsPerEm(face, arena);
                 float toPoints = fm.size() / unitsPerEm;
+                // A box the font's own ascent and descent always covers — a
+                // glyph's tsb/bsb measure from its private line box, which is
+                // not the font's and cannot be turned into baseline-relative
+                // coordinates. The ink's real rect then comes from the
+                // analysis itself, so marks hanging under the baseline (，。)
+                // land inside as well.
+                float ascentPx = fontAscent(face, arena) * toPoints * scale;
+                float descentPx = fontDescent(face, arena) * toPoints * scale;
+                MemorySegment metrics = arena.allocate(DWrite.GLYPH_METRICS);
+                DWrite.getDesignGlyphMetrics(face, index, 1, metrics);
                 float advance = metrics.get(JAVA_INT, 4);
-                float lsb = metrics.get(JAVA_INT, 0);
-                float rsb = metrics.get(JAVA_INT, 8);
-                float tsb = metrics.get(JAVA_INT, 12);
-                float advanceHeight = metrics.get(JAVA_INT, 16);
-                float bsb = metrics.get(JAVA_INT, 20);
-                float inkWidth = advance - lsb - rsb;
-                float inkHeight = advanceHeight - tsb - bsb;
-                if (inkWidth <= 0 && inkHeight <= 0) return null;
-                float left = (float) Math.floor(lsb * toPoints * scale + dx) - 2;
-                float right = (float) Math.ceil((lsb + Math.max(inkWidth, 0)) * toPoints * scale + dx) + 2;
-                float glyphTop = -tsb;
-                float top = (float) Math.floor(glyphTop * toPoints * scale) - 2;
-                float bottom = (float) Math.ceil((glyphTop + Math.max(inkHeight, 0)) * toPoints * scale) + 2;
-                int w = (int) (right - left), h = (int) (bottom - top);
+                int w = (int) Math.ceil(advance * toPoints * scale) + 4;
+                int h = (int) (ascentPx + descentPx) + 4;
                 if (w <= 0 || h <= 0) return null;
                 if (w > 2048 || h > 2048) throw new IllegalStateException("glyph exceeds the 2048-pixel raster limit");
                 MemorySegment run = arena.allocate(DWrite.GLYPH_RUN);
@@ -503,34 +506,50 @@ final class DirectWriteBackend implements TextBackend {
                 run.set(JAVA_INT, 40, 0);
                 run.set(JAVA_INT, 44, 0);
                 MemorySegment analysisOut = arena.allocate(ADDRESS);
-                // The baseline origin lands the ink where the layout put it,
-                // subpixel dx included.
+                // The baseline sits 2 pixels in from the left and ascent+2 from
+                // the top; dx shifts the pen to its subpixel position.
+                float baseX = 2 + dx;
+                float baseY = (float) Math.floor(ascentPx) + 2;
                 DWrite.createGlyphRunAnalysis(MemorySegment.ofAddress(factory), run, 1.0f, MemorySegment.NULL,
                         DWrite.RENDERING_NATURAL, DWrite.MEASURING_NATURAL,
-                        -left, -top, analysisOut);
+                        baseX, baseY, analysisOut);
                 MemorySegment analysis = analysisOut.get(ADDRESS, 0);
-                // The whole padded box is extracted, its margins clear: boxes
-                // then size as the mac backend's do, atlas pressure included.
-                int stride = w * 3;
-                MemorySegment rgb = arena.allocate((long) stride * h);
-                MemorySegment box = arena.allocate(DWrite.RECT);
-                box.set(JAVA_INT, 0, 0);
-                box.set(JAVA_INT, 4, 0);
-                box.set(JAVA_INT, 8, w);
-                box.set(JAVA_INT, 12, h);
-                DWrite.createAlphaTexture(analysis, DWrite.TEXTURE_CLEARTYPE, box, rgb, stride * h);
-                DWrite.release(analysis);
-                if (pixels.byteSize() < (long) w * h) {
-                    pixels = Arena.ofAuto().allocate(Math.max((long) w * h, pixels.byteSize() * 2));
+                MemorySegment rect = arena.allocate(DWrite.RECT);
+                if (!DWrite.getAlphaTextureBounds(analysis, DWrite.TEXTURE_CLEARTYPE, rect)) {
+                    DWrite.release(analysis);
+                    return null; // a glyph without ink (whitespace)
                 }
-                MemorySegment pix = pixels.asSlice(0, (long) w * h);
-                for (int p = 0; p < w * h; p++) {
+                // The ink can reach past the box's edges by a pixel of
+                // smoothing: clamp the rect to it, in place, so the buffer
+                // sized from these edges always fits what the copy asks for.
+                int rl = Math.max(rect.get(JAVA_INT, 0), 0), rt = Math.max(rect.get(JAVA_INT, 4), 0);
+                int rr = Math.min(rect.get(JAVA_INT, 8), w), rb = Math.min(rect.get(JAVA_INT, 12), h);
+                rect.set(JAVA_INT, 0, rl);
+                rect.set(JAVA_INT, 4, rt);
+                rect.set(JAVA_INT, 8, rr);
+                rect.set(JAVA_INT, 12, rb);
+                int bw = rr - rl, bh = rb - rt;
+                if (bw <= 0 || bh <= 0) {
+                    DWrite.release(analysis);
+                    return null;
+                }
+                int stride = bw * 3;
+                MemorySegment rgb = arena.allocate((long) stride * bh);
+                DWrite.createAlphaTexture(analysis, DWrite.TEXTURE_CLEARTYPE, rect, rgb, stride * bh);
+                DWrite.release(analysis);
+                if (pixels.byteSize() < (long) bw * bh) {
+                    pixels = Arena.ofAuto().allocate(Math.max((long) bw * bh, pixels.byteSize() * 2));
+                }
+                MemorySegment pix = pixels.asSlice(0, (long) bw * bh);
+                for (int p = 0; p < bw * bh; p++) {
                     int o = p * 3;
                     pix.set(JAVA_BYTE, p, (byte) (((rgb.get(JAVA_BYTE, o) & 255)
                             + (rgb.get(JAVA_BYTE, o + 1) & 255) + (rgb.get(JAVA_BYTE, o + 2) & 255)) / 3));
                 }
                 engine.rasterized++;
-                return new TextEngine.Bitmap((int) left, (int) top, w, h, pix);
+                // The pen sits at (baseX, baseY) in the texture: the bitmap's
+                // origin is the ink rect's corner relative to it.
+                return new TextEngine.Bitmap(rl - (int) baseX, rt - (int) baseY, bw, bh, pix);
             }
         } finally {
             engine.rasterNanos += System.nanoTime() - started;
@@ -541,5 +560,19 @@ final class DirectWriteBackend implements TextBackend {
         MemorySegment metrics = arena.allocate(DWrite.FONT_METRICS);
         DWrite.getFontMetrics(face, metrics);
         return metrics.get(JAVA_SHORT, 0) & 0xFFFF;
+    }
+
+    /** The font's ascent in design units: the line box's top above the baseline. */
+    private float fontAscent(MemorySegment face, Arena arena) {
+        MemorySegment metrics = arena.allocate(DWrite.FONT_METRICS);
+        DWrite.getFontMetrics(face, metrics);
+        return metrics.get(JAVA_SHORT, 2) & 0xFFFF;
+    }
+
+    /** The font's descent in design units, how far the line box hangs under the baseline. */
+    private float fontDescent(MemorySegment face, Arena arena) {
+        MemorySegment metrics = arena.allocate(DWrite.FONT_METRICS);
+        DWrite.getFontMetrics(face, metrics);
+        return metrics.get(JAVA_SHORT, 4) & 0xFFFF;
     }
 }
