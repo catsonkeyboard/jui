@@ -63,7 +63,8 @@ public final class WinWindow implements PlatformWindow {
     private static final int SW_SHOW = 5;
     private static final long CS_VREDRAW = 1, CS_HREDRAW = 2, COLOR_WINDOW = 5;
     private static final int WS_OVERLAPPEDWINDOW = 0x00CF0000;
-    private static final long CW_USEDEFAULT = 0x8000000L;
+    // 0x80000000, the CW_USEDEFAULT sentinel (INT_MIN once the 32-bit x/y read it).
+    private static final long CW_USEDEFAULT = 0x80000000L;
     private static final long TIMER_ID = 1;
 
     private final long hwnd;
@@ -263,12 +264,12 @@ public final class WinWindow implements PlatformWindow {
         framePending = false;
     }
 
-    /** The client size, in points. */
+    /** The client size, in points: RECT's right and bottom, 32-bit ints each. */
     private long[] clientRect() {
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment r = arena.allocate(16);
             getClientRect(hwnd, r);
-            return new long[] {0, 0, r.get(ValueLayout.JAVA_LONG, 0), r.get(ValueLayout.JAVA_LONG, 8)};
+            return new long[] {0, 0, r.get(ValueLayout.JAVA_INT, 8), r.get(ValueLayout.JAVA_INT, 12)};
         }
     }
 
@@ -310,12 +311,14 @@ public final class WinWindow implements PlatformWindow {
     /** The pointer's place in client points, as wheel messages carry screen ones. */
     private double[] pointerInClient() {
         try (Arena arena = Arena.ofConfined()) {
-            MemorySegment p = arena.allocate(16);
+            // POINT: two 32-bit LONGs, before and after ScreenToClient.
+            MemorySegment p = arena.allocate(8);
             GET_CURSOR_POS_H.invoke(GET_CURSOR_POS_SYM, p);
-            long x = p.get(ValueLayout.JAVA_LONG, 0), y = p.get(ValueLayout.JAVA_LONG, 8);
+            int screenX = p.get(ValueLayout.JAVA_INT, 0), screenY = p.get(ValueLayout.JAVA_INT, 4);
             SCREEN_TO_CLIENT_H.invoke(SCREEN_TO_CLIENT_SYM, hwnd, p);
             double scale = scale();
-            return new double[] {p.get(ValueLayout.JAVA_LONG, 0) / scale, p.get(ValueLayout.JAVA_LONG, 8) / scale, x, y};
+            return new double[] {p.get(ValueLayout.JAVA_INT, 0) / scale,
+                    p.get(ValueLayout.JAVA_INT, 4) / scale, screenX, screenY};
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
