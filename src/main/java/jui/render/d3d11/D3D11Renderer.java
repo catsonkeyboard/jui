@@ -70,7 +70,7 @@ public final class D3D11Renderer {
     // The context's slots sit 4 above the raw method order: it inherits
     // ID3D11DeviceChild's GetDevice and the private-data setters first.
     private static final int CTX_VS_SET_CONSTANT_BUFFERS = 7;              // ID3D11DeviceContext::VSSetConstantBuffers
-    private static final int CTX_VS_SET_SHADER_RESOURCES = 8;              // ID3D11DeviceContext::VSSetShaderResources
+    private static final int CTX_VS_SET_SHADER_RESOURCES = 25;             // ID3D11DeviceContext::VSSetShaderResources
     private static final int CTX_PS_SET_SHADER_RESOURCES = 8;              // ID3D11DeviceContext::PSSetShaderResources
     private static final int CTX_PS_SET_SHADER = 9;                        // ID3D11DeviceContext::PSSetShader
     private static final int CTX_VS_SET_SHADER = 11;                       // ID3D11DeviceContext::VSSetShader
