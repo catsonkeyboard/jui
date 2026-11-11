@@ -84,9 +84,10 @@ public final class Fields {
         if(e.changed()) open.set(true);
         Overlays.popover(c,e,open,()->column(c).minWidth(180).children(()->{
             int matches=0;
-            for(String option:options) {
+            for(int i=0;i<options.length;i++) {
+                String option=options[i];
                 if(!option.toLowerCase(Locale.ROOT).contains(value.get().toLowerCase(Locale.ROOT))) continue;
-                matches++; c.key(option);
+                matches++; c.key(i);
                 if(menuItem(c,option,false).clicked()) { value.set(option); open.set(false); }
             }
             if(matches==0) text(c,"没有匹配项").padding(8).fontSize(12).textColor(Tokens.of(c).textTertiary);

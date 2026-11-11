@@ -40,7 +40,7 @@ public final class Display {
     }
     public static Element groupAvatar(Context c,float size,String... names) {
         return row(c).gap(4).children(()->{
-            for(String name:names) { c.key(name); avatar(c,name,size); }
+            for(String name:names) avatar(c,name,size);
         });
     }
     public static Element empty(Context c,String title,String description,Runnable action) {

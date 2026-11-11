@@ -18,6 +18,7 @@ public final class Engine {
     private final TextEngine text;
     private final FrameStats frameStats = FrameStats.create();
     private Theme theme;
+    private boolean systemDark;
     private Theme lightTheme = Theme.light();
     private Theme darkTheme = Theme.dark();
     private final Runnable requestFrame;
@@ -106,6 +107,7 @@ public final class Engine {
     public Engine(TextEngine text, Theme theme, Runnable requestFrame, java.util.function.LongSupplier clock) {
         this.text = text;
         this.theme = theme;
+        this.systemDark = theme.isDark();
         this.requestFrame = requestFrame;
         this.clock = clock;
         this.context = new Context(this);
@@ -1613,7 +1615,12 @@ public final class Engine {
 
     /** Follows the system's appearance: the dark theme of the pair, or the light one. Asks for a frame if it changed. */
     public void setDark(boolean dark) {
-        Theme next = dark ? darkTheme : lightTheme;
+        systemDark = dark;
+        resolveTheme();
+    }
+
+    private void resolveTheme() {
+        Theme next = systemDark ? darkTheme : lightTheme;
         if (next != theme) {
             theme = next;
             requestFrame.run();
@@ -1625,7 +1632,7 @@ public final class Engine {
     public void setThemePair(Theme light, Theme dark) {
         lightTheme = light;
         darkTheme = dark;
-        setDark(theme.isDark());
+        resolveTheme();
     }
 
     /** The modifier keys held changed; asks for no frame. */

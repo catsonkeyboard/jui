@@ -76,6 +76,23 @@ public final class LobeTest {
             t.click("lobe-option-Button");Check.equal("Button",value.get());Check.isTrue(!open.get(),"closed after choice");
         } finally {t.close();}
     }
+    public void testGroupAvatarAllowsRepeatedNames() {
+        Tester t=tester(c->Display.groupAvatar(c,28,"Li Ming","Li Ming"));
+        try {
+            t.frame();
+            Check.equal(2L,t.texts().stream().filter("LM"::equals).count());
+        } finally {t.close();}
+    }
+    public void testAutocompleteAllowsRepeatedSuggestions() {
+        TextRef value=new TextRef("bu"); BoolRef open=new BoolRef(true);
+        Tester t=tester(c->Fields.autoComplete(c,value,open,"Button","Badge","Button"));
+        try {
+            t.frame();
+            Check.equal(2L,t.texts().stream().filter("Button"::equals).count());
+            t.click("lobe-option-Button");
+            Check.equal("Button",value.get());
+        } finally {t.close();}
+    }
     public void testNumberTypingClampsAndStepperBounds() {
         DoubleRef value=new DoubleRef(1);
         Tester t=tester(c->Fields.inputNumber(c,value,0,2,1));
@@ -189,6 +206,18 @@ public final class LobeTest {
                     Check.isTrue(nav.y()+nav.height()<820,"navigation remains visible");
                 }
             }
+        } finally {t.close();}
+    }
+    public void testCatalogFollowsSystemAfterForcedAppearance() {
+        Tester t=Tester.of(new LobeDemo(),1160,820);
+        try {
+            t.frame();
+            t.setDark(false);
+            t.click("lobe-theme-toggle"); // forced light
+            t.click("lobe-theme-toggle"); // forced dark
+            Check.equal(Lobe.dark(),t.engine().theme());
+            t.click("lobe-theme-toggle"); // follow system
+            Check.equal(Lobe.light(),t.engine().theme());
         } finally {t.close();}
     }
     public void testCatalogOverviewLayoutAndNarrowWidth() {
