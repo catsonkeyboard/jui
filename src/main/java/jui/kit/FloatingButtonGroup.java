@@ -78,7 +78,7 @@ public final class FloatingButtonGroup {
         Color trayBg = floating ? c.theme().background() : c.theme().surface();
         Element tray = vertical ? column(c) : row(c);
         tray.label("kit-floating-tray").padding(4).gap(gap).background(trayBg).radius(Kit.RADIUS + 3)
-                .alignItems(Align.CENTER);
+                .alignItems(Align.CENTER).alignSelf(Align.START);
         if (floating) {
             Kit.floatShadow(tray);
             tray.border(1, Kit.hairline(c));
@@ -125,7 +125,8 @@ public final class FloatingButtonGroup {
                 run += widths[i] + gap;
             }
         }
-        int hover = -1;
+        int[] hover = {-1};
+        tray.children(() -> {
         for (int i = 0; i < n; i++) {
             Item it = items[i];
             if (it.icon == null && it.label.isEmpty()) {
@@ -149,10 +150,10 @@ public final class FloatingButtonGroup {
                 b.disabled(true);
             }
             if (b.hovered() && !disabled && !it.disabled) {
-                hover = i;
+                hover[0] = i;
             }
             if (b.focusVisible()) {
-                hover = i;
+                hover[0] = i;
             }
             float dip = Kit.press(b);
             b.children(() -> {
@@ -169,7 +170,8 @@ public final class FloatingButtonGroup {
                 it.onSelect.run();
             }
         }
-        hoverRef.set(hover);
+        });
+        hoverRef.set(hover[0]);
         return tray;
     }
 

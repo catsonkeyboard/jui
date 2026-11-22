@@ -68,7 +68,7 @@ public final class ExpandingButtonGroup {
         float fs = small ? 12 : 12.5f;
         float pad = 10;
         float gap = 6;
-        Element host = row(c).gap(1).label("kit-expanding-group").alignItems(Align.CENTER);
+        Element host = row(c).gap(1).label("kit-expanding-group").alignItems(Align.CENTER).alignSelf(Align.START);
         Ref<Integer> expandedRef = local(host, "exp", () -> -1);
         Ref<Run> runRef = local(host, "run", Run::new);
         Run run = runRef.get();

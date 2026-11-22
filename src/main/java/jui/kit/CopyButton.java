@@ -30,13 +30,14 @@ public final class CopyButton {
      */
     public static Element copyButton(Context c, String value, String label, boolean iconOnly,
                                      boolean outline, boolean disabled) {
-        Element host = row(c).label("kit-copy-button").alignItems(Align.CENTER);
+        Element host = row(c).label("kit-copy-button").alignItems(Align.CENTER).alignSelf(Align.START);
         Ref<St> ref = local(host, "st", St::new);
         St st = ref.get();
         if (st.state != 0 && c.now() - st.at > RESET_NS) {
             st.state = 0;
             c.invalidate();
         }
+        host.children(() -> {
         String word = st.state == 1 ? "Copied" : st.state == 2 ? "Failed" : label;
         float fs = 12;
         // Reserve the widest state so the row never shifts.
@@ -85,7 +86,8 @@ public final class CopyButton {
             c.after(java.time.Duration.ofNanos(RESET_NS).plusMillis(40));
             c.invalidate();
         }
-        return b;
+        });
+        return host;
     }
 
     public static Element copyButton(Context c, String value) {

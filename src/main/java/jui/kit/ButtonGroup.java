@@ -103,7 +103,7 @@ public final class ButtonGroup {
             widths[items.length] = h;
         }
         Element host = vertical ? column(c) : row(c);
-        host.label("kit-button-group").alignItems(Align.STRETCH)
+        host.label("kit-button-group").alignItems(Align.STRETCH).alignSelf(Align.START)
                 .background(fill).border(1, solid ? fill : Kit.hairline(c))
                 .radius(Kit.RADIUS + 1).clip();
         Ref<Integer> hoverRef = local(host, "hover", () -> -1);
