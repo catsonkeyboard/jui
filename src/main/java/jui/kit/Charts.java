@@ -580,5 +580,279 @@ public final class Charts {
         return host;
     }
 
+    /**
+     * The funnel chart: stages narrowing top to bottom, each band its
+     * share of the widest stage, a label left and the value inside.
+     */
+    public static Element funnelChart(Context c, String[] stages, float[] values,
+                                      float width, float height) {
+        Element host = box(c).width(width).height(height).label("kit-chart-funnel");
+        host.draw((Painter p, Rect b) -> {
+            float max = 1;
+            for (float v : values) {
+                max = Math.max(max, v);
+            }
+            float bandH = b.height() / Math.max(1, values.length);
+            float gap = Math.min(4, bandH * 0.18f);
+            float bandH2 = bandH - gap;
+            for (int i = 0; i < values.length; i++) {
+                float w0 = b.width() * Math.max(0.08f, values[i] / max);
+                Color col = series(i);
+                p.roundedBox(b.x() + (b.width() - w0) / 2, b.y() + i * bandH, w0, bandH2, 3,
+                        Color.rgba(col.rgba() >>> 8, 0.85f));
+                // The connector to the next stage, a tapering scanline fill.
+                if (i + 1 < values.length) {
+                    float w1 = b.width() * Math.max(0.08f, values[i + 1] / max);
+                    float y0 = b.y() + i * bandH + bandH2;
+                    for (int t = 0; t < 10; t++) {
+                        float u = (t + 0.5f) / 10;
+                        float w = w0 + (w1 - w0) * u;
+                        p.box(b.x() + (b.width() - w) / 2, y0 + gap * u, w, gap / 10 + 0.5f,
+                                Color.rgba(col.rgba() >>> 8, 0.35f * (1 - u)));
+                    }
+                }
+                String label = stages[i];
+                p.text(label, b.x() - label.length() * 6.4f, b.y() + i * bandH + bandH2 / 2 - 6,
+                        10.5f, 500, c.theme().textMuted(), 120);
+                String value = String.valueOf(Math.round(values[i]));
+                p.text(value, b.x() + (b.width() - w0) / 2 + 8, b.y() + i * bandH + bandH2 / 2 - 6,
+                        10.5f, 600, Color.rgb(0xFFFFFF), 80);
+            }
+        });
+        return host;
+    }
+
+    /**
+     * The radar chart: one polygon over named axes, its fill suggested by
+     * radial scans, over a web of rings and spokes.
+     */
+    public static Element radarChart(Context c, String[] axes, float[] values, double max, float size) {
+        Element host = box(c).size(size, size).label("kit-chart-radar");
+        host.draw((Painter p, Rect b) -> {
+            float cx = b.x() + b.width() / 2, cy = b.y() + b.height() / 2;
+            float r = Math.min(b.width(), b.height()) / 2 - 14;
+            int n = Math.max(3, axes.length);
+            Color web = c.theme().border();
+            for (int ring = 1; ring <= 3; ring++) {
+                float rr = r * ring / 3f;
+                for (int i = 0; i < n; i++) {
+                    double a0 = -Math.PI / 2 + 2 * Math.PI * i / n;
+                    double a1 = -Math.PI / 2 + 2 * Math.PI * (i + 1) / n;
+                    p.line(cx + (float) Math.cos(a0) * rr, cy + (float) Math.sin(a0) * rr,
+                            cx + (float) Math.cos(a1) * rr, cy + (float) Math.sin(a1) * rr, 1,
+                            Color.rgba(web.rgba() >>> 8, ring == 3 ? 0.9f : 0.4f));
+                }
+            }
+            for (int i = 0; i < n; i++) {
+                double a = -Math.PI / 2 + 2 * Math.PI * i / n;
+                p.line(cx, cy, cx + (float) Math.cos(a) * r, cy + (float) Math.sin(a) * r, 1,
+                        Color.rgba(web.rgba() >>> 8, 0.5f));
+            }
+            // The value polygon: radial scans read as a translucent fill.
+            Color ink = series(0);
+            for (int t = 1; t <= 18; t++) {
+                float f = t / 18f;
+                float alpha = f >= 0.92f ? 0.55f : 0.05f;
+                for (int i = 0; i < n; i++) {
+                    int j = (i + 1) % n;
+                    double ai = -Math.PI / 2 + 2 * Math.PI * i / n;
+                    double aj = -Math.PI / 2 + 2 * Math.PI * j / n;
+                    float ri = r * f * (float) Math.min(1, values[i] / max);
+                    float rj = r * f * (float) Math.min(1, values[j] / max);
+                    p.line(cx + (float) Math.cos(ai) * ri, cy + (float) Math.sin(ai) * ri,
+                            cx + (float) Math.cos(aj) * rj, cy + (float) Math.sin(aj) * rj, 1.2f,
+                            Color.rgba(ink.rgba() >>> 8, alpha));
+                }
+            }
+            for (int i = 0; i < n; i++) {
+                double a = -Math.PI / 2 + 2 * Math.PI * i / n;
+                float ri = r * (float) Math.min(1, values[i] / max);
+                p.circle(cx + (float) Math.cos(a) * ri, cy + (float) Math.sin(a) * ri, 3, ink);
+                double la = a + Math.PI / n;
+                String label = axes[i];
+                p.text(label, cx + (float) Math.cos(la) * (r + 6) - label.length() * 3.2f,
+                        cy + (float) Math.sin(la) * (r + 6) - 5, 9.5f, 400, c.theme().textMuted(), 100);
+            }
+        });
+        return host;
+    }
+
+    /** The split bar: one horizontal measure cut into named segments, a
+     *  legend under it, after the split bar. */
+    public static Element splitBar(Context c, String[] names, float[] shares,
+                                   float width, float height) {
+        float total = 0;
+        for (float v : shares) {
+            total += v;
+        }
+        final float sum = Math.max(0.0001f, total);
+        Element host = column(c).width(width).gap(6).label("kit-chart-splitbar");
+        host.children(() -> {
+            row(c).height(height).gap(1).children(() -> {
+                for (int i = 0; i < shares.length; i++) {
+                    int idx = i;
+                    box(c).fillWidth().grow((float) (shares[idx] / sum)).height(height)
+                            .radius(idx == 0 || idx == shares.length - 1 ? 3 : 1)
+                            .background(series(idx));
+                }
+            });
+            row(c).gap(10).children(() -> {
+                for (int i = 0; i < names.length; i++) {
+                    int ss = i;
+                    row(c).gap(5).children(() -> {
+                        box(c).size(9, 9).radius(2).background(series(ss));
+                        text(c, names[ss]).singleLine().fontSize(10.5f)
+                                .textColor(c.theme().textMuted());
+                    });
+                }
+            });
+        });
+        return host;
+    }
+
+    /** One thick arc segment of a ring, as short line steps along the circle. */
+    private static void ringSegment(Painter p, float cx, float cy, float r,
+                                    double a0, double a1, float width, Color col) {
+        int steps = Math.max(2, (int) Math.ceil((a1 - a0) * r / 2.5f));
+        for (int i = 0; i < steps; i++) {
+            double t0 = a0 + (a1 - a0) * i / steps;
+            double t1 = a0 + (a1 - a0) * (i + 1) / steps;
+            p.line(cx + (float) Math.cos(t0) * r, cy + (float) Math.sin(t0) * r,
+                    cx + (float) Math.cos(t1) * r, cy + (float) Math.sin(t1) * r, width, col);
+        }
+    }
+
+    /** The sunburst: one ring cut into named arcs proportional to their
+     *  share, the total in the middle, a legend under it. */
+    public static Element sunburstChart(Context c, String[] names, float[] shares, float size) {
+        float total = 0;
+        for (float v : shares) {
+            total += v;
+        }
+        final float sum = Math.max(0.0001f, total);
+        Element host = column(c).gap(6).label("kit-chart-sunburst");
+        host.children(() -> {
+            box(c).size(size, size).draw((Painter p, Rect b) -> {
+                float cx = b.x() + b.width() / 2, cy = b.y() + b.height() / 2;
+                float r = Math.min(b.width(), b.height()) / 2 - 4;
+                double a = -Math.PI / 2;
+                for (int i = 0; i < shares.length; i++) {
+                    double span = 2 * Math.PI * shares[i] / sum;
+                    ringSegment(p, cx, cy, r, a + 0.02, a + span - 0.02, 14, series(i));
+                    a += span;
+                }
+                String totalText = String.valueOf(Math.round(sum));
+                p.text(totalText, cx - totalText.length() * 3.4f, cy - 7, 12, 600,
+                        c.theme().text(), 80);
+            });
+            row(c).gap(10).children(() -> {
+                for (int i = 0; i < names.length; i++) {
+                    int ss = i;
+                    row(c).gap(5).children(() -> {
+                        box(c).size(9, 9).radius(2).background(series(ss));
+                        text(c, names[ss]).singleLine().fontSize(10.5f)
+                                .textColor(c.theme().textMuted());
+                    });
+                }
+            });
+        });
+        return host;
+    }
+
+    /** The sankey flow: sources on the left, sinks on the right, one tapering
+     *  ribbon per flow — a scanline fill interpolating the two spans. */
+    public static Element sankeyFlow(Context c, String[] leftNames, String[] rightNames,
+                                     float[][] flows, float width, float height) {
+        float leftSum = 0, rightSum = 0;
+        for (float[] row : flows) {
+            float l = 0, r = 0;
+            for (int j = 0; j < row.length; j++) {
+                l += row[j];
+                if (j < rightNames.length) {
+                    r += row[j];
+                }
+            }
+            leftSum += l;
+            rightSum += Math.max(rightSum, 0) + 0;                 // column sums computed below
+        }
+        float[] colSum = new float[rightNames.length];
+        for (float[] row : flows) {
+            for (int j = 0; j < Math.min(rightNames.length, row.length); j++) {
+                colSum[j] += row[j];
+            }
+        }
+        for (float v : colSum) {
+            rightSum = Math.max(rightSum, v);
+        }
+        rightSum = Math.max(1, rightSum);
+        final float lTotal = Math.max(1, leftSum);
+        final float rTotal = rightSum;
+        Element host = box(c).width(width).height(height).label("kit-chart-sankey");
+        host.draw((Painter p, Rect b) -> {
+            float nodeW = 10, pad = 6;
+            float lh = (b.height() - (leftNames.length - 1) * 8) / Math.max(1, leftNames.length);
+            float rh = (b.height() - (rightNames.length - 1) * 8) / Math.max(1, rightNames.length);
+            float x0 = b.x() + pad, x1 = b.x() + b.width() - nodeW - pad;
+            float[] leftY = new float[leftNames.length];
+            float ly = b.y();
+            for (int i = 0; i < leftNames.length; i++) {
+                leftY[i] = ly;
+                float h = Math.max(6, lh * (rowSum(flows, i) / lTotal) * leftNames.length);
+                p.roundedBox(x0, ly, nodeW, h, 3, series(i));
+                p.text(leftNames[i], x0 + nodeW + 5, ly + h / 2 - 5, 10, 400,
+                        c.theme().textMuted(), 120);
+                ly += h + 8;
+            }
+            float[] rightY = new float[rightNames.length];
+            float ry = b.y();
+            for (int j = 0; j < rightNames.length; j++) {
+                rightY[j] = ry;
+                float h = Math.max(6, rh * (colSum[j] / rTotal) * rightNames.length);
+                p.roundedBox(x1, ry, nodeW, h, 3, series(j));
+                p.text(rightNames[j], x1 - rightNames[j].length() * 6.2f - 5, ry + h / 2 - 5,
+                        10, 400, c.theme().textMuted(), 120);
+                ry += h + 8;
+            }
+            // The ribbons: each flow a scanline fill between its slots.
+            float[] leftSlot = new float[leftNames.length];
+            float[] rightSlot = new float[rightNames.length];
+            for (int i = 0; i < leftNames.length; i++) {
+                for (int j = 0; j < Math.min(rightNames.length, flows[i].length); j++) {
+                    float v = flows[i][j];
+                    if (v <= 0) {
+                        continue;
+                    }
+                    float lh0 = Math.max(6, lh * (rowSum(flows, i) / lTotal) * leftNames.length)
+                            * (v / Math.max(1, rowSum(flows, i)));
+                    float rh0 = Math.max(6, rh * (colSum[j] / rTotal) * rightNames.length)
+                            * (v / Math.max(1, colSum[j]));
+                    Color col = series((i + j) % SERIES.length);
+                    int slices = 26;
+                    for (int t = 0; t < slices; t++) {
+                        float u = (t + 0.5f) / slices;
+                        float x = x0 + nodeW + (x1 - x0 - nodeW) * u;
+                        float sy = leftY[i] + leftSlot[i] + lh0 / 2;
+                        float ey = rightY[j] + rightSlot[j] + rh0 / 2;
+                        float half = (lh0 + (rh0 - lh0) * u) / 2;
+                        float yy = sy + (ey - sy) * u;
+                        p.box(x, yy - half / 2, (x1 - x0 - nodeW) / slices + 1, half,
+                                Color.rgba(col.rgba() >>> 8, 0.30f));
+                    }
+                    leftSlot[i] += lh0;
+                    rightSlot[j] += rh0;
+                }
+            }
+        });
+        return host;
+    }
+
+    private static float rowSum(float[][] flows, int i) {
+        float sum = 0;
+        for (float v : flows[i]) {
+            sum += v;
+        }
+        return Math.max(0.0001f, sum);
+    }
+
     private Charts() {}
 }

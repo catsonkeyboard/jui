@@ -311,6 +311,20 @@ public final class MotionGallery implements View {
                 });
             });
             Charts.brushChart(c, brushData, brushWin, 110, 180);
+            row(c).gap(16).children(() -> {
+                Charts.funnelChart(c, new String[]{"访问", "注册", "激活", "付费"},
+                        new float[]{8200, 3100, 1400, 460}, 300, 140);
+                Charts.radarChart(c, new String[]{"速度", "稳定", "成本", "体验", "覆盖"},
+                        new float[]{80, 65, 50, 90, 70}, 100, 150);
+            });
+            Charts.splitBar(c, new String[]{"桌面", "移动", "平板"},
+                    new float[]{52, 33, 15}, 400, 22);
+            row(c).gap(16).alignItems(jui.ui.Align.CENTER).children(() -> {
+                Charts.sunburstChart(c, new String[]{"前端", "后端", "数据"},
+                        new float[]{45, 35, 20}, 130);
+                Charts.sankeyFlow(c, new String[]{"上报", "推流"}, new String[]{"网关", "落库", "转发"},
+                        new float[][]{{600, 200, 100}, {300, 0, 250}}, 380, 130);
+            });
             Charts.activityHeatmap(c, heat, 1, 640);
             Charts.treemap(c, new String[]{"Docs", "Deps", "Tests", "Src"},
                     new float[]{30, 45, 15, 10}, treeDrill, 640, 150);
