@@ -4,6 +4,8 @@ import jui.ui.Align;
 import jui.ui.BoolRef;
 import jui.ui.Color;
 import jui.ui.Context;
+import jui.ui.Key;
+import jui.ui.Shortcut;
 import jui.ui.Element;
 import jui.ui.Ref;
 
@@ -24,8 +26,28 @@ public final class ConfirmMorph {
 
     private static final class St {
         int state = IDLE;
-        long at;          // when the current state began
+        long at;          // when the current state began (wall time)
         float held;       // hold fill 0..1
+        float accum;      // timeout progress in ms, paused while hovered
+        long clockAt;     // the last now the accumulator ran to
+        final jui.ui.Handle focus = new jui.ui.Handle();
+    }
+
+    /** The 280 ms guard: clicks this soon after the question opened are the
+     *  opening click's own double-tap and are ignored. */
+    private static final long ASK_GUARD_MS = 280;
+    /** An unanswered question returns to rest after this long, hovered time excluded. */
+    private static final long CONFIRM_TIMEOUT_MS = 6000;
+    /** A done or error result dismisses after this long, hovered time excluded. */
+    private static final long RESULT_TIMEOUT_MS = 5000;
+
+    /** One state transition: resets the timeout clock and asks for a frame. */
+    private static void go(Context c, St st, int state) {
+        st.state = state;
+        st.accum = 0;
+        st.clockAt = c.now();
+        st.at = c.now();
+        c.invalidate();
     }
 
     private static float textWidth(Context c, String s, float size) {
@@ -86,6 +108,13 @@ public final class ConfirmMorph {
         if (disabled && st.state == IDLE) {
             pill.disabled(true);
         }
+        // The timeout clock: hovered time does not count, and a clock jump
+        // (a hidden window waking up) counts once, bounded.
+        float dtMs = (now - st.clockAt) / 1_000_000f;
+        if (dtMs > 0) {
+            st.accum += Math.min(dtMs, 1000) * (pill.hovered() ? 0 : 1);
+        }
+        st.clockAt = now;
         pill.children(() -> {
             switch (st.state) {
                 case IDLE -> {
@@ -97,9 +126,8 @@ public final class ConfirmMorph {
                     Element l = text(c, label).singleLine().fontSize(fs).opacity(1 - 0.1f * dip);
                     l.textColor(c.theme().text());
                     if (pill.clicked() && !disabled) {
-                        st.state = mode == Mode.HOLD ? HOLD : ASK;
-                        st.at = now;
-                        c.invalidate();
+                        go(c, st, mode == Mode.HOLD ? HOLD : ASK);
+                        st.focus.focus();                // the question face takes the keyboard
                     }
                 }
                 case ASK -> {
@@ -108,9 +136,13 @@ public final class ConfirmMorph {
                     spacer(c).width(7);
                     Element ok = buttonBase(c).height(22).padding(0, 8).radius(11).shrink(0)
                             .label("kit-confirm-ok").background(confirmFill);
+                    ok.bind(st.focus);
                     ok.children(() -> text(c, confirmLabel).singleLine().fontSize(11.5f)
                             .textColor(Color.rgb(0xFFFFFF)));
-                    if (ok.clicked()) {
+                    // A click this soon after the question opened is the opening
+                    // click's own double-tap: ignored.
+                    boolean fresh = now - st.at < ASK_GUARD_MS * 1_000_000L;
+                    if (ok.clicked() && !fresh) {
                         begin(c, host, st, pendingLabel, onConfirm);
                     }
                     spacer(c).width(6);
@@ -122,17 +154,21 @@ public final class ConfirmMorph {
                         no.background(c.theme().surfaceHover());
                     }
                     if (no.clicked()) {
-                        st.state = IDLE;
+                        go(c, st, IDLE);
                         if (onCancel != null) {
                             onCancel.run();
                         }
-                        c.invalidate();
                     }
-                    // An unanswered question returns to rest after 6s.
-                    if (now - st.at > 6_000_000_000L) {
-                        st.state = IDLE;
-                        c.invalidate();
+                    if (pill.shortcut(Shortcut.of(Key.ESCAPE))) {   // focus sits on the confirm
+                        go(c, st, IDLE);
+                        if (onCancel != null) {
+                            onCancel.run();
+                        }
                     }
+                    if (st.accum >= CONFIRM_TIMEOUT_MS) {           // hovered time never counted
+                        go(c, st, IDLE);
+                    }
+                    c.after(java.time.Duration.ofMillis(250));
                 }
                 case HOLD -> {
                     // A solid danger copy reveals from the left as the hold fills.
@@ -151,10 +187,10 @@ public final class ConfirmMorph {
                     st.held = ok.pressed() ? Math.min(1, st.held + 0.05f) : Math.max(0, st.held - 0.12f);
                     if (st.held >= 1) {
                         begin(c, host, st, pendingLabel, onConfirm);
-                    } else if (!ok.pressed() && st.held <= 0 && now - st.at > 6_000_000_000L) {
-                        st.state = IDLE;
-                        c.invalidate();
+                    } else if (!ok.pressed() && st.held <= 0 && st.accum >= CONFIRM_TIMEOUT_MS) {
+                        go(c, st, IDLE);
                     }
+                    c.after(java.time.Duration.ofMillis(250));
                 }
                 case PENDING, UNDOING -> {
                     box(c).size(14, 14).shrink(0).draw(Spinner.draw(c));
@@ -174,16 +210,14 @@ public final class ConfirmMorph {
                         undo.background(c.theme().surfaceHover());
                     }
                     if (undo.clicked() && onUndo != null) {
-                        st.state = UNDOING;
-                        st.at = now;
+                        go(c, st, UNDOING);
                         onUndo.run();
                         c.after(java.time.Duration.ofNanos(120_000_000));
-                        c.invalidate();
                     }
-                    if (now - st.at > 5_000_000_000L) {
-                        st.state = IDLE;
-                        c.invalidate();
+                    if (st.accum >= RESULT_TIMEOUT_MS) {
+                        go(c, st, IDLE);
                     }
+                    c.after(java.time.Duration.ofMillis(250));
                 }
                 case ERROR -> {
                     Element l = text(c, errorLabel).singleLine().fontSize(fs);
@@ -197,21 +231,23 @@ public final class ConfirmMorph {
                     if (retry.clicked()) {
                         begin(c, host, st, pendingLabel, onConfirm);
                     }
+                    if (st.accum >= RESULT_TIMEOUT_MS) {
+                        go(c, st, IDLE);
+                    }
+                    c.after(java.time.Duration.ofMillis(250));
                 }
                 default -> { }
             }
         });
         if (st.state == UNDOING && now - st.at > 120_000_000L) {
-            st.state = IDLE;
-            c.invalidate();
+            go(c, st, IDLE);
         }
         return pill;
     }
 
     private static void begin(Context c, Element host, St st, String pendingLabel,
                               java.util.function.Consumer<java.util.function.Consumer<Boolean>> onConfirm) {
-        st.state = PENDING;
-        st.at = c.now();
+        go(c, st, PENDING);
         Ref<jui.ui.IntRef> settle = local(host, "kit-cm-settle", () -> new jui.ui.IntRef(0));
         settle.get().set(0);
         if (onConfirm != null) {
