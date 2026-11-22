@@ -24,6 +24,7 @@ public final class RadioCards {
                                      boolean disabled) {
         Element host = row(c).gap(8).wrap().alignContent(Align.START).label("kit-radio-cards");
         int sel = Math.max(0, Math.min(selected.get(), cards.length - 1));
+        host.children(() -> {
         for (int i = 0; i < cards.length; i++) {
             int ii = i;
             boolean on = ii == sel;
@@ -70,6 +71,7 @@ public final class RadioCards {
                 c.invalidate();
             }
         }
+        });
         return host;
     }
 

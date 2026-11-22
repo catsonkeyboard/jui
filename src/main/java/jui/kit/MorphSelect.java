@@ -20,6 +20,7 @@ public final class MorphSelect {
     public static Element morphSelect(Context c, IntRef selected, BoolRef open, String[] options,
                                       String placeholder, boolean disabled, float width) {
         Element host = box(c).label("kit-morph-select");
+        host.children(() -> {
         int idx = Math.max(0, Math.min(selected.get(), Math.max(0, options.length - 1)));
         float w = Kit.spring(host, "w", open.get() ? Math.max(width, 210) : width, Kit.MORPH);
         Element trigger = buttonBase(c).width(w).height(34).padding(0, 11).gap(6).radius(Kit.RADIUS_XS + 2)
@@ -69,6 +70,7 @@ public final class MorphSelect {
                     c.invalidate();
                 }
             }
+        });
         });
         return host;
     }

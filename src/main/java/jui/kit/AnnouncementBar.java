@@ -32,8 +32,10 @@ public final class AnnouncementBar {
         Ref<St> ref = local(host, "st", St::new);
         St st = ref.get();
         long now = c.now();
-        if (st.dismissed && !st.reopening) {
-            return host;
+        boolean closed = st.dismissed && !st.reopening;
+        host.children(() -> {
+        if (closed) {
+            return;
         }
         if (st.dismissed && st.reopening) {
             st.reopening = false;
@@ -57,7 +59,7 @@ public final class AnnouncementBar {
                     c.invalidate();
                 }
             });
-            return host;
+            return;
         }
         c.after(java.time.Duration.ofMillis(500));
         Element bar = row(c).fillWidth().height(36).padding(0, 14).gap(8)
@@ -93,6 +95,7 @@ public final class AnnouncementBar {
                 st.dismissed = true;
                 c.invalidate();
             }
+        });
         });
         return host;
     }

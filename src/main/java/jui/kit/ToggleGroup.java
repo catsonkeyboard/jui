@@ -25,6 +25,7 @@ public final class ToggleGroup {
         Element host = row(c).gap(2).label("kit-toggle-group").alignItems(Align.CENTER);
         int n = toggles.length;
         int sel = Math.max(-1, Math.min(selected.get(), n - 1));
+        host.children(() -> {
         for (int i = 0; i < n; i++) {
             int ii = i;
             Toggle t = toggles[ii];
@@ -58,6 +59,7 @@ public final class ToggleGroup {
                 c.invalidate();
             }
         }
+        });
         return host;
     }
 

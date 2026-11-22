@@ -94,9 +94,11 @@ public final class ExpandingButtonGroup {
                 }
             }
         }
+        final int shown = expanded;
+        host.children(() -> {
         for (int i = 0; i < items.length; i++) {
             Item it = items[i];
-            boolean hot = i == expanded && !disabled;
+            boolean hot = i == shown && !disabled;
             boolean confirming = run.confirm == i;
             String word = confirming && it.doneLabel != null ? it.doneLabel : it.label;
             float iconW = h;
@@ -146,6 +148,7 @@ public final class ExpandingButtonGroup {
                 }
             }
         }
+        });
         return host;
     }
 

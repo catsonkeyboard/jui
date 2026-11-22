@@ -20,6 +20,7 @@ public final class Breadcrumb {
     /** The trail. */
     public static Element breadcrumb(Context c, Crumb[] crumbs) {
         Element host = row(c).gap(4).label("kit-breadcrumb").alignItems(Align.CENTER);
+        host.children(() -> {
         for (int i = 0; i < crumbs.length; i++) {
             int ii = i;
             Crumb crumb = crumbs[ii];
@@ -42,6 +43,7 @@ public final class Breadcrumb {
                         .textColor(c.theme().text()));
             }
         }
+        });
         return host;
     }
 

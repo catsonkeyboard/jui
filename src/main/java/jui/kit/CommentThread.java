@@ -37,13 +37,16 @@ public final class CommentThread {
     /** The thread. */
     public static Element comments(Context c, java.util.List<Comment> comments) {
         Element host = column(c).fillWidth().gap(10).label("kit-comments");
-        for (Comment cm : comments) {
-            render(c, host, cm, 0);
-        }
+        host.children(() -> {
+            for (Comment cm : comments) {
+                render(c, host, cm, 0);
+            }
+        });
         return host;
     }
 
-    private static void render(Context c, Element host, Comment cm, int depth) {
+    private static void render(Context c, Element parent, Comment cm, int depth) {
+        parent.children(() -> {
         Element host2 = row(c).gap(8).alignItems(Align.START).label("kit-comment");
         host2.left(depth * 22);
         host2.children(() -> {
@@ -90,11 +93,12 @@ public final class CommentThread {
                         c.invalidate();
                     }
                 });
-                for (Comment r : cm.replies) {
-                    render(c, host, r, depth + 1);
-                }
             });
         });
+        });
+        for (Comment r : cm.replies) {
+            render(c, parent, r, depth + 1);
+        }
     }
 
     private CommentThread() {}

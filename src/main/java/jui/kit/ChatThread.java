@@ -27,6 +27,7 @@ public final class ChatThread {
     public static Element chat(Context c, Message[] messages, boolean typing, TextRef draft,
                                java.util.function.Consumer<String> onSend) {
         Element host = column(c).fillWidth().gap(6).label("kit-chat");
+        host.children(() -> {
         String lastAuthor = null;
         boolean lastMine = false;
         for (Message m : messages) {
@@ -91,6 +92,7 @@ public final class ChatThread {
                         c.invalidate();
                     }
                 });
+        });
         return host;
     }
 

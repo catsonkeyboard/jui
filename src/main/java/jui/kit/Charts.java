@@ -258,6 +258,7 @@ public final class Charts {
             window.set(w0);
         }
         final int[] win = w0;
+        host.children(() -> {
         // The main plot: the window's slice.
         Element main = box(c).fillWidth().height(height - 34).label("kit-brush-main");
         main.draw((Painter p, Rect b) -> {
@@ -306,6 +307,7 @@ public final class Charts {
             win[1] = nb;
             c.invalidate();
         }
+        });
         return host;
     }
 

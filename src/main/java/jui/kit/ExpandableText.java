@@ -35,6 +35,7 @@ public final class ExpandableText {
         boolean overflows = lines > clampLines;
         float h = Kit.spring(host, "h", st.open || !overflows ? lineHeight * Math.max(1, lines)
                 : clamped, Kit.MORPH);
+        host.children(() -> {
         Element body = box(c).height(Math.min(h, lineHeight * Math.max(1, lines))).clip()
                 .label("kit-expandable-body");
         body.children(() -> text(c, text == null ? "" : text).fontSize(12.5f)
@@ -59,6 +60,7 @@ public final class ExpandableText {
                 c.invalidate();
             }
         }
+        });
         return host;
     }
 

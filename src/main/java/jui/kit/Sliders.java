@@ -48,6 +48,7 @@ public final class Sliders {
     public static Element slider(Context c, jui.ui.DoubleRef value, double lo, double hi, double step,
                                  boolean disabled, java.util.function.DoubleFunction<String> format) {
         Element host = column(c).gap(4).label("kit-slider");
+        host.children(() -> {
         Element track = box(c).fillWidth().height(20).alignItems(Align.CENTER).label("kit-slider-track");
         if (!disabled) {
             track.draggable().cursor(Cursor.POINTER);
@@ -90,6 +91,7 @@ public final class Sliders {
                 tag.opacity(held || track.hovered() ? 1 : 0);
             }
         });
+        });
         return host;
     }
 
@@ -106,6 +108,7 @@ public final class Sliders {
     public static Element elastic(Context c, jui.ui.DoubleRef value, double lo, double hi, double step,
                                   double[] detents, boolean disabled) {
         Element host = column(c).gap(4).label("kit-elastic-slider");
+        host.children(() -> {
         Element track = box(c).fillWidth().height(24).alignItems(Align.CENTER).label("kit-elastic-track");
         if (!disabled) {
             track.draggable().cursor(Cursor.POINTER);
@@ -166,6 +169,7 @@ public final class Sliders {
                             .textColor(c.theme().text()));
             tag.opacity(held ? 1 : 0);
         });
+        });
         return host;
     }
 
@@ -177,6 +181,7 @@ public final class Sliders {
     public static Element rangeHistogram(Context c, jui.ui.DoubleRef loRef, jui.ui.DoubleRef hiRef,
                                          double lo, double hi, float[] bars, boolean disabled) {
         Element host = column(c).gap(4).label("kit-histogram-slider");
+        host.children(() -> {
         Element panel = box(c).fillWidth().height(72).alignItems(Align.END).gap(1).label("kit-hist-bars");
         int n = Math.max(1, bars.length);
         for (int i = 0; i < n; i++) {
@@ -228,6 +233,7 @@ public final class Sliders {
                 thumb.shadow(0, 1, 3, 0, Color.rgba(0x000000, 0.2f));
             }
         });
+        });
         return host;
     }
 
@@ -239,6 +245,7 @@ public final class Sliders {
     public static Element ruler(Context c, jui.ui.DoubleRef value, double lo, double hi, double tickStep,
                                 boolean disabled) {
         Element host = column(c).gap(4).label("kit-ruler-slider");
+        host.children(() -> {
         Element window = box(c).fillWidth().height(34).clip().label("kit-ruler-window");
         if (!disabled) {
             window.draggable();
@@ -288,6 +295,7 @@ public final class Sliders {
         });
         text(c, String.format("%.0f", value.get())).singleLine().fontSize(13).fontWeight(500)
                 .textColor(c.theme().text());
+        });
         return host;
     }
 
