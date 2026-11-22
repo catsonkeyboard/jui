@@ -37,6 +37,11 @@ public final class Context {
         if (serviceThread()) engine.setThemePair(light, dark);
     }
 
+    /** Moves this window to the dark or light theme of its pair (as the theme switcher needs). */
+    public void setDark(boolean dark) {
+        if (serviceThread()) engine.setDark(dark);
+    }
+
     public jui.text.TextLayout layoutText(String text, float size, int weight, float maxWidth) {
         return serviceThread() ? engine.text().layout(text, size, weight, maxWidth) : null;
     }
@@ -107,6 +112,26 @@ public final class Context {
         return engine.now();
     }
 
+    /** Where the pointer is, in window DIPs, for controls that follow it. */
+    public float pointerX() {
+        return engine.pointerX();
+    }
+
+    /** Where the pointer is, in window DIPs. */
+    public float pointerY() {
+        return engine.pointerY();
+    }
+
+    /** The window's width, in DIPs. */
+    public float windowWidth() {
+        return engine.windowWidth();
+    }
+
+    /** The window's height, in DIPs. */
+    public float windowHeight() {
+        return engine.windowHeight();
+    }
+
     /** Asks for a frame d from now; a frame that does not ask again lets the request go (as MyGO's After). */
     public void after(java.time.Duration d) {
         engine.after(engine.now() + d.toNanos());
@@ -115,6 +140,33 @@ public final class Context {
     /** Asks for another frame. */
     public void invalidate() {
         engine.invalidate();
+    }
+
+    /**
+     * Posts work onto the UI thread, which runs it at the start of the next
+     * frame: how a background task's result lands back in the view. Safe
+     * from any thread, as MyGO's After from off the main thread would be.
+     */
+    public void runLater(Runnable action) {
+        engine.runLater(action);
+    }
+
+    /**
+     * The shared background pool: two daemon threads for file and network
+     * work off the UI thread. Return from the task through
+     * {@link #runLater}; the view never touches the pool's threads.
+     */
+    public java.util.concurrent.Executor worker() {
+        return Worker.POOL;
+    }
+
+    private static final class Worker {
+        static final java.util.concurrent.Executor POOL =
+                java.util.concurrent.Executors.newFixedThreadPool(2, r -> {
+                    Thread t = new Thread(r, "jui-worker");
+                    t.setDaemon(true);
+                    return t;
+                });
     }
 
     Engine engine() {

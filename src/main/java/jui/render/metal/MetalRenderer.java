@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 
 import jui.ffi.Native;
 import jui.ffi.ObjC;
+import jui.render.Images;
 import jui.render.Scene;
 import jui.text.GlyphAtlas;
 
@@ -26,6 +27,7 @@ import static jui.ffi.ObjC.send;
 public final class MetalRenderer {
     private static final long PIXEL_FORMAT_R8_UNORM = 10;
     private static final long PIXEL_FORMAT_BGRA8_UNORM = 80;
+    private static final long PIXEL_FORMAT_RGBA8_UNORM = 70;
     private static final int ATLAS_SIZE = 1024;
     private static final long PRIMITIVE_TRIANGLE_STRIP = 4;
     private static final long LOAD_ACTION_CLEAR = 2;
@@ -61,6 +63,9 @@ public final class MetalRenderer {
     private final GlyphAtlas atlas;
     private long atlasTexture;
     private int atlasGeneration = -1;
+    private final jui.render.ImageAtlas imageAtlas = new jui.render.ImageAtlas(1024, 1024);
+    private long imageTexture;
+    private int imageGeneration = -1;
     private final int[] dirty = new int[4];
     private int frame;
     private int drawn;
@@ -77,6 +82,7 @@ public final class MetalRenderer {
 
     private MetalRenderer(long superlayer, GlyphAtlas atlas) {
         this.atlas = atlas;
+        Images.bind(imageAtlas);
         long pool = ObjC.poolPush();
         try {
             device = Native.call(CREATE_SYSTEM_DEFAULT_DEVICE);
@@ -123,6 +129,11 @@ public final class MetalRenderer {
     /** The atlas that scenes drawn by this renderer put their glyphs in. */
     public GlyphAtlas atlas() {
         return atlas;
+    }
+
+    /** The atlas that scenes drawn by this renderer put their images in. */
+    public jui.render.ImageAtlas imageAtlas() {
+        return imageAtlas;
     }
 
     /**
@@ -195,6 +206,22 @@ public final class MetalRenderer {
         return token == null ? -1 : token;
     }
 
+    /** Uploads the image atlas whole whenever an image landed. */
+    private void uploadImageAtlas() {
+        if (imageGeneration == imageAtlas.generation()) {
+            return;
+        }
+        long desc = send(cls("MTLTextureDescriptor"), "texture2DDescriptorWithPixelFormat:width:height:mipmapped:",
+                PIXEL_FORMAT_RGBA8_UNORM, imageAtlas.width, imageAtlas.height, 0);
+        long replacement = send(device, "newTextureWithDescriptor:", desc);
+        if (replacement == 0) throw new IllegalStateException("cannot grow image atlas texture");
+        ObjC.replaceRegion(replacement, 0, 0, imageAtlas.width, imageAtlas.height, imageAtlas.pixels().address(), imageAtlas.width);
+        long previous = imageTexture;
+        imageTexture = replacement;
+        imageGeneration = imageAtlas.generation();
+        ObjC.release(previous);
+    }
+
     private void uploadAtlas() {
         if (atlasGeneration != atlas.generation()) {
             long desc = send(cls("MTLTextureDescriptor"), "texture2DDescriptorWithPixelFormat:width:height:mipmapped:",
@@ -232,6 +259,7 @@ public final class MetalRenderer {
         globals.set(JAVA_FLOAT, 0, pw);
         globals.set(JAVA_FLOAT, 4, ph);
         uploadAtlas();
+        uploadImageAtlas();
 
         long commands = send(queue, "commandBuffer");
         long encoder = send(commands, "renderCommandEncoderWithDescriptor:", pass);
@@ -240,6 +268,7 @@ public final class MetalRenderer {
         send(encoder, "setFragmentBuffer:offset:atIndex:", buffers[slot], 0, 0);
         send(encoder, "setVertexBytes:length:atIndex:", globals.address(), 16, 1);
         send(encoder, "setFragmentTexture:atIndex:", atlasTexture, 0);
+        send(encoder, "setFragmentTexture:atIndex:", imageTexture, 1);
         // A batch a clip: its scissor rectangle within the drawable, then its instances.
         drawn = 0;
         for (int b = 0; b < scene.batches() && n > 0; b++) {

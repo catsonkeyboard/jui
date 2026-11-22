@@ -420,7 +420,7 @@ public final class MacWindow implements jui.platform.PlatformWindow {
     /** Paints the scene of the last frame's size again, without drawing it, and returns how long it took. */
     public long paint() {
         long started = System.nanoTime();
-        scene.begin((float) lastScale, text, renderer.atlas());
+        scene.begin((float) lastScale, text, renderer.atlas(), renderer.imageAtlas());
         painter.paint(scene, lastWidth, lastHeight);
         return System.nanoTime() - started;
     }

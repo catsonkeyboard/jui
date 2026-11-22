@@ -98,6 +98,15 @@ public final class Element {
         return this;
     }
 
+    /** Lets the pointer drag the element: dragX and dragY then report the move while it is held. */
+    public Element draggable() {
+        Node n = node();
+        if (n != null) {
+            n.flags |= Node.DRAG | Node.HOVER;
+        }
+        return this;
+    }
+
     /**
      * Scrolls the scroll containers around the element, innermost first, as
      * little as shows it, both ways (its start when it is larger than the
@@ -682,6 +691,52 @@ public final class Element {
         return this;
     }
 
+    /** Rotates the box by radians about its center; its border rounds with it. */
+    public Element rotate(float radians) {
+        Node n = node();
+        if (n != null) {
+            n.rotation = radians;
+        }
+        return this;
+    }
+
+    /** Scales the box about its center; 1 keeps it at size. */
+    public Element scale(float x, float y) {
+        Node n = node();
+        if (n != null) {
+            n.scaleX = x;
+            n.scaleY = y;
+        }
+        return this;
+    }
+
+    /**
+     * A vertical gradient behind the box: the top reads {@code top}, the
+     * bottom the background. The border draws over it as before.
+     */
+    public Element gradient(Color top) {
+        Node n = node();
+        if (n != null) {
+            n.gradientTop = top.rgba();
+        }
+        return this;
+    }
+
+    /**
+     * Draws the image atlas's picture behind this box's text, fitted to the
+     * box and clipped by one corner radius. The id is what
+     * {@link jui.render.Images#load} returned; nothing draws before a
+     * renderer exists.
+     */
+    public Element image(int atlasId, float radius) {
+        Node n = node();
+        if (n != null) {
+            n.imageId = atlasId;
+            n.imageRadius = radius;
+        }
+        return this;
+    }
+
     /** The element's opacity, from 0 to 1, multiplied into what it holds. */
     public Element opacity(float opacity) {
         Node n = node();
@@ -752,6 +807,57 @@ public final class Element {
             r = s.bounds = new Rect(s.x, s.y, s.w, s.h);
         }
         return r;
+    }
+
+    /** The pointer's x over this element's box, in DIPs from its left edge; negative when outside. */
+    public float pointerInX() {
+        Node n = node();
+        if (n == null) {
+            return -1;
+        }
+        jui.ui.engine.ElementState s = c.engine().state(index);
+        return c.engine().pointerX() - s.cx;
+    }
+
+    /** The pointer's y over this element's box, in DIPs from its top edge; negative when outside. */
+    public float pointerInY() {
+        Node n = node();
+        if (n == null) {
+            return -1;
+        }
+        jui.ui.engine.ElementState s = c.engine().state(index);
+        return c.engine().pointerY() - s.cy;
+    }
+
+    /** The width of the element's content box (inside padding and border), in DIPs. */
+    public float contentWidth() {
+        Node n = node();
+        return n == null ? 0 : c.engine().state(index).cw;
+    }
+
+    /** The height of the element's content box, in DIPs. */
+    public float contentHeight() {
+        Node n = node();
+        return n == null ? 0 : c.engine().state(index).ch;
+    }
+
+    /**
+     * Drains the keys pressed on the focused element since last frame into
+     * out, returning the count; an element with the KEYS flag takes them.
+     * For recorders and key-driven surfaces outside text inputs.
+     */
+    public int takeKeys(Key[] out) {
+        Node n = node();
+        if (n == null) {
+            return 0;
+        }
+        n.flags |= Node.KEYS;
+        jui.ui.engine.ElementState s = c.engine().state(index);
+        int count = Math.min(s.keyCount, out.length);
+        for (int i = 0; i < count; i++) {
+            out[i] = s.keys[i];
+        }
+        return count;
     }
 
     /** Whether the pointer is over the element (held on it, while a button is down). */

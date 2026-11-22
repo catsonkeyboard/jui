@@ -11,31 +11,41 @@ import static java.lang.foreign.ValueLayout.JAVA_FLOAT;
 
 /**
  * What a frame draws, as instances for the shader: rect, radii, color,
- * border color, params, and the innermost clip's rounded rect, 28 floats
- * each (see shader.metal). Boxes and shadows are in points; glyphs are
- * placed on the pixel grid as they go in.
+ * border color, params, the innermost clip's rounded rect, and the box's
+ * transform (rotation, scale, gradient top color), 36 floats each (see
+ * shader.metal). Boxes and shadows are in points; glyphs are placed on the
+ * pixel grid as they go in.
  */
 public final class Scene {
-    public static final int FLOATS = 28;
+    public static final int FLOATS = 36;
     public static final int BYTES = FLOATS * 4;
     private static final float KIND_BOX = 0;
     private static final float KIND_GLYPH = 2;
     private static final float KIND_STROKE = 3;
+    private static final float KIND_IMAGE = 4;
 
     private float[] data = new float[FLOATS * 64];
     private GlyphAtlas.Entry[] glyphEntries = new GlyphAtlas.Entry[64];
     private int atlasGeneration;
+    private int imageAtlasGeneration;
     private int count;
     private float scale = 1;
     private TextEngine text;
     private GlyphAtlas atlas;
+    private ImageAtlas images;
     private final float[] textRect = new float[4];
 
     /** Starts a frame at {@code scale} pixels a point, whose text goes through {@code text} and {@code atlas}. */
     public void begin(float scale, TextEngine text, GlyphAtlas atlas) {
+        begin(scale, text, atlas, null);
+    }
+
+    /** Starts a frame whose images also draw, out of {@code images}. */
+    public void begin(float scale, TextEngine text, GlyphAtlas atlas, ImageAtlas images) {
         Arrays.fill(glyphEntries, 0, count, null);
         if (atlas != null) atlas.beginFrame();
         this.atlasGeneration = atlas == null ? 0 : atlas.generation();
+        this.imageAtlasGeneration = images == null ? 0 : images.generation();
         this.count = 0;
         this.depth = 0;
         this.clipX0 = this.clipY0 = Float.NEGATIVE_INFINITY;
@@ -46,6 +56,17 @@ public final class Scene {
         this.scale = scale;
         this.text = text;
         this.atlas = atlas;
+        this.images = images;
+    }
+
+    /** The image atlas this frame's images draw out of, for the renderer's upload pass. */
+    public ImageAtlas imageAtlas() {
+        return images;
+    }
+
+    /** The generation the frame's images were at, so the renderer skips stale uploads. */
+    public int imageAtlasGeneration() {
+        return imageAtlasGeneration;
     }
 
     /** The pixels a point of the frame being painted. */
@@ -57,10 +78,12 @@ public final class Scene {
     public float clipBottom() { return clipY1; }
 
     /**
-     * A copy of instance i's 28 floats: rect 0–3, radii 4–7, color 8–11,
-     * border 12–15, params 16–19 (kind at 18: 0 box, 1 shadow, 2 glyph),
-     * the innermost clip's rect 20–23 and its corners 24–27 (all 0 when it
-     * has none). Boxes, shadows and clips are in points, glyphs in pixels.
+     * A copy of instance i's 36 floats: rect 0–3, radii 4–7, color 8–11,
+     * border 12–15, params 16–19 (kind at 18: 0 box, 1 shadow, 2 glyph, 3
+     * stroke), the innermost clip's rect 20–23 and its corners 24–27 (all 0
+     * when it has none), the transform 28–31 (rotation radians, scale x,
+     * scale y, gradient flag), and the gradient's top color 32–35. Boxes,
+     * shadows and clips are in points, glyphs in pixels.
      * For tests.
      */
     public float[] instance(int i) {
@@ -122,6 +145,7 @@ public final class Scene {
         putColor(offset + 8, color);
         putColor(offset + 12, 0);
         put(offset + 16, 0, 0, KIND_GLYPH, 0);
+        identity(offset);
     }
 
     public void richText(TextLayout layout, jui.ui.Spans spans, float x, float y, int baseColor, float opacity) {
@@ -189,12 +213,30 @@ public final class Scene {
     /** A box with a radius per corner: top-left, top-right, bottom-right, bottom-left. */
     public void box(float x, float y, float w, float h, float tl, float tr, float br, float bl,
                     int fill, float borderWidth, int border) {
+        box(x, y, w, h, tl, tr, br, bl, fill, borderWidth, border, 0, 1, 1, 0);
+    }
+
+    /**
+     * A box drawn transformed: rotation radians around its center, scale x
+     * and scale y about its center, and an optional vertical gradient whose
+     * top is {@code gradientTop} and bottom is the fill (0 keeps the flat
+     * fill). Radii and the border transform with it.
+     */
+    public void box(float x, float y, float w, float h, float tl, float tr, float br, float bl,
+                    int fill, float borderWidth, int border, float rotation,
+                    float scaleX, float scaleY, int gradientTop) {
         int o = next();
         put(o, x, y, w, h);
         put(o + 4, tl, tr, br, bl);
         putColor(o + 8, fill);
         putColor(o + 12, border);
         put(o + 16, borderWidth, 0, 0, 0);
+        put(o + 28, rotation, scaleX, scaleY, gradientTop == 0 ? 0 : 1);
+        if (gradientTop != 0) {
+            putColor(o + 32, gradientTop);
+        } else {
+            put(o + 32, 0, 0, 0, 0);
+        }
     }
 
     /** A soft shadow of a rounded box, {@code blur} points across. */
@@ -205,6 +247,30 @@ public final class Scene {
         putColor(o + 8, color);
         putColor(o + 12, 0);
         put(o + 16, 0, blur, 1, 0);
+        identity(o);
+    }
+
+    /**
+     * Draws one image of the image atlas, fitted to the rect and clipped by
+     * its rounded corners. The handle is the id {@code ImageAtlas.add}
+     * returned; the atlas's pixels ride to the renderer separately.
+     */
+    public void image(int handle, float x, float y, float w, float h,
+                      float tl, float tr, float br, float bl) {
+        if (images == null) {
+            return;
+        }
+        ImageAtlas.Entry e = ImageAtlas.Access.entryOf(images, handle);
+        if (e == null) {
+            return;
+        }
+        int o = next();
+        put(o, x, y, w, h);
+        put(o + 4, e.x(), e.y(), e.width(), e.height()); // the atlas's uv rect, in atlas pixels
+        putColor(o + 8, 0xFFFFFFFF);
+        putColor(o + 12, 0);
+        put(o + 16, 0, 0, KIND_IMAGE, 0);
+        identity(o);
     }
 
     /**
@@ -224,6 +290,7 @@ public final class Scene {
         putColor(o + 8, color);
         put(o + 12, cx, cy, 0, 0);
         put(o + 16, hw, 0, KIND_STROKE, 0);
+        identity(o);
     }
 
     /** A line from (x0, y0) to (x1, y1), {@code width} points wide, with round caps. */
@@ -246,8 +313,13 @@ public final class Scene {
             for (int k = 0; k < FLOATS; k++) {
                 float v = data[o + k];
                 // Lengths scale to pixels: rect, radii, border width and blur, a stroke's last point,
-                // and every kind's clip.
-                boolean length = !glyph && (k < 8 || k == 16 || k == 17) || stroke && (k == 12 || k == 13) || k >= 20;
+                // and every kind's clip. An image's radii are atlas pixels,
+                // and the transform (28–35) carries rotation, unit scales
+                // and a color: none of them scale.
+                boolean length = !glyph && !(k < 8 && data[o + 18] == KIND_IMAGE)
+                        && (k < 8 || k == 16 || k == 17)
+                        || stroke && (k == 12 || k == 13)
+                        || k >= 20 && k < 28;
                 dst.setAtIndex(JAVA_FLOAT, o + k, length ? v * scale : v);
             }
             if (data[o + 18] == KIND_BOX) {
@@ -421,6 +493,12 @@ public final class Scene {
     /** The batch's scissor rectangle in pixels, {x, y, width, height}; only for a clipped batch. */
     public void batchScissor(int i, int[] out) {
         System.arraycopy(scissors, i * 4, out, 0, 4);
+    }
+
+    /** The identity transform, so a reused instance's stale values never leak. */
+    private void identity(int o) {
+        put(o + 28, 0, 1, 1, 0);
+        put(o + 32, 0, 0, 0, 0);
     }
 
     private void put(int o, float a, float b, float c, float d) {

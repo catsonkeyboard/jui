@@ -149,6 +149,13 @@ public final class Node {
     public int background, borderColor, shadowColor;
     public float radiusTL, radiusTR, radiusBR, radiusBL;
     public float shadowX, shadowY, shadowBlur, shadowSpread;
+    /** The box's transform: rotation radians and scale about its center, and a gradient's top color (0 = flat). */
+    public float rotation, scaleX = 1, scaleY = 1;
+    public int gradientTop;
+    /** The image that draws behind this box's text, as the image atlas's id (-1 for none). */
+    public int imageId = -1;
+    /** The image's one corner radius. */
+    public float imageRadius;
 
     // Layout output: DIPs from the window's top left.
     public float x, y, w, h;
@@ -235,6 +242,11 @@ public final class Node {
         background = borderColor = shadowColor = 0;
         radiusTL = radiusTR = radiusBR = radiusBL = 0;
         shadowX = shadowY = shadowBlur = shadowSpread = 0;
+        rotation = 0;
+        scaleX = scaleY = 1;
+        gradientTop = 0;
+        imageId = -1;
+        imageRadius = 0;
 
         x = y = w = h = 0;
         layout = null;

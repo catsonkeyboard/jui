@@ -6,6 +6,8 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 
 import jui.ffi.Native;
+import jui.render.ImageAtlas;
+import jui.render.Images;
 import jui.render.Scene;
 import jui.text.GlyphAtlas;
 
@@ -26,6 +28,7 @@ public final class D3D11Renderer {
     // DXGI formats and constants.
     private static final int DXGI_FORMAT_UNKNOWN = 0;
     private static final int DXGI_FORMAT_R8_UNORM = 61;
+    private static final int DXGI_FORMAT_R8G8B8A8_UNORM = 28;
     private static final int DXGI_FORMAT_B8G8R8A8_UNORM = 87;
     private static final int DXGI_SWAP_EFFECT_DISCARD = 0;
     private static final int DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL = 3;
@@ -115,6 +118,10 @@ public final class D3D11Renderer {
     private long atlasTexture;
     private long atlasSrv;
     private int atlasGeneration = -1;
+    private final ImageAtlas imageAtlas;
+    private long imageTexture;
+    private long imageSrv;
+    private int imageGeneration = -1;
     private final int[] dirty = new int[4];
     private int drawn;
     private final int[] scissor = new int[4];
@@ -126,6 +133,8 @@ public final class D3D11Renderer {
 
     private D3D11Renderer(long hwnd, GlyphAtlas atlas) {
         this.atlas = atlas;
+        this.imageAtlas = new ImageAtlas(1024, 1024);
+        Images.bind(this.imageAtlas);
         this.hwnd = hwnd;
         try (Arena arena = Arena.ofConfined()) {
             MemorySegment outDevice = arena.allocate(JAVA_LONG), outContext = arena.allocate(JAVA_LONG),
@@ -166,6 +175,11 @@ public final class D3D11Renderer {
     /** The atlas that scenes drawn by this renderer put their glyphs in. */
     public GlyphAtlas atlas() {
         return atlas;
+    }
+
+    /** The atlas that scenes drawn by this renderer put their images in. */
+    public ImageAtlas imageAtlas() {
+        return imageAtlas;
     }
 
     /** How many instances the last frame drew: for tools. */
@@ -229,11 +243,13 @@ public final class D3D11Renderer {
             // The vertex stage reads the instances at t0 and globals at b0.
             MemorySegment vsViews = arena.allocateFrom(JAVA_LONG, instanceSrv);
             D3D.com(context, CTX_VS_SET_SHADER_RESOURCES, 0, 1, vsViews.address());
-            // The pixel stage reads the atlas at t0 and the instances at t1.
-            MemorySegment psViews = arena.allocate(2 * 8);
+            // The pixel stage reads the atlas at t0, the instances at t1, and the image atlas at t2.
+            uploadImageAtlas(arena);
+            MemorySegment psViews = arena.allocate(3 * 8);
             psViews.set(JAVA_LONG, 0, atlasSrv);
             psViews.set(JAVA_LONG, 8, instanceSrv);
-            D3D.com(context, CTX_PS_SET_SHADER_RESOURCES, 0, 2, psViews.address());
+            psViews.set(JAVA_LONG, 16, imageSrv);
+            D3D.com(context, CTX_PS_SET_SHADER_RESOURCES, 0, 3, psViews.address());
             MemorySegment consts = arena.allocateFrom(JAVA_LONG, constantBuffer);
             D3D.com(context, CTX_VS_SET_CONSTANT_BUFFERS, 0, 1, consts.address());
             D3D.com(context, CTX_PS_SET_CONSTANT_BUFFERS, 0, 1, consts.address());
@@ -528,6 +544,49 @@ public final class D3D11Renderer {
 
     private static boolean failed(int hr) {
         return hr < 0;
+    }
+
+    /** Uploads the image atlas whole whenever an image landed, growing it as scenes ask. */
+    private void uploadImageAtlas(Arena arena) {
+        if (imageGeneration == imageAtlas.generation()) {
+            return;
+        }
+        MemorySegment desc = arena.allocate(SIZEOF_DESC_TEXTURE2D);
+        desc.set(JAVA_INT, 0, imageAtlas.width);
+        desc.set(JAVA_INT, 4, imageAtlas.height);
+        desc.set(JAVA_INT, 8, 1);
+        desc.set(JAVA_INT, 12, 1);           // MipLevels, ArraySize
+        desc.set(JAVA_INT, 16, DXGI_FORMAT_R8G8B8A8_UNORM);
+        desc.set(JAVA_INT, 20, 1);           // SampleDesc.Count
+        desc.set(JAVA_INT, 28, USAGE_DEFAULT);
+        desc.set(JAVA_INT, 32, BIND_SHADER_RESOURCE);
+        MemorySegment out = arena.allocate(JAVA_LONG);
+        int hr = (int) D3D.com(device, DEV_CREATE_TEXTURE_2D, desc.address(), 0, out.address());
+        if (failed(hr)) {
+            throw new IllegalStateException("CreateTexture2D(images) failed: 0x" + Integer.toHexString(hr));
+        }
+        long texture = out.get(JAVA_LONG, 0);
+        D3D.com(context, CTX_UPDATE_SUBRESOURCE, texture, 0, 0, imageAtlas.pixels().address(),
+                imageAtlas.width, 0);
+        MemorySegment srvDesc = arena.allocate(SIZEOF_DESC_SRV);
+        srvDesc.set(JAVA_INT, 0, DXGI_FORMAT_R8G8B8A8_UNORM);
+        srvDesc.set(JAVA_INT, 4, D3D11_SRV_DIMENSION_TEXTURE2D);
+        srvDesc.set(JAVA_INT, 8, 0);
+        srvDesc.set(JAVA_INT, 12, 1); // MostDetailedMip, MipLevels
+        MemorySegment srvOut = arena.allocate(JAVA_LONG);
+        hr = (int) D3D.com(device, DEV_CREATE_SHADER_RESOURCE_VIEW, texture, srvDesc.address(),
+                srvOut.address());
+        if (failed(hr)) {
+            throw new IllegalStateException("CreateShaderResourceView(images) failed: 0x"
+                    + Integer.toHexString(hr));
+        }
+        if (imageTexture != 0) {
+            D3D.com(imageSrv, COM_RELEASE);
+            D3D.com(imageTexture, COM_RELEASE);
+        }
+        imageTexture = texture;
+        imageSrv = srvOut.get(JAVA_LONG, 0);
+        imageGeneration = imageAtlas.generation();
     }
 
     /** A GUID from its parts, as 16 bytes of memory. */

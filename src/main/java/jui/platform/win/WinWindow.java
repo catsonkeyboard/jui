@@ -246,7 +246,7 @@ public final class WinWindow implements PlatformWindow {
         lastWidth = width;
         lastHeight = height;
         lastScale = scale;
-        scene.begin((float) scale, text, renderer.atlas());
+        scene.begin((float) scale, text, renderer.atlas(), renderer.imageAtlas());
         painter.paint(scene, width, height);
         boolean first = frames == 0;
         if (first) {
@@ -529,7 +529,7 @@ public final class WinWindow implements PlatformWindow {
     private static final java.lang.invoke.MethodHandle GETDPI = h(FunctionDescriptor.of(ValueLayout.JAVA_INT,
             ValueLayout.JAVA_LONG));
     private static final java.lang.invoke.MethodHandle SETTIMER = h(FunctionDescriptor.of(ValueLayout.JAVA_LONG,
-            ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.ADDRESS));
+            ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.ADDRESS));
     private static final java.lang.invoke.MethodHandle KILLTIMER = h(FunctionDescriptor.of(ValueLayout.JAVA_INT,
             ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG));
     private static final java.lang.invoke.MethodHandle BEGINPAINT = h(FunctionDescriptor.of(ValueLayout.JAVA_LONG,

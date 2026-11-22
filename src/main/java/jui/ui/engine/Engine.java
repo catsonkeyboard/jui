@@ -27,6 +27,8 @@ public final class Engine {
     private final StateTable states = new StateTable();
     private final HitList hits = new HitList();
     private final Input input = new Input(this, hits);
+    private final java.util.concurrent.ConcurrentLinkedQueue<Runnable> later =
+            new java.util.concurrent.ConcurrentLinkedQueue<>();
     private final java.util.IdentityHashMap<jui.ui.TextInputClient, Boolean> clientBindings = Dev.ENABLED ? new java.util.IdentityHashMap<>() : null;
     private final int[] actualTextRange = new int[2];
     final MenuState menus = new MenuState(this);
@@ -143,6 +145,7 @@ public final class Engine {
         layoutCache.begin();
         frame++;
         now = clock.getAsLong();
+        drainLater();
         wake = Long.MAX_VALUE; // a frame that asks for no wake-up stops the timer (as MyGO)
         input.advanceGlides(now);
         advanceAnimations(now);
@@ -339,6 +342,29 @@ public final class Engine {
     /** Where the pointer is, in DIPs: for controls that follow it. */
     public float pointerX() {
         return input.pointerX;
+    }
+
+    /** Where the pointer is, in DIPs, down the window. */
+    public float pointerY() {
+        return input.pointerY;
+    }
+
+    /**
+     * Posts work onto the UI thread, which runs it at the start of the next
+     * frame: how a background task's result lands back in the view. Safe
+     * from any thread; an empty frame still drains the queue.
+     */
+    public void runLater(Runnable action) {
+        later.add(java.util.Objects.requireNonNull(action));
+        after(now + 1_000_000L); // a frame soon, so posted work is not left waiting
+    }
+
+    /** Runs what runLater posted, at the start of a frame. */
+    private void drainLater() {
+        Runnable r;
+        while ((r = later.poll()) != null) {
+            r.run();
+        }
     }
 
     /** Gives focus to the element asked for, if this pass built it enabled; else the request waits. */

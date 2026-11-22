@@ -38,11 +38,17 @@ final class Paint {
             // A clipping box draws its border over what it holds, once that is drawn (as MyGO).
             if (alpha(background) != 0) {
                 scene.box(n.x, n.y, n.w, n.h, Math.min(n.radiusTL, half), Math.min(n.radiusTR, half),
-                        Math.min(n.radiusBR, half), Math.min(n.radiusBL, half), background, 0, 0);
+                        Math.min(n.radiusBR, half), Math.min(n.radiusBL, half), background, 0, 0,
+                        n.rotation, n.scaleX, n.scaleY, fade(n.gradientTop, o));
             }
         } else if (alpha(background) != 0 || n.border > 0 && alpha(borderColor) != 0) {
             scene.box(n.x, n.y, n.w, n.h, Math.min(n.radiusTL, half), Math.min(n.radiusTR, half),
-                    Math.min(n.radiusBR, half), Math.min(n.radiusBL, half), background, n.border, borderColor);
+                    Math.min(n.radiusBR, half), Math.min(n.radiusBL, half), background, n.border, borderColor,
+                    n.rotation, n.scaleX, n.scaleY, fade(n.gradientTop, o));
+        }
+        if (n.imageId >= 0) {
+            float r = Math.min(n.imageRadius, half);
+            scene.image(n.imageId, n.x, n.y, n.w, n.h, r, r, r, r);
         }
         if (n.checkMark) {
             // MyGO's checkPath, in the box's own proportions.
