@@ -35,10 +35,10 @@ public final class Switch {
             // The track and knob; the fill and slide run together.
             Element track = row(c).size(38, 22).radius(11).padding(2).shrink(0)
                     .label("kit-switch-track");
-            float pos = KitMotion.spring(track, "knob", ref.get() ? 1 : 0, KitMotion.SNAPPY);
-            Color off = KitMotion.mix(c.theme().border(), c.theme().text(), 0.15f);
+            float pos = Kit.spring(track, "knob", ref.get() ? 1 : 0, Kit.SNAPPY);
+            Color off = Kit.mix(c.theme().border(), c.theme().text(), 0.15f);
             track.background(disabled ? Color.rgba(off.rgba() >>> 8, 0.5f)
-                    : KitMotion.mix(off, c.theme().accent(), pos));
+                    : Kit.mix(off, c.theme().accent(), pos));
             track.children(() -> box(c).size(18, 18).radius(9).background(Color.rgb(0xFFFFFF))
                     .shadow(0, 1, 3, 0, Color.rgba(0x000000, 0.25f))
                     .margin(0, 0, 0, 16 * pos));

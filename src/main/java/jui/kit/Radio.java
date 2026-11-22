@@ -38,9 +38,9 @@ public final class Radio {
             }
             row.children(() -> {
                 Element dot = box(c).size(16, 16).radius(8).shrink(0);
-                float fill = KitMotion.spring(host, "d" + ii, on ? 1 : 0, KitMotion.SNAPPY);
+                float fill = Kit.spring(host, "d" + ii, on ? 1 : 0, Kit.SNAPPY);
                 dot.border(1.5f, on ? c.theme().accent()
-                        : KitMotion.mix(c.theme().border(), c.theme().text(), 0.25f));
+                        : Kit.mix(c.theme().border(), c.theme().text(), 0.25f));
                 dot.children(() -> box(c).size(6 + 4 * fill, 6 + 4 * fill).radius(3 + 2 * fill)
                         .background(c.theme().accent()));
                 column(c).gap(1).children(() -> {

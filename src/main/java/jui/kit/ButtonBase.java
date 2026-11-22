@@ -6,7 +6,7 @@ import jui.ui.Element;
 import jui.ui.Justify;
 
 /**
- * Shared face pieces for the jui-kit button family: the fill and text per
+ * Shared face pieces for the kit button family: the fill and text per
  * variant, and half-rounded bases for joined surfaces such as the split
  * button and the button group.
  */

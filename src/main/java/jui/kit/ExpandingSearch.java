@@ -25,11 +25,11 @@ public final class ExpandingSearch {
                                           java.util.function.Function<String, Element> results) {
         Element host = box(c).label("kit-expanding-search");
         BoolRef open = localBool(host, "open", false);
-        float w = KitMotion.spring(host, "w", open.get() ? openWidth : 32, KitMotion.MORPH);
+        float w = Kit.spring(host, "w", open.get() ? openWidth : 32, Kit.MORPH);
         Element shell = row(c).size(w, 32).radius(16).shrink(0).clip().label("kit-es-shell")
                 .alignItems(jui.ui.Align.CENTER);
-        shell.background(KitMotion.surface(c)).border(1, open.get() && shell.focused()
-                ? c.theme().accent() : KitMotion.hairline(c));
+        shell.background(Kit.surface(c)).border(1, open.get() && shell.focused()
+                ? c.theme().accent() : Kit.hairline(c));
         if (disabled) {
             shell.disabled(true);
         }

@@ -23,7 +23,7 @@ public final class Tooltip {
                     .children(() -> text(c, text).singleLine().fontSize(11)
                             .textColor(Color.rgb(0xFFFFFF)));
             tip.shadow(0, 4, 12, -2, Color.rgba(0x000000, 0.3f));
-            float a = KitMotion.spring(tip, "in", 1, KitMotion.SNAPPY);
+            float a = Kit.spring(tip, "in", 1, Kit.SNAPPY);
             tip.opacity(a);
         });
     }

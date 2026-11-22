@@ -28,7 +28,7 @@ public final class TextEffects {
         for (int i = 0; i < words.length; i++) {
             int ii = i;
             host.children(() -> {
-                float t = KitMotion.spring(host, "w" + ii, show ? 1 : 0, KitMotion.MORPH);
+                float t = Kit.spring(host, "w" + ii, show ? 1 : 0, Kit.MORPH);
                 Element w = text(c, words[ii]).singleLine().fontSize(fontSize)
                         .textColor(c.theme().text());
                 w.opacity(t);
@@ -56,13 +56,13 @@ public final class TextEffects {
     public static Element textMorph(Context c, String text, float fontSize) {
         Element host = box(c).clip().label("kit-text-morph");
         float w = c.layoutText(text, fontSize, 600, 4096).width;
-        float animW = KitMotion.spring(host, "w", w, KitMotion.MORPH);
+        float animW = Kit.spring(host, "w", w, Kit.MORPH);
         host.width(animW).height(fontSize * 1.35f);
         for (int i = 0; i < text.length(); i++) {
             int ii = i;
             char ch = text.charAt(ii);
             host.children(() -> {
-                float t = KitMotion.spring(host, "ch" + ii, 1, KitMotion.MORPH);
+                float t = Kit.spring(host, "ch" + ii, 1, Kit.MORPH);
                 Element l = text(c, String.valueOf(ch)).singleLine().fontSize(fontSize)
                         .fontWeight(600).textColor(c.theme().text());
                 l.opacity(t);
@@ -73,7 +73,7 @@ public final class TextEffects {
     }
 
     // The sweep: the band crosses the box in 1.4 s and rests the rest of the
-    // 2 s cycle, as the "pausing briefly between passes".
+    // 2 s cycle, with a pause between passes.
     private static final long PASS_MS = 1_400, CYCLE_MS = 2_000;
     // Stepped bands that read as one soft bell edge over the glyphs: widest
     // and faintest first, the bright core last. Each is a plain clip over a
@@ -115,7 +115,7 @@ public final class TextEffects {
         Element host = box(c).width(Math.max(1, layout.width))
                 .height(Math.max(fontSize, layout.height)).clip()
                 .label("kit-text-shimmer");
-        if (!running || KitMotion.reducedMotion) {
+        if (!running || Kit.reducedMotion) {
             host.draw((p, b) -> p.text(layout, b.x(), b.y(),
                     running ? c.theme().text() : c.theme().textMuted()));
             return host;
@@ -153,7 +153,7 @@ public final class TextEffects {
             char target = text.charAt(ii);
             host.children(() -> {
                 // Each reel settles on its own stagger.
-                float settle = KitMotion.spring(host, "s" + ii, 1, KitMotion.MORPH);
+                float settle = Kit.spring(host, "s" + ii, 1, Kit.MORPH);
                 long spin = Math.max(0, (long) ((1 - settle) * 6));
                 char shown = spin > 0
                         ? chars.charAt((int) ((now / 60_000_000L + ii) % chars.length()))

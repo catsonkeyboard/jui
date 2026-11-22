@@ -34,7 +34,7 @@ public final class Dialog {
                 row(c).gap(9).alignItems(Align.CENTER).children(() -> {
                     if (icon != null) {
                         box(c).size(18, 18).shrink(0)
-                                .draw(Icon.draw(icon, danger ? KitMotion.danger(c) : c.theme().accent()));
+                                .draw(Icon.draw(icon, danger ? Kit.danger(c) : c.theme().accent()));
                     }
                     text(c, title).fontSize(14).fontWeight(600).textColor(c.theme().text());
                 });
@@ -44,7 +44,7 @@ public final class Dialog {
                         if (buttons == Buttons.OK_CANCEL || buttons == Buttons.CONFIRM_CANCEL) {
                             Element cancel = ButtonBase.soft(c, false);
                             cancel.height(32).padding(0, 12).radius(Kit.RADIUS_XS + 2)
-                                    .border(1, KitMotion.hairline(c));
+                                    .border(1, Kit.hairline(c));
                             cancel.children(() -> text(c, CANCEL_TEXT).singleLine().fontSize(12.5f)
                                     .textColor(c.theme().text()));
                             if (cancel.clicked()) {

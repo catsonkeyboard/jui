@@ -33,8 +33,8 @@ public final class CookieConsent {
         Ref<St> ref = local(host, "st", St::new);
         St st = ref.get();
         if (st.state == 2) {
-            Element chip = buttonBase(c).size(30, 30).radius(15).background(KitMotion.surface(c))
-                    .border(1, KitMotion.hairline(c)).label("kit-cookie-reopen");
+            Element chip = buttonBase(c).size(30, 30).radius(15).background(Kit.surface(c))
+                    .border(1, Kit.hairline(c)).label("kit-cookie-reopen");
             chip.children(() -> box(c).size(14, 14).shrink(0)
                     .draw(Icon.draw("lock", c.theme().textMuted())));
             if (chip.clicked()) {
@@ -44,10 +44,10 @@ public final class CookieConsent {
             return host;
         }
         Element card = column(c).width(360).padding(14).gap(8).radius(Kit.RADIUS + 3)
-                .background(c.theme().background()).border(1, KitMotion.hairline(c))
+                .background(c.theme().background()).border(1, Kit.hairline(c))
                 .label("kit-cookie-card");
-        KitMotion.floatShadow(card);
-        float w = KitMotion.spring(card, "w", st.state == 1 ? 320 : 360, KitMotion.MORPH);
+        Kit.floatShadow(card);
+        float w = Kit.spring(card, "w", st.state == 1 ? 320 : 360, Kit.MORPH);
         card.width(w);
         card.children(() -> {
             row(c).gap(8).alignItems(Align.CENTER).children(() -> {
@@ -72,8 +72,8 @@ public final class CookieConsent {
                             boolean on = p.label().startsWith("A") ? st.analytics : st.marketing;
                             Element track = buttonBase(c).size(34, 19).radius(10).padding(2)
                                     .label("kit-cookie-switch");
-                            float pos = KitMotion.spring(track, "knob", on ? 1 : 0, KitMotion.SNAPPY);
-                            track.background(KitMotion.mix(c.theme().border(), c.theme().accent(), pos));
+                            float pos = Kit.spring(track, "knob", on ? 1 : 0, Kit.SNAPPY);
+                            track.background(Kit.mix(c.theme().border(), c.theme().accent(), pos));
                             track.children(() -> box(c).size(15, 15).radius(8)
                                     .background(Color.rgb(0xFFFFFF)).margin(0, 0, 0, 15 * pos));
                             if (track.clicked()) {
@@ -100,7 +100,7 @@ public final class CookieConsent {
                     }
                 }
                 Element decline = buttonBase(c).height(28).padding(0, 10).radius(Kit.RADIUS_XS + 2)
-                        .border(1, KitMotion.hairline(c)).label("kit-cookie-decline");
+                        .border(1, Kit.hairline(c)).label("kit-cookie-decline");
                 decline.children(() -> text(c, "Decline").singleLine().fontSize(11.5f)
                         .textColor(c.theme().text()));
                 if (decline.clicked()) {

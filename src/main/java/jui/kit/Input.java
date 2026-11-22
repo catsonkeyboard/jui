@@ -20,14 +20,14 @@ public final class Input {
     /** Border color for the field's state. */
     private static Color edge(Context c, boolean focused, boolean hovered, boolean invalid) {
         if (invalid) {
-            return KitMotion.danger(c);
+            return Kit.danger(c);
         }
         Theme t = c.theme();
-        return focused ? t.accent() : hovered ? KitMotion.mix(t.border(), t.text(), 0.25f) : t.border();
+        return focused ? t.accent() : hovered ? Kit.mix(t.border(), t.text(), 0.25f) : t.border();
     }
 
     /**
-     * One jui-kit field face: the box with its animated border, an optional
+     * One field face: the box with its animated border, an optional
      * leading icon, a trailing slot (a builder, so it lands inside the
      * box), and the helper or error note under it.
      */
@@ -38,7 +38,7 @@ public final class Input {
         return column(c).fillWidth().gap(4).label("kit-field-" + label).children(() -> {
             if (label != null && !label.isEmpty()) {
                 Element l = text(c, label).fontSize(12);
-                l.textColor(invalid ? KitMotion.danger(c) : c.theme().text());
+                l.textColor(invalid ? Kit.danger(c) : c.theme().text());
                 l.fontWeight(500);
             }
             Element box = textInput(c, value).placeholder(placeholder).fillWidth()
@@ -49,11 +49,11 @@ public final class Input {
             }
             boolean focused = box.focused();
             boolean hovered = box.hovered();
-            float k = KitMotion.spring(box, "edge", focused || invalid ? 1 : 0, KitMotion.SNAPPY);
+            float k = Kit.spring(box, "edge", focused || invalid ? 1 : 0, Kit.SNAPPY);
             Color rest = edge(c, focused, hovered, invalid);
-            Color fill = disabled ? Color.rgba(KitMotion.surface(c).rgba() >>> 8, 0.5f) : KitMotion.surface(c);
+            Color fill = disabled ? Color.rgba(Kit.surface(c).rgba() >>> 8, 0.5f) : Kit.surface(c);
             box.background(fill);
-            box.border(1, focused || invalid ? KitMotion.mix(c.theme().border(), rest, k) : rest);
+            box.border(1, focused || invalid ? Kit.mix(c.theme().border(), rest, k) : rest);
             if (leadingIcon != null) {
                 box.children(() -> box(c).absolute().left(9).top(0).bottom(0).width(16)
                         .alignItems(jui.ui.Align.CENTER)
@@ -66,17 +66,17 @@ public final class Input {
             }
             if (invalid || (helper != null && !helper.isEmpty())) {
                 Element note = text(c, invalid ? error : helper).fontSize(11);
-                note.textColor(invalid ? KitMotion.danger(c) : c.theme().textMuted());
+                note.textColor(invalid ? Kit.danger(c) : c.theme().textMuted());
             }
         });
     }
 
-    /** The labeled field, jui-kit-styled. */
+    /** The labeled field. */
     public static Element field(Context c, String label, TextRef value, String placeholder) {
         return field(c, label, value, placeholder, null, null, false, null, null);
     }
 
-    /** The bare input, jui-kit-styled. */
+    /** The bare input. */
     public static Element input(Context c, TextRef value, String placeholder) {
         return textInput(c, value).placeholder(placeholder).fillWidth().height(34)
                 .padding(0, 11).radius(Kit.RADIUS_XS + 2).label("kit-input");
@@ -88,7 +88,7 @@ public final class Input {
         return column(c).fillWidth().gap(4).label("kit-area-" + label).children(() -> {
             if (label != null && !label.isEmpty()) {
                 Element l = text(c, label).fontSize(12).fontWeight(500);
-                l.textColor(invalid ? KitMotion.danger(c) : c.theme().text());
+                l.textColor(invalid ? Kit.danger(c) : c.theme().text());
             }
             Element box = textArea(c, value).placeholder(placeholder).fillWidth()
                     .minHeight(minHeight).padding(8, 11).radius(Kit.RADIUS_XS + 2)
@@ -97,14 +97,14 @@ public final class Input {
                 box.disabled(true);
             }
             boolean focused = box.focused();
-            float k = KitMotion.spring(box, "edge", focused || invalid ? 1 : 0, KitMotion.SNAPPY);
-            box.background(disabled ? Color.rgba(KitMotion.surface(c).rgba() >>> 8, 0.5f) : KitMotion.surface(c));
+            float k = Kit.spring(box, "edge", focused || invalid ? 1 : 0, Kit.SNAPPY);
+            box.background(disabled ? Color.rgba(Kit.surface(c).rgba() >>> 8, 0.5f) : Kit.surface(c));
             box.border(1, focused || invalid
-                    ? KitMotion.mix(c.theme().border(), edge(c, focused, box.hovered(), invalid), k)
+                    ? Kit.mix(c.theme().border(), edge(c, focused, box.hovered(), invalid), k)
                     : edge(c, focused, box.hovered(), invalid));
             if (helper != null && !helper.isEmpty()) {
                 Element note = text(c, helper).fontSize(11);
-                note.textColor(invalid ? KitMotion.danger(c) : c.theme().textMuted());
+                note.textColor(invalid ? Kit.danger(c) : c.theme().textMuted());
             }
         });
     }
@@ -115,7 +115,7 @@ public final class Input {
         return areaField(c, label, value, placeholder, null, false, false, minHeight);
     }
 
-    /** The bare multiline input, jui-kit-styled. */
+    /** The bare multiline input. */
     public static Element textarea(Context c, TextRef value, String placeholder) {
         return textArea(c, value).placeholder(placeholder).fillWidth().padding(8, 11)
                 .radius(Kit.RADIUS_XS + 2).label("kit-textarea");

@@ -36,7 +36,7 @@ public final class TagInput {
             }
             Element box = box(c).fillWidth().minHeight(34).padding(4).gap(4).wrap()
                     .alignContent(jui.ui.Align.START).radius(Kit.RADIUS_XS + 2)
-                    .background(KitMotion.surface(c)).border(1, KitMotion.hairline(c))
+                    .background(Kit.surface(c)).border(1, Kit.hairline(c))
                     .label("kit-tag-box");
             box.children(() -> {
                 List<String> list = tags.get();
@@ -44,7 +44,7 @@ public final class TagInput {
                     Element chip = row(c).gap(4).padding(3, 4).padding(2, 6).radius(Kit.RADIUS_XS)
                             .shrink(0).alignItems(jui.ui.Align.CENTER).background(c.theme().surface())
                             .label("kit-tag");
-                    chip.border(1, KitMotion.hairline(c));
+                    chip.border(1, Kit.hairline(c));
                     chip.children(() -> {
                         text(c, tag).singleLine().fontSize(11.5f).textColor(c.theme().text());
                         Element x = buttonBase(c).size(14, 14).radius(3).label("kit-tag-x");

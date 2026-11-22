@@ -34,9 +34,9 @@ public final class RadioCards {
                 cell.disabled(true);
             }
             // The selection ring reads through the border; the fill tints when on.
-            cell.border(1.5f, on ? c.theme().accent() : KitMotion.hairline(c));
+            cell.border(1.5f, on ? c.theme().accent() : Kit.hairline(c));
             cell.background(on ? Color.rgba(c.theme().accent().rgba() >>> 8, 0.07f)
-                    : KitMotion.surface(c));
+                    : Kit.surface(c));
             if (!disabled && !on && cell.hovered()) {
                 cell.background(c.theme().surfaceHover());
             }
@@ -51,8 +51,8 @@ public final class RadioCards {
                     spacer(c).grow(1);
                     // The radio dot.
                     Element dot = box(c).size(16, 16).radius(8).shrink(0);
-                    float t = KitMotion.spring(host, "dot" + ii, on ? 1 : 0, KitMotion.SNAPPY);
-                    dot.border(1.5f, on ? c.theme().accent() : KitMotion.mix(c.theme().border(), c.theme().text(), 0.25f));
+                    float t = Kit.spring(host, "dot" + ii, on ? 1 : 0, Kit.SNAPPY);
+                    dot.border(1.5f, on ? c.theme().accent() : Kit.mix(c.theme().border(), c.theme().text(), 0.25f));
                     dot.children(() -> box(c).size(6 + 4 * t, 6 + 4 * t).radius(4 + 4 * t)
                             .background(c.theme().accent()));
                 });

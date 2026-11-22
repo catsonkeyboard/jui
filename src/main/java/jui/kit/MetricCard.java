@@ -19,11 +19,11 @@ public final class MetricCard {
     public static Element metricCard(Context c, String label, String value, double delta,
                                      float[] sparkline) {
         boolean up = delta >= 0;
-        Color tone = up ? KitMotion.success(c) : KitMotion.danger(c);
+        Color tone = up ? Kit.success(c) : Kit.danger(c);
         Element host = column(c).fillWidth().gap(2).padding(14).radius(Kit.RADIUS + 3)
-                .background(c.theme().background()).border(1, KitMotion.hairline(c))
+                .background(c.theme().background()).border(1, Kit.hairline(c))
                 .label("kit-metric-" + label);
-        KitMotion.cardShadow(host);
+        Kit.cardShadow(host);
         host.children(() -> {
             text(c, label).singleLine().fontSize(11.5f).textColor(c.theme().textMuted());
             row(c).gap(8).alignItems(Align.CENTER).children(() -> {

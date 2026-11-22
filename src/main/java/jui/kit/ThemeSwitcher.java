@@ -86,7 +86,7 @@ public final class ThemeSwitcher {
         });
         b.children(() -> {
             boolean target = st.animating ? st.toDark : on.get();
-            float t = KitMotion.spring(host, "sun", target ? 1 : 0, KitMotion.MORPH);
+            float t = Kit.spring(host, "sun", target ? 1 : 0, Kit.MORPH);
             box(c).size(18, 18).shrink(0).draw(
                     (p, bx) -> IconMorph.paint(p, bx, IconMorph.THEME, t, c.theme().text(),
                             c.theme().text(), c.theme().background(), 18));

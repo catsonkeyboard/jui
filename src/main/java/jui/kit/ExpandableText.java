@@ -33,8 +33,8 @@ public final class ExpandableText {
         float clamped = clampLines * lineHeight + 2;
         float lines = text == null ? 0 : c.layoutText(text, 12.5f, 400, maxWidth).lines;
         boolean overflows = lines > clampLines;
-        float h = KitMotion.spring(host, "h", st.open || !overflows ? lineHeight * Math.max(1, lines)
-                : clamped, KitMotion.MORPH);
+        float h = Kit.spring(host, "h", st.open || !overflows ? lineHeight * Math.max(1, lines)
+                : clamped, Kit.MORPH);
         Element body = box(c).height(Math.min(h, lineHeight * Math.max(1, lines))).clip()
                 .label("kit-expandable-body");
         body.children(() -> text(c, text == null ? "" : text).fontSize(12.5f)

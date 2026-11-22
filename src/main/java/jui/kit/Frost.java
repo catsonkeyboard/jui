@@ -27,12 +27,12 @@ public final class Frost {
                 0.72f + 0.2f * Math.max(0, Math.min(1, strength))));
         host.border(1, Color.rgba(Color.rgb(0xFFFFFF).rgba() >>> 8,
                 c.theme().isDark() ? 0.10f : 0.55f));
-        KitMotion.floatShadow(host);
+        Kit.floatShadow(host);
         float s = Math.max(0, Math.min(1, strength));
         host.draw((p, b) -> {
             // The soft wash, a translucent layer that rounds the read.
             p.roundedBox(b.x(), b.y(), b.width(), b.height(), radius,
-                    Color.rgba(KitMotion.surface(c).rgba() >>> 8, 0.25f * s + 0.1f));
+                    Color.rgba(Kit.surface(c).rgba() >>> 8, 0.25f * s + 0.1f));
         });
         host.children(content);
         return host;

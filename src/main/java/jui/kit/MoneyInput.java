@@ -54,9 +54,9 @@ public final class MoneyInput {
             Element box = textInput(c, raw).fillWidth().height(34).padding(0, 12).radius(Kit.RADIUS_XS + 2)
                     .label("kit-money-box");
             boolean focused = box.focused();
-            float k = KitMotion.spring(box, "edge", focused ? 1 : 0, KitMotion.SNAPPY);
-            box.background(KitMotion.surface(c));
-            box.border(1, focused ? KitMotion.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
+            float k = Kit.spring(box, "edge", focused ? 1 : 0, Kit.SNAPPY);
+            box.background(Kit.surface(c));
+            box.border(1, focused ? Kit.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
             box.children(() -> row(c).absolute().left(12).top(0).bottom(0).gap(3)
                     .alignItems(jui.ui.Align.CENTER).children(() -> {
                         text(c, currency).singleLine().fontSize(12).textColor(c.theme().textMuted());

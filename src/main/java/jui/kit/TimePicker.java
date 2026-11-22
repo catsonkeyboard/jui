@@ -30,11 +30,11 @@ public final class TimePicker {
             if (disabled) {
                 trigger.disabled(true);
             } else {
-                trigger.background(KitMotion.surface(c));
+                trigger.background(Kit.surface(c));
                 if (trigger.hovered() || open.get()) {
                     trigger.background(c.theme().surfaceHover());
                 }
-                trigger.border(1, open.get() ? c.theme().accent() : KitMotion.hairline(c));
+                trigger.border(1, open.get() ? c.theme().accent() : Kit.hairline(c));
             }
             trigger.children(() -> {
                 box(c).size(14, 14).shrink(0).draw(Icon.draw("clock", c.theme().textMuted()));
@@ -45,7 +45,7 @@ public final class TimePicker {
             }
             popover(c, trigger, open, () -> {
                 Element panel = row(c).padding(6).gap(2).radius(Kit.RADIUS + 2)
-                        .background(c.theme().background()).border(1, KitMotion.hairline(c))
+                        .background(c.theme().background()).border(1, Kit.hairline(c))
                         .shadow(0, 8, 24, -4, Color.rgba(0x000000, 0.18f))
                         .maxHeight(220).label("kit-time-panel");
                 column(c, 0, 24, hour.get(), v -> {

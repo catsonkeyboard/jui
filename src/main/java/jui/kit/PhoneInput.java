@@ -69,9 +69,9 @@ public final class PhoneInput {
             Element box = textInput(c, raw).fillWidth().height(34).padding(0, 12).radius(Kit.RADIUS_XS + 2)
                     .label("kit-phone-box");
             boolean focused = box.focused();
-            float k = KitMotion.spring(box, "edge", focused ? 1 : 0, KitMotion.SNAPPY);
-            box.background(KitMotion.surface(c));
-            box.border(1, focused ? KitMotion.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
+            float k = Kit.spring(box, "edge", focused ? 1 : 0, Kit.SNAPPY);
+            box.background(Kit.surface(c));
+            box.border(1, focused ? Kit.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
             box.children(() -> {
                 Element dial = buttonBase(c).absolute().left(0).top(0).bottom(0).gap(4).padding(0, 9)
                         .radius(Kit.RADIUS_XS + 2).label("kit-phone-dial");

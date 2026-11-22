@@ -32,7 +32,7 @@ public final class ChipGroup {
             allChip.children(() -> text(c, "All").singleLine().fontSize(11.5f)
                     .textColor(c.theme().accentText()));
         } else {
-            allChip.background(KitMotion.surface(c)).border(1, KitMotion.hairline(c));
+            allChip.background(Kit.surface(c)).border(1, Kit.hairline(c));
             allChip.children(() -> text(c, "All").singleLine().fontSize(11.5f)
                     .textColor(c.theme().textMuted()));
             if (allChip.hovered()) {
@@ -59,7 +59,7 @@ public final class ChipGroup {
                 chip.background(Color.rgba(c.theme().accent().rgba() >>> 8, 0.16f))
                         .border(1, c.theme().accent());
             } else {
-                chip.background(KitMotion.surface(c)).border(1, KitMotion.hairline(c));
+                chip.background(Kit.surface(c)).border(1, Kit.hairline(c));
                 if (chip.hovered()) {
                     chip.background(c.theme().surfaceHover());
                 }
@@ -70,7 +70,7 @@ public final class ChipGroup {
                 if (ch.count() >= 0) {
                     Element n = text(c, String.valueOf(ch.count())).singleLine().fontSize(10.5f);
                     n.textColor(on ? c.theme().accent() : c.theme().textMuted());
-                    n.opacity(0.75f + 0.25f * KitMotion.spring(host, "cnt" + ii, ch.count(), KitMotion.MORPH));
+                    n.opacity(0.75f + 0.25f * Kit.spring(host, "cnt" + ii, ch.count(), Kit.MORPH));
                 }
                 if (on) {
                     box(c).size(11, 11).shrink(0).draw(Icon.draw("check", c.theme().accent()));

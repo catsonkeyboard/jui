@@ -54,7 +54,7 @@ public final class Reactions {
                 pill.background(Color.rgba(c.theme().accent().rgba() >>> 8, 0.16f))
                         .border(1, c.theme().accent());
             } else {
-                pill.background(KitMotion.surface(c)).border(1, KitMotion.hairline(c));
+                pill.background(Kit.surface(c)).border(1, Kit.hairline(c));
                 if (pill.hovered()) {
                     pill.background(c.theme().surfaceHover());
                 }
@@ -64,7 +64,7 @@ public final class Reactions {
             pill.children(() -> {
                 text(c, reactions[idx].emoji()).singleLine().fontSize(12.5f);
                 // The count rolls: digits rise as the value changes.
-                float roll = KitMotion.spring(host, "r" + idx, shown, KitMotion.MORPH);
+                float roll = Kit.spring(host, "r" + idx, shown, Kit.MORPH);
                 Element num = text(c, String.valueOf(shown)).singleLine().fontSize(11.5f);
                 num.textColor(on ? c.theme().accent() : c.theme().textMuted());
                 num.opacity(0.6f + 0.4f * (1 - Math.abs(roll - shown)));

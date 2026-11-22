@@ -50,13 +50,13 @@ public final class TextEffectsTest {
         Tester off = Tester.of(c -> TextEffects.textShimmer(c, "正在思考中", 13, false), 160, 40);
         off.frame();
         idle[0] = off.instances();
-        KitMotion.reducedMotion = true;
+        Kit.reducedMotion = true;
         try {
             Tester on = Tester.of(c -> TextEffects.textShimmer(c, "正在思考中", 13, true), 160, 40);
             on.frame();
             running[0] = on.instances();
         } finally {
-            KitMotion.reducedMotion = false;
+            Kit.reducedMotion = false;
         }
         Check.isTrue(idle[0] == running[0], "reduced motion sweeps nothing: " + idle[0] + " vs " + running[0]);
     }

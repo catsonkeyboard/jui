@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The jui-kit gallery: the uiarc replicas this kit now carries — buttons that
+ * The jui-kit motion gallery: the components this kit carries — buttons that
  * spring, icons that morph, sliders that rubber-band, charts, text effects,
  * the image pipeline, and the overlays — live in one scroll. Run:
  * ./build.sh demo Motion
@@ -113,7 +113,7 @@ public final class MotionGallery implements View {
                 column(c).width(700).gap(18).padding(18).children(() -> {
                     row(c).gap(10).children(() -> {
                         text(c, "jui-kit").fontSize(22).fontWeight(700).textColor(c.theme().text());
-                        text(c, "the uiarc replicas, live").fontSize(13).textColor(c.theme().textMuted());
+                        text(c, "the motion set, live").fontSize(13).textColor(c.theme().textMuted());
                         spacer(c).grow(1);
                         ThemeSwitcher.themeSwitcher(c, ThemeSwitcher.Style.PLAIN, false);
                         ThemeSwitcher.themeSwitcher(c, ThemeSwitcher.Style.ECLIPSE, false);
@@ -152,7 +152,7 @@ public final class MotionGallery implements View {
                 Button.builder(c, "Loading…", Button.Variant.PRIMARY, Button.Size.MD, null, true, false, false);
             });
             row(c).gap(8).alignItems(jui.ui.Align.CENTER).children(() -> {
-                CopyButton.copyButton(c, "npx shadcn@latest add @uiarc/button");
+                CopyButton.copyButton(c, "./build.sh demo Kit");
                 ActionButton.actionButton(c, "Publish", "Publishing", "Published", "Couldn't publish",
                         2200, false, settle -> c.worker().execute(() -> {
                             sleep(900);
@@ -497,7 +497,7 @@ public final class MotionGallery implements View {
                     new ChatThread.Message("Maya Lin", "14:00", "Try the elastic slider past its end — it rubber-bands.", false),
                     new ChatThread.Message("You", "14:01", "And the ruler snaps to ticks. Feels great.", true)
             }, true, chatDraft, sent -> { });
-            CodeBlock.codeBlock(c, "bash", "./build.sh demo Motion\n# the gallery you are looking at");
+            CodeBlock.codeBlock(c, "bash", "./build.sh demo Kit\n# the gallery you are looking at");
             java.util.LinkedHashMap<String, Object> json = new java.util.LinkedHashMap<>();
             json.put("release", "1.42.0");
             json.put("springs", true);
@@ -556,7 +556,7 @@ public final class MotionGallery implements View {
 
     public static void main(String[] args) {
         App.menu(bar -> { });
-        App.run(() -> Window.open(WindowOptions.of("动效画廊 — jui-kit").size(760, 940)
+        App.run(() -> Window.open(WindowOptions.of("jui-kit 动效画廊").size(760, 940)
                 .content(new MotionGallery()::build)));
     }
 }

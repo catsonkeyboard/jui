@@ -675,6 +675,15 @@ JUI_FRAME_STATS=all ./build.sh native-demo Notes --quit-after-first-frame
 
 测试：`jui/kit` 五个测试类 34 个交互用例（`./build.sh test KitBasicTest` 等）。已知边界：Image 无像素解码器（占位/自绘接入点已留）、Speech 无真实识别（交互与波形可用）、Command v1 为按钮触发的过滤面板、Tooltip v1 固定下方弹出；框架圆角矩形 shader 在 radius==半边长时切角，正圆请用 Painter.circle（Avatar 已按此实现）。
 
+## jui-kit 动效集（2026-11-22）
+
+动效系列的桌面端实现，并入 jui-kit：约 120 个组件（按钮家族的滑块高亮与宽度变形、手势、菜单、字段与选择、四种滑杆、选择器、覆盖层、消息、图表 14+6 种、表格、会话与文本动效），令牌层 `Kit` 的动效预设（SNAPPY/MORPH/SMOOTH/FADE，真弹簧通道，reducedMotion 全局降级）。
+
+```bash
+./build.sh demo Kit              # jui-kit 画廊：基础组件
+./build.sh demo Motion           # jui-kit 动效画廊：动效系列（别名 Motion）
+```
+
 ## 运行
 
 需要 Apple Silicon Mac、Xcode（含 Metal 编译器）和 GraalVM 25。脚本会在 `~/Library/Java/JavaVirtualMachines` 或 `/Library/Java/JavaVirtualMachines` 里找 GraalVM，也可以用 `GRAALVM_HOME` 指定。

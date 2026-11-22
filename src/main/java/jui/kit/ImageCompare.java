@@ -31,7 +31,7 @@ public final class ImageCompare {
         rightPane.draw(after);
         // The before pane, clipped at the split.
         float f = split.get() == null ? 0.5f : split.get();
-        float anim = KitMotion.spring(host, "split", f, KitMotion.SNAPPY);
+        float anim = Kit.spring(host, "split", f, Kit.SNAPPY);
         Element leftPane = box(c).absolute().left(0).top(0).bottom(0).clip();
         leftPane.width(width * anim);
         leftPane.draw(before);

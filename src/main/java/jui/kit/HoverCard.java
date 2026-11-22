@@ -24,9 +24,9 @@ public final class HoverCard {
         Element host = popover(c, anchor, open, () -> {
             Element card = column(c).padding(12).gap(6).width(260)
                     .background(c.theme().background()).radius(Kit.RADIUS + 2)
-                    .border(1, KitMotion.hairline(c)).label("kit-hover-card");
-            KitMotion.floatShadow(card);
-            float a = KitMotion.spring(card, "in", 1, KitMotion.MORPH);
+                    .border(1, Kit.hairline(c)).label("kit-hover-card");
+            Kit.floatShadow(card);
+            float a = Kit.spring(card, "in", 1, Kit.MORPH);
             card.opacity(a);
             content.run();
         });

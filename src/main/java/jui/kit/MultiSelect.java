@@ -38,11 +38,11 @@ public final class MultiSelect {
             if (disabled) {
                 trigger.disabled(true);
             } else {
-                trigger.background(KitMotion.surface(c));
+                trigger.background(Kit.surface(c));
                 if (trigger.hovered() || open.get()) {
                     trigger.background(c.theme().surfaceHover());
                 }
-                trigger.border(1, open.get() ? c.theme().accent() : KitMotion.hairline(c));
+                trigger.border(1, open.get() ? c.theme().accent() : Kit.hairline(c));
             }
             trigger.children(() -> {
                 if (!has) {
@@ -105,7 +105,7 @@ public final class MultiSelect {
                             cb.children(() -> box(c).size(13, 13).shrink(0)
                                     .draw(Icon.draw("check", Color.rgb(0xFFFFFF))));
                         } else {
-                            cb.background(c.theme().background()).border(1, KitMotion.hairline(c));
+                            cb.background(c.theme().background()).border(1, Kit.hairline(c));
                         }
                         text(c, options[ii]).singleLine().fontSize(12.5f).textColor(c.theme().text());
                     });

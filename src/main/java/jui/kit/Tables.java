@@ -26,7 +26,7 @@ public final class Tables {
     /** A sortable data table over rows keyed by their first cell. */
     public static Element sortableTable(Context c, Column[] columns, List<String[]> rows,
                                         Ref<Integer> sortColumn, Ref<Boolean> ascending) {
-        Element host = column(c).fillWidth().radius(Kit.RADIUS + 2).border(1, KitMotion.hairline(c))
+        Element host = column(c).fillWidth().radius(Kit.RADIUS + 2).border(1, Kit.hairline(c))
                 .background(c.theme().background()).clip().label("kit-table");
         host.children(() -> {
             // The header row: a click sorts, the arrow shows the direction.
@@ -122,7 +122,7 @@ public final class Tables {
                 .label("kit-tree-row").children(() -> {
                     spacer(c).width(depth * indent);
                     if (!node.children.isEmpty()) {
-                        float t = KitMotion.spring(host, "open" + node.label.hashCode(), node.open ? 1 : 0, KitMotion.SNAPPY);
+                        float t = Kit.spring(host, "open" + node.label.hashCode(), node.open ? 1 : 0, Kit.SNAPPY);
                         box(c).size(12, 12).shrink(0).draw(
                                 (p, b) -> {
                                     float u = Math.min(b.width(), b.height()) / 12;
@@ -140,7 +140,7 @@ public final class Tables {
                     int sel = node.selected();
                     boolean on = sel == 2, partial = sel == 1;
                     cb.background(on ? c.theme().accent() : c.theme().background());
-                    cb.border(1, on || partial ? c.theme().accent() : KitMotion.hairline(c));
+                    cb.border(1, on || partial ? c.theme().accent() : Kit.hairline(c));
                     if (on) {
                         cb.children(() -> box(c).size(11, 11).shrink(0)
                                 .draw(Icon.draw("check", Color.rgb(0xFFFFFF))));
@@ -210,7 +210,7 @@ public final class Tables {
                     .radius(Kit.RADIUS_XS).background(c.theme().surface())
                     .label("kit-reorder-row").draggable();
             if (ii == drag) {
-                KitMotion.floatShadow(row);
+                Kit.floatShadow(row);
             }
             row.children(() -> {
                 box(c).size(12, 12).shrink(0).draw(Icon.draw("list-bullet", c.theme().textMuted()));
@@ -255,7 +255,7 @@ public final class Tables {
                 chip.background(Color.rgba(c.theme().accent().rgba() >>> 8, 0.12f))
                         .border(1, c.theme().accent());
             } else {
-                chip.background(KitMotion.surface(c)).border(1, KitMotion.hairline(c));
+                chip.background(Kit.surface(c)).border(1, Kit.hairline(c));
                 if (chip.hovered()) {
                     chip.background(c.theme().surfaceHover());
                 }

@@ -55,7 +55,7 @@ public final class ContextMenu {
                 if (r.hovered() && !row.disabled()) {
                     r.background(c.theme().surfaceHover());
                 }
-                Color tone = row.destructive() ? KitMotion.danger(c) : c.theme().text();
+                Color tone = row.destructive() ? Kit.danger(c) : c.theme().text();
                 r.children(() -> {
                     if (row.icon() != null) {
                         box(c).size(15, 15).shrink(0).draw(Icon.draw(row.icon(),

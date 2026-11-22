@@ -37,11 +37,11 @@ public final class Countdown {
         }
         if (live) {
             Element pill = row(c).gap(6).padding(4, 10).radius(Kit.RADIUS + 2)
-                    .background(Color_r(c, KitMotion.success(c))).label("kit-countdown-live");
+                    .background(Color_r(c, Kit.success(c))).label("kit-countdown-live");
             pill.children(() -> {
-                box(c).size(13, 13).shrink(0).draw(Icon.draw("bolt", KitMotion.success(c)));
+                box(c).size(13, 13).shrink(0).draw(Icon.draw("bolt", Kit.success(c)));
                 text(c, liveLabel == null ? "Live now" : liveLabel).singleLine().fontSize(12)
-                        .textColor(KitMotion.success(c));
+                        .textColor(Kit.success(c));
             });
             return host;
         }
@@ -64,7 +64,7 @@ public final class Countdown {
                 .background(c.theme().surface()).alignItems(Align.CENTER).label("kit-countdown-unit");
         cell.children(() -> {
             // The digits cross on the snappy run as the value changes.
-            float roll = KitMotion.spring(cell, "roll" + name, value, KitMotion.SNAPPY);
+            float roll = Kit.spring(cell, "roll" + name, value, Kit.SNAPPY);
             Element num = text(c, String.valueOf(value)).singleLine()
                     .fontSize(compact ? 12 : 16).fontWeight(600).textColor(c.theme().text());
             num.opacity(1 - Math.min(0.6f, Math.abs(roll - value) * 0.1f));

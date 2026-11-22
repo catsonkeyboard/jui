@@ -39,9 +39,9 @@ public final class ToggleGroup {
             } else if (b.hovered() && !disabled) {
                 b.background(c.theme().surfaceHover());
             }
-            float fill = KitMotion.spring(host, "f" + ii, on ? 1 : 0, KitMotion.SNAPPY);
+            float fill = Kit.spring(host, "f" + ii, on ? 1 : 0, Kit.SNAPPY);
             b.children(() -> {
-                Color col = KitMotion.mix(c.theme().textMuted(), c.theme().text(), fill);
+                Color col = Kit.mix(c.theme().textMuted(), c.theme().text(), fill);
                 if (t.icon() != null) {
                     box(c).size(15, 15).shrink(0).draw(Icon.draw(t.icon(), col));
                 }

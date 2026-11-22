@@ -64,7 +64,7 @@ public final class JsonViewer {
     public static Element jsonViewer(Context c, Object json, String query, float maxHeight) {
         Element host = column(c).fillWidth().gap(0).maxHeight(maxHeight).clip()
                 .padding(10, 12).radius(Kit.RADIUS + 2).background(c.theme().surface())
-                .border(1, KitMotion.hairline(c)).label("kit-json");
+                .border(1, Kit.hairline(c)).label("kit-json");
         Node root = new Node("$", json);
         host.children(() -> render(c, host, root, 0, query == null ? "" : query.toLowerCase()));
         return host;
@@ -98,13 +98,13 @@ public final class JsonViewer {
                 }
                 Object v = node.value;
                 Color col = v instanceof String ? Color.rgb(0x2EA043)
-                        : v instanceof Number || v instanceof Boolean ? KitMotion.warning(c)
+                        : v instanceof Number || v instanceof Boolean ? Kit.warning(c)
                         : c.theme().textMuted();
                 String s = node.scalar();
                 boolean hit = !query.isEmpty() && s.toLowerCase().contains(query);
                 Element val = text(c, s).singleLine().fontSize(11).textColor(col);
                 if (hit) {
-                    val.background(Color.rgba(KitMotion.warning(c).rgba() >>> 8, 0.18f));
+                    val.background(Color.rgba(Kit.warning(c).rgba() >>> 8, 0.18f));
                 }
             }
         });

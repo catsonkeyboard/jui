@@ -26,7 +26,7 @@ public final class DropdownMenu {
 
     /**
      * Anchors {@code content} under {@code trigger} while {@code open} is
-     * true, as one jui-kit menu panel: rows with icons, shortcuts and a
+     * true, as one menu panel: rows with icons, shortcuts and a
      * separator between groups marked by a null item.
      */
     public static Element menu(Context c, Element trigger, BoolRef open, Item[] items) {
@@ -47,9 +47,9 @@ public final class DropdownMenu {
                 if (hot) {
                     r.background(c.theme().surfaceHover());
                 }
-                float rise = KitMotion.spring(panel, "st" + row.label().hashCode(), 1, KitMotion.SNAPPY);
+                float rise = Kit.spring(panel, "st" + row.label().hashCode(), 1, Kit.SNAPPY);
                 r.opacity(java.lang.Math.min(1, 0.4f + 0.6f * rise));
-                Color tone = row.destructive() ? KitMotion.danger(c) : c.theme().text();
+                Color tone = row.destructive() ? Kit.danger(c) : c.theme().text();
                 r.children(() -> {
                     if (row.icon() != null) {
                         box(c).size(15, 15).shrink(0).draw(Icon.draw(row.icon(),

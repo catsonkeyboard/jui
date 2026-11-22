@@ -55,7 +55,7 @@ public final class ShortcutRecorder {
         };
     }
 
-    /** The modifier prefix, as jui-kit reads it: ⌘⇧⌥⌃. */
+    /** The modifier prefix: ⌘⇧⌥⌃. */
     public static String mods(int m) {
         StringBuilder s = new StringBuilder();
         if ((m & Mod.CMD) != 0) {
@@ -99,7 +99,7 @@ public final class ShortcutRecorder {
                 face.background(c.theme().background()).border(1, c.theme().accent());
                 c.after(java.time.Duration.ofMillis(16));
             } else {
-                face.background(KitMotion.surface(c)).border(1, KitMotion.hairline(c));
+                face.background(Kit.surface(c)).border(1, Kit.hairline(c));
                 if (face.hovered() && !disabled) {
                     face.background(c.theme().surfaceHover());
                 }

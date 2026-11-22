@@ -33,9 +33,9 @@ public final class PasswordField {
                 box.password();
             }
             boolean focused = box.focused();
-            float k = KitMotion.spring(box, "edge", focused ? 1 : 0, KitMotion.SNAPPY);
-            box.background(KitMotion.surface(c));
-            box.border(1, focused ? KitMotion.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
+            float k = Kit.spring(box, "edge", focused ? 1 : 0, Kit.SNAPPY);
+            box.background(Kit.surface(c));
+            box.border(1, focused ? Kit.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
             box.children(() -> {
                 Element eye = buttonBase(c).absolute().right(5).top(5).size(24, 24).radius(6)
                         .label("kit-password-eye");
@@ -43,7 +43,7 @@ public final class PasswordField {
                     eye.background(c.theme().surfaceHover());
                 }
                 eye.children(() -> {
-                    float t = KitMotion.spring(eye, "eye", reveal.get() ? 1 : 0, KitMotion.SNAPPY);
+                    float t = Kit.spring(eye, "eye", reveal.get() ? 1 : 0, Kit.SNAPPY);
                     box(c).size(15, 15).shrink(0).draw((p, b) -> {
                         // The eye: an outline and a pupil that shuts on the reveal.
                         float u = Math.min(b.width(), b.height()) / 16;

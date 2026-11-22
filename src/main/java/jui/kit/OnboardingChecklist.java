@@ -39,8 +39,8 @@ public final class OnboardingChecklist {
             box(c).fillWidth().height(4).radius(2).background(c.theme().surfacePressed())
                     .clip().children(() -> {
                         float w = host.bounds().width();
-                        float fill = KitMotion.spring(host, "prog", steps.length > 0 ? done / (float) steps.length : 0,
-                                KitMotion.MORPH);
+                        float fill = Kit.spring(host, "prog", steps.length > 0 ? done / (float) steps.length : 0,
+                                Kit.MORPH);
                         box(c).absolute().left(0).top(0).bottom(0).width(Math.max(2, w * fill))
                                 .radius(2).background(c.theme().accent());
                     });
@@ -51,9 +51,9 @@ public final class OnboardingChecklist {
                     // The dot, drawn or hollow, on a hairline spine.
                     Element dot = box(c).size(18, 18).radius(9).shrink(0)
                             .alignItems(Align.CENTER);
-                    float fill = KitMotion.spring(host, "d" + ii, s.done() ? 1 : 0, KitMotion.SNAPPY);
+                    float fill = Kit.spring(host, "d" + ii, s.done() ? 1 : 0, Kit.SNAPPY);
                     dot.background(Color_r(c, c.theme().accent(), fill));
-                    dot.border(1, s.done() ? c.theme().accent() : KitMotion.hairline(c));
+                    dot.border(1, s.done() ? c.theme().accent() : Kit.hairline(c));
                     dot.children(() -> {
                         if (fill > 0.3f) {
                             box(c).size(11, 11).shrink(0).opacity(fill)
@@ -76,7 +76,7 @@ public final class OnboardingChecklist {
                         }
                     } else if (s.done()) {
                         box(c).size(13, 13).shrink(0)
-                                .draw(Icon.draw("check", KitMotion.success(c)));
+                                .draw(Icon.draw("check", Kit.success(c)));
                     }
                 });
             }

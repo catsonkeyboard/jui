@@ -20,7 +20,7 @@ import static jui.ui.Ui.*;
  */
 public final class Charts {
 
-    /** The series palette, after the accents. */
+    /** The series palette. */
     public static final int[] SERIES = {0x3B82F6, 0x22C55E, 0xF59E0B, 0xEF4444, 0x8B5CF6, 0x14B8A6};
 
     public static Color series(int i) {
@@ -63,7 +63,7 @@ public final class Charts {
 
     /** A gentle horizontal sweep of the crosshair under the pointer. */
     private static float crosshair(Element plot) {
-        return KitMotion.spring(plot, "cross", plot.hovered() ? 1 : 0, KitMotion.SNAPPY);
+        return Kit.spring(plot, "cross", plot.hovered() ? 1 : 0, Kit.SNAPPY);
     }
 
     /**
@@ -279,8 +279,8 @@ public final class Charts {
         Rect sb = strip.bounds();
         float sw = sb == null ? 0 : sb.width();
         float f0 = n > 1 ? win[0] / (float) (n - 1) : 0, f1 = n > 1 ? win[1] / (float) (n - 1) : 1;
-        float a0 = KitMotion.spring(strip, "w0", f0, KitMotion.SNAPPY);
-        float a1 = KitMotion.spring(strip, "w1", f1, KitMotion.SNAPPY);
+        float a0 = Kit.spring(strip, "w0", f0, Kit.SNAPPY);
+        float a1 = Kit.spring(strip, "w1", f1, Kit.SNAPPY);
         strip.draw((Painter p, Rect b) -> {
             // The mini series.
             Color faint = Color.rgba(c.theme().textMuted().rgba() >>> 8, 0.6f);
@@ -461,7 +461,7 @@ public final class Charts {
     public static Element animatedCounter(Context c, jui.ui.DoubleRef value, String prefix, String suffix,
                                           float fontSize) {
         Element host = box(c).label("kit-animated-counter");
-        float shown = KitMotion.spring(host, "v", (float) value.get(), KitMotion.MORPH);
+        float shown = Kit.spring(host, "v", (float) value.get(), Kit.MORPH);
         host.children(() -> {
             String s = (prefix == null ? "" : prefix)
                     + (shown == Math.floor(shown) ? String.valueOf((long) shown)

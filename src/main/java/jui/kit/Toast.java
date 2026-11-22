@@ -60,10 +60,10 @@ public final class Toast {
             default -> "info-circle";
         };
         Element face = column(c).width(320).padding(10, 12).gap(4).radius(Kit.RADIUS + 2)
-                .background(c.theme().background()).border(1, KitMotion.hairline(c))
+                .background(c.theme().background()).border(1, Kit.hairline(c))
                 .label("kit-toast-face");
-        KitMotion.floatShadow(face);
-        float in = KitMotion.spring(face, "in", 1, KitMotion.MORPH);
+        Kit.floatShadow(face);
+        float in = Kit.spring(face, "in", 1, Kit.MORPH);
         face.opacity(in).top((1 - in) * 8);
         face.children(() -> {
             row(c).gap(8).alignItems(Align.CENTER).children(() -> {
@@ -135,10 +135,10 @@ public final class Toast {
         alive.set(true);
         Kit.Tone tone = Kit.tone(c, Kit.Variant.WARNING);
         Element face = column(c).width(320).padding(10, 12).gap(4).radius(Kit.RADIUS + 2)
-                .background(c.theme().background()).border(1, KitMotion.hairline(c))
+                .background(c.theme().background()).border(1, Kit.hairline(c))
                 .label("kit-undo-face");
-        KitMotion.floatShadow(face);
-        float in = KitMotion.spring(face, "in", 1, KitMotion.MORPH);
+        Kit.floatShadow(face);
+        float in = Kit.spring(face, "in", 1, Kit.MORPH);
         face.opacity(in).top((1 - in) * 8);
         face.children(() -> {
             row(c).gap(8).alignItems(Align.CENTER).children(() -> {

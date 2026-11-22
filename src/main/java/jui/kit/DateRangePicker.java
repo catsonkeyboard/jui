@@ -43,11 +43,11 @@ public final class DateRangePicker {
         host.children(() -> {
             Element trigger = buttonBase(c).width(230).height(34).padding(0, 11).gap(8).radius(Kit.RADIUS_XS + 2)
                     .justify(jui.ui.Justify.START).label("kit-range-trigger");
-            trigger.background(KitMotion.surface(c));
+            trigger.background(Kit.surface(c));
             if (trigger.hovered() || open.get()) {
                 trigger.background(c.theme().surfaceHover());
             }
-            trigger.border(1, open.get() ? c.theme().accent() : KitMotion.hairline(c));
+            trigger.border(1, open.get() ? c.theme().accent() : Kit.hairline(c));
             Range r = range.get();
             trigger.children(() -> {
                 box(c).size(15, 15).shrink(0).draw(Icon.draw("calendar", c.theme().textMuted()));
@@ -69,7 +69,7 @@ public final class DateRangePicker {
                 });
                 St s = st.get();
                 Element panel = column(c).padding(10).gap(8).radius(Kit.RADIUS + 2)
-                        .background(c.theme().background()).border(1, KitMotion.hairline(c))
+                        .background(c.theme().background()).border(1, Kit.hairline(c))
                         .shadow(0, 8, 24, -4, Color.rgba(0x000000, 0.18f)).label("kit-range-panel");
                 // Presets.
                 row(c).gap(4).children(() -> {

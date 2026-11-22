@@ -41,14 +41,14 @@ public final class FileDropzone {
         Element zone = column(c).fillWidth().height(120).radius(Kit.RADIUS + 2).gap(6)
                 .alignItems(Align.CENTER).justify(jui.ui.Justify.CENTER).clip()
                 .label("kit-dropzone-face");
-        float t = KitMotion.spring(host, "over", st.over ? 1 : 0, KitMotion.SNAPPY);
-        zone.background(st.over ? Color.rgba(c.theme().accent().rgba() >>> 8, 0.05f) : KitMotion.surface(c));
+        float t = Kit.spring(host, "over", st.over ? 1 : 0, Kit.SNAPPY);
+        zone.background(st.over ? Color.rgba(c.theme().accent().rgba() >>> 8, 0.05f) : Kit.surface(c));
         // The dashed edge: four hairlines with gaps the engine can't dash, so
         // the edge reads as a hairline whose color leans to the accent.
-        zone.border(1.5f, KitMotion.mix(KitMotion.hairline(c), c.theme().accent(), t));
+        zone.border(1.5f, Kit.mix(Kit.hairline(c), c.theme().accent(), t));
         zone.children(() -> {
             box(c).size(28, 28).shrink(0)
-                    .draw(Icon.draw("download", KitMotion.mix(c.theme().textMuted(), c.theme().accent(), t)));
+                    .draw(Icon.draw("download", Kit.mix(c.theme().textMuted(), c.theme().accent(), t)));
             text(c, hint == null ? "Drop a file here, or click to browse" : hint).singleLine()
                     .fontSize(12.5f).textColor(c.theme().text());
             if (accept != null && !accept.isEmpty()) {
@@ -65,12 +65,12 @@ public final class FileDropzone {
         // The picked file's row with a progress hairline.
         if (st.file != null) {
             float run = Math.min(1, (c.now() - st.started) / 1_600_000_000f);
-            st.progress = KitMotion.spring(host, "prog", run, KitMotion.SMOOTH);
+            st.progress = Kit.spring(host, "prog", run, Kit.SMOOTH);
             if (st.progress < 1) {
                 c.after(java.time.Duration.ofMillis(32));
             }
             Element row = row(c).fillWidth().gap(8).padding(8, 10).radius(Kit.RADIUS_XS)
-                    .background(KitMotion.surface(c)).border(1, KitMotion.hairline(c)).label("kit-dropzone-file");
+                    .background(Kit.surface(c)).border(1, Kit.hairline(c)).label("kit-dropzone-file");
             row.children(() -> {
                 box(c).size(16, 16).shrink(0).draw(Icon.draw("doc", c.theme().accent()));
                 column(c).gap(3).grow(1).children(() -> {
@@ -80,7 +80,7 @@ public final class FileDropzone {
                                 .textColor(c.theme().textMuted());
                         spacer(c).grow(1);
                         if (st.progress >= 1) {
-                            box(c).size(13, 13).shrink(0).draw(Icon.draw("check", KitMotion.success(c)));
+                            box(c).size(13, 13).shrink(0).draw(Icon.draw("check", Kit.success(c)));
                         }
                     });
                     box(c).fillWidth().height(3).radius(1.5f).background(c.theme().surfacePressed())

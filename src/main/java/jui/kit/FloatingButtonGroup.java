@@ -80,8 +80,8 @@ public final class FloatingButtonGroup {
         tray.label("kit-floating-tray").padding(4).gap(gap).background(trayBg).radius(Kit.RADIUS + 3)
                 .alignItems(Align.CENTER);
         if (floating) {
-            KitMotion.floatShadow(tray);
-            tray.border(1, KitMotion.hairline(c));
+            Kit.floatShadow(tray);
+            tray.border(1, Kit.hairline(c));
         }
         // Measured widths, with reserve labels taking the widest slot.
         int n = items.length;
@@ -113,9 +113,9 @@ public final class FloatingButtonGroup {
         Ref<Integer> hoverRef = local(tray, "hover", () -> -1);
         int last = hoverRef.get() != null && hoverRef.get() >= 0 && hoverRef.get() < n ? hoverRef.get() : -1;
         // The highlight's travel: position and size on the morph run, alpha on the fade.
-        float a = KitMotion.spring(tray, "hla", disabled ? 0 : last >= 0 ? 1 : 0, KitMotion.FADE);
-        float hx = KitMotion.spring(tray, "hlx", last >= 0 ? start(last, widths, gap) : 0, KitMotion.MORPH);
-        float hw = KitMotion.spring(tray, "hlw", last >= 0 ? widths[last] : 0, KitMotion.MORPH);
+        float a = Kit.spring(tray, "hla", disabled ? 0 : last >= 0 ? 1 : 0, Kit.FADE);
+        float hx = Kit.spring(tray, "hlx", last >= 0 ? start(last, widths, gap) : 0, Kit.MORPH);
+        float hw = Kit.spring(tray, "hlw", last >= 0 ? widths[last] : 0, Kit.MORPH);
         float[] cover = new float[n];
         if (a > 0.01f && hw > 0.01f) {
             float run = 0;
@@ -132,7 +132,7 @@ public final class FloatingButtonGroup {
                 // A separator: a short rule across the axis.
                 Element sep = vertical ? box(c).height(1).width(h - 12).shrink(0)
                         : box(c).width(1).height(h - 12).shrink(0);
-                sep.background(KitMotion.hairline(c)).margin(vertical ? 3 : 0, vertical ? 0 : 3);
+                sep.background(Kit.hairline(c)).margin(vertical ? 3 : 0, vertical ? 0 : 3);
                 continue;
             }
             boolean only = it.iconOnly || iconOnlyAll;
@@ -142,7 +142,7 @@ public final class FloatingButtonGroup {
                 bg = c.theme().surfacePressed();
                 share = Math.max(share, 0.55f);
             }
-            Color base = KitMotion.mix(bg, c.theme().surfaceHover(), share);
+            Color base = Kit.mix(bg, c.theme().surfaceHover(), share);
             Element b = buttonBase(c).size(widths[i], h).shrink(0).radius(Kit.RADIUS_XS + 2)
                     .label("kit-float-" + it.label).background(base);
             if (disabled || it.disabled) {
@@ -154,7 +154,7 @@ public final class FloatingButtonGroup {
             if (b.focusVisible()) {
                 hover = i;
             }
-            float dip = KitMotion.press(b);
+            float dip = Kit.press(b);
             b.children(() -> {
                 Color t = disabled || it.disabled ? c.theme().textMuted()
                         : it.pressed ? c.theme().accent() : c.theme().text();

@@ -28,7 +28,7 @@ public final class SplitButton {
         BoolRef open = localBool(host, "open", false);
         Element main = ButtonBase.half(c, variant, disabled, false);
         main.label("kit-split-main").padding(0, Button.padX(Button.Size.MD)).height(Button.height(Button.Size.MD));
-        float dip = KitMotion.press(main);
+        float dip = Kit.press(main);
         main.children(() -> {
             if (icon != null) {
                 box(c).size(Button.iconSize(Button.Size.MD), Button.iconSize(Button.Size.MD)).shrink(0)
@@ -43,7 +43,7 @@ public final class SplitButton {
         Element chevron = ButtonBase.half(c, variant, disabled, true);
         chevron.label("kit-split-chevron").size(28, Button.height(Button.Size.MD));
         chevron.children(() -> {
-            float t = KitMotion.spring(chevron, "turn", open.get() ? 1 : 0, KitMotion.SNAPPY);
+            float t = Kit.spring(chevron, "turn", open.get() ? 1 : 0, Kit.SNAPPY);
             box(c).size(14, 14).shrink(0).draw((p, b) -> {
                 float u = Math.min(b.width(), b.height()) / 16;
                 float a = (float) Math.PI * t;
@@ -72,7 +72,7 @@ public final class SplitButton {
                 if (hovered && !it.disabled()) {
                     rowEl.background(c.theme().surfaceHover());
                 }
-                Color tone = it.destructive() ? KitMotion.danger(c) : c.theme().text();
+                Color tone = it.destructive() ? Kit.danger(c) : c.theme().text();
                 rowEl.children(() -> {
                     if (it.icon() != null) {
                         box(c).size(15, 15).shrink(0).draw(Icon.draw(it.icon(), tone));

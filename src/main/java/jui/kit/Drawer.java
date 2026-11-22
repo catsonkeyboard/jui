@@ -35,7 +35,7 @@ public final class Drawer {
             c.after(java.time.Duration.ofMillis(16)); // keep frames running while the panel glides
         }
         // p runs width (open) to 0 (closed); the panel sits at p - width.
-        float p = KitMotion.spring(back, "p", on ? width : 0, KitMotion.MORPH);
+        float p = Kit.spring(back, "p", on ? width : 0, Kit.MORPH);
         back.onClick(() -> {
             open.set(false);
             c.invalidate();

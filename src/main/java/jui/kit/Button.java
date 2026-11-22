@@ -10,21 +10,21 @@ import jui.ui.Justify;
 import static jui.ui.Ui.*;
 
 /**
- * The kit's button, after the Button (uiarc.dev/components/button): one
+ * The kit's button: one
  * primary action per surface, quiet secondary states, press dip, hover fills
  * only on hover-capable pointers, a spinner for loading that keeps focus,
  * and disabled faces per variant. The legacy gpui-kit variants and sizes
- * stay; the jui-kit face is {@link #builder}.
+ * stay; the full face is {@link #builder}.
  */
 public final class Button {
 
-    /** The jui-kit variants a button takes. */
+    /** The variants a button takes. */
     public enum Variant { PRIMARY, SECONDARY, GHOST, DANGER }
 
-    /** The jui-kit size steps. */
+    /** The size steps. */
     public enum Size { SM, MD, LG }
 
-    /** Heights per jui-kit size, inside the border. */
+    /** Heights per size, inside the border. */
     public static float height(Size s) {
         return switch (s) { case SM -> 30; case MD -> 36; case LG -> 42; };
     }
@@ -45,7 +45,7 @@ public final class Button {
         return switch (s) { case SM -> 7; case MD -> 8; case LG -> 10; };
     }
 
-    /** Resolves an jui-kit variant to fill, hover fill and text on this look. */
+    /** Resolves a variant to fill, hover fill and text on this look. */
     public static Kit.Tone tone(Context c, Variant v) {
         return switch (v) {
             case PRIMARY -> Kit.tone(c, Kit.Variant.PRIMARY);
@@ -56,7 +56,7 @@ public final class Button {
     }
 
     /**
-     * The jui-kit button: label, optional leading icon, loading, disabled, and
+     * The button: label, optional leading icon, loading, disabled, and
      * an optional trailing caret. Presses dip the content and deepen the
      * fill; loading swallows clicks and keeps focus; disabled fades the
      * primary and mutes the rest.
@@ -73,8 +73,8 @@ public final class Button {
             b.disabled(true);
         }
         // Press: the fill deepens, the content dips, and the box scales to
-        // 0.97 about its center on the snappy spring, as jui-kit presses do.
-        float dip = KitMotion.press(b);
+        // 0.97 about its center on the snappy spring, as presses land.
+        float dip = Kit.press(b);
         b.scale(1 - 0.03f * dip, 1 - 0.03f * dip);
         b.children(() -> {
             if (loading) {
@@ -102,17 +102,17 @@ public final class Button {
         if (disabled) {
             b.background(plain ? Color.rgba(0x808080, 0) : Color.rgba(bg.rgba() >>> 8, 0.4f));
             if (!plain) {
-                b.border(1, KitMotion.hairline(c));
+                b.border(1, Kit.hairline(c));
             }
         } else {
             if (!plain) {
-                b.background(KitMotion.mix(bg, Color.rgb(0x000000), 0.12f * dip));
+                b.background(Kit.mix(bg, Color.rgb(0x000000), 0.12f * dip));
             }
             if (b.hovered() && !loading) {
-                b.background(plain ? tone.fillHover() : KitMotion.mix(tone.fillHover(), Color.rgb(0x000000), 0.12f * dip));
+                b.background(plain ? tone.fillHover() : Kit.mix(tone.fillHover(), Color.rgb(0x000000), 0.12f * dip));
             }
             if (v == Variant.SECONDARY) {
-                b.border(1, KitMotion.hairline(c));
+                b.border(1, Kit.hairline(c));
             }
         }
         return b;
@@ -132,7 +132,7 @@ public final class Button {
         return v == Variant.GHOST ? tone.text() : tone.text();
     }
 
-    /** The common jui-kit faces as one-call helpers. */
+    /** The common faces as one-call helpers. */
     public static Element builder(Context c, String label) {
         return builder(c, label, Variant.PRIMARY, Size.MD, null, false, false, false);
     }
@@ -150,7 +150,7 @@ public final class Button {
     }
 
     // ---- The gpui-kit face, kept for the kit's existing callers, now on the
-    // ---- jui-kit motion: press dip, hover fill, loading spinner.
+    // ---- Motion: press dip, hover fill, loading spinner.
 
     /** The one legacy button builder: the overloads all funnel into this. */
     public static Element button(Context c, String label, Kit.Variant v, Kit.Size s, String icon,
@@ -167,7 +167,7 @@ public final class Button {
                 .label("kit-btn-" + label)
                 .justify(Justify.START)
                 .gap(Kit.iconSize(s) / 3);
-        float dip = KitMotion.press(b);
+        float dip = Kit.press(b);
         if (disabled) {
             b.disabled(true);
         }

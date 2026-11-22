@@ -45,11 +45,11 @@ public final class AnnouncementBar {
             st.rotatedAt = now;
             c.invalidate();
         }
-        float h = KitMotion.spring(host, "h", st.dismissed ? 0 : 36, KitMotion.MORPH);
+        float h = Kit.spring(host, "h", st.dismissed ? 0 : 36, Kit.MORPH);
         if (h < 1) {
             row(c).fillWidth().height(20).justify(jui.ui.Justify.CENTER).children(() -> {
-                Element reopen = buttonBase(c).padding(2, 8).radius(10).background(KitMotion.surface(c))
-                        .border(1, KitMotion.hairline(c)).label("kit-announcement-reopen");
+                Element reopen = buttonBase(c).padding(2, 8).radius(10).background(Kit.surface(c))
+                        .border(1, Kit.hairline(c)).label("kit-announcement-reopen");
                 reopen.children(() -> text(c, "Announcements").singleLine().fontSize(10)
                         .textColor(c.theme().textMuted()));
                 if (reopen.clicked()) {

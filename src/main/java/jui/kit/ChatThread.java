@@ -44,7 +44,7 @@ public final class ChatThread {
                 Element bubble = column(c).maxWidth(420).padding(7, 10).gap(2)
                         .radius(mine ? 12 : 4, mine ? 4 : 12, 12, 12)
                         .background(mine ? Color.rgba(c.theme().accent().rgba() >>> 8, 0.14f)
-                                : KitMotion.surface(c))
+                                : Kit.surface(c))
                         .label("kit-chat-bubble");
                 bubble.children(() -> {
                     if (!mine && first) {
@@ -66,8 +66,8 @@ public final class ChatThread {
             });
         }
         // The composer.
-        row(c).fillWidth().gap(6).padding(6, 8).radius(Kit.RADIUS + 2).background(KitMotion.surface(c))
-                .border(1, KitMotion.hairline(c)).alignItems(Align.CENTER).label("kit-chat-composer")
+        row(c).fillWidth().gap(6).padding(6, 8).radius(Kit.RADIUS + 2).background(Kit.surface(c))
+                .border(1, Kit.hairline(c)).alignItems(Align.CENTER).label("kit-chat-composer")
                 .children(() -> {
                     Element attach = buttonBase(c).size(24, 24).radius(6).label("kit-chat-attach");
                     if (attach.hovered()) {

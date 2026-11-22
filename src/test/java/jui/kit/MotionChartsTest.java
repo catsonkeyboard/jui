@@ -8,7 +8,7 @@ import java.time.Duration;
 
 import static jui.ui.Ui.*;
 
-public final class ArcChartsTest {
+public final class MotionChartsTest {
 
     public void testFunnelRadarSplitSunburstSankeyRender() {
         int[] base = new int[1];

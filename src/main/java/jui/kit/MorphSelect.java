@@ -21,17 +21,17 @@ public final class MorphSelect {
                                       String placeholder, boolean disabled, float width) {
         Element host = box(c).label("kit-morph-select");
         int idx = Math.max(0, Math.min(selected.get(), Math.max(0, options.length - 1)));
-        float w = KitMotion.spring(host, "w", open.get() ? Math.max(width, 210) : width, KitMotion.MORPH);
+        float w = Kit.spring(host, "w", open.get() ? Math.max(width, 210) : width, Kit.MORPH);
         Element trigger = buttonBase(c).width(w).height(34).padding(0, 11).gap(6).radius(Kit.RADIUS_XS + 2)
                 .justify(jui.ui.Justify.START).label("kit-morph-trigger");
         if (disabled) {
             trigger.disabled(true);
         } else {
-            trigger.background(KitMotion.surface(c));
+            trigger.background(Kit.surface(c));
             if (trigger.hovered() || open.get()) {
                 trigger.background(c.theme().surfaceHover());
             }
-            trigger.border(1, open.get() ? c.theme().accent() : KitMotion.hairline(c));
+            trigger.border(1, open.get() ? c.theme().accent() : Kit.hairline(c));
         }
         trigger.children(() -> {
             String shown = options.length == 0 ? placeholder : options[idx];

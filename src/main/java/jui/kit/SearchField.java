@@ -25,9 +25,9 @@ public final class SearchField {
                 box.disabled(true);
             }
             boolean focused = box.focused();
-            float k = KitMotion.spring(box, "edge", focused ? 1 : 0, KitMotion.SNAPPY);
-            box.background(KitMotion.surface(c));
-            box.border(1, focused ? KitMotion.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
+            float k = Kit.spring(box, "edge", focused ? 1 : 0, Kit.SNAPPY);
+            box.background(Kit.surface(c));
+            box.border(1, focused ? Kit.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
             box.children(() -> {
                 box(c).absolute().left(9).top(0).bottom(0).width(16).alignItems(jui.ui.Align.CENTER)
                         .children(() -> box(c).size(14, 14)
@@ -49,7 +49,7 @@ public final class SearchField {
                     Element chip = box(c).absolute().right(6).top(0).bottom(0).alignItems(jui.ui.Align.CENTER)
                             .children(() -> {
                                 Element kbd = box(c).padding(1, 5).radius(4).background(c.theme().surface())
-                                        .border(1, KitMotion.hairline(c))
+                                        .border(1, Kit.hairline(c))
                                         .children(() -> text(c, shortcut).singleLine().fontSize(10)
                                                 .textColor(c.theme().textMuted()));
                             });

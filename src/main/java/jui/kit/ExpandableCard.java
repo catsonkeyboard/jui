@@ -26,10 +26,10 @@ public final class ExpandableCard {
         Element host = column(c).label("kit-expandable-card");
         Ref<St> ref = local(host, "st", St::new);
         St st = ref.get();
-        float h = KitMotion.spring(host, "h", st.expanded ? expandedHeight : collapsedHeight, KitMotion.MORPH);
-        Element card = column(c).height(h).clip().radius(Kit.RADIUS + 2).background(KitMotion.surface(c))
-                .border(1, KitMotion.hairline(c)).padding(12).gap(8).label("kit-expandable-body");
-        KitMotion.cardShadow(card);
+        float h = Kit.spring(host, "h", st.expanded ? expandedHeight : collapsedHeight, Kit.MORPH);
+        Element card = column(c).height(h).clip().radius(Kit.RADIUS + 2).background(Kit.surface(c))
+                .border(1, Kit.hairline(c)).padding(12).gap(8).label("kit-expandable-body");
+        Kit.cardShadow(card);
         card.children(() -> {
             row(c).alignItems(Align.CENTER).children(() -> {
                 text(c, title).singleLine().fontSize(13).fontWeight(500).textColor(c.theme().text());

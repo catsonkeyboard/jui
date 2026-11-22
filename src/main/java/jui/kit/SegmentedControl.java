@@ -35,8 +35,8 @@ public final class SegmentedControl {
         }
         int sel = Math.max(0, Math.min(selected.get(), n - 1));
         // The indicator's gliding share, as ButtonGroup's highlight.
-        float x = KitMotion.spring(host, "ix", start(sel, widths), KitMotion.MORPH);
-        float w = KitMotion.spring(host, "iw", widths[sel], KitMotion.MORPH);
+        float x = Kit.spring(host, "ix", start(sel, widths), Kit.MORPH);
+        float w = Kit.spring(host, "iw", widths[sel], Kit.MORPH);
         int outer = -1;
         float[] cover = new float[n];
         {
@@ -56,17 +56,17 @@ public final class SegmentedControl {
                 seg.disabled(true);
             }
             if (cover[ii] > 0.01f) {
-                seg.background(KitMotion.mix(Color.rgba(0x808080, 0), c.theme().background(), cover[ii]));
+                seg.background(Kit.mix(Color.rgba(0x808080, 0), c.theme().background(), cover[ii]));
                 seg.shadow(0, 1, 2, 0, Color.rgba(0x000000, 0.08f * cover[ii]));
             }
             seg.children(() -> {
-                float t = KitMotion.spring(host, "t" + ii, on ? 1 : 0, KitMotion.SNAPPY);
+                float t = Kit.spring(host, "t" + ii, on ? 1 : 0, Kit.SNAPPY);
                 if (icons != null && icons[ii] != null) {
                     box(c).size(small ? 13 : 15, small ? 13 : 15).shrink(0)
-                            .draw(Icon.draw(icons[ii], KitMotion.mix(c.theme().textMuted(), c.theme().text(), t)));
+                            .draw(Icon.draw(icons[ii], Kit.mix(c.theme().textMuted(), c.theme().text(), t)));
                 }
                 Element l = text(c, options[ii]).singleLine().fontSize(fs);
-                l.textColor(KitMotion.mix(c.theme().textMuted(), c.theme().text(), t));
+                l.textColor(Kit.mix(c.theme().textMuted(), c.theme().text(), t));
                 l.fontWeight(on ? 500 : 400);
             });
             if (!disabled && seg.clicked()) {

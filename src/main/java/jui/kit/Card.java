@@ -18,8 +18,8 @@ public final class Card {
     public static Element card(Context c, String title, Runnable headerActions,
                                Runnable body, Runnable footer) {
         Element host = column(c).fillWidth().radius(Kit.RADIUS + 3).background(c.theme().background())
-                .border(1, KitMotion.hairline(c)).clip().label("kit-card-" + title);
-        KitMotion.cardShadow(host);
+                .border(1, Kit.hairline(c)).clip().label("kit-card-" + title);
+        Kit.cardShadow(host);
         host.children(() -> {
             if (title != null) {
                 row(c).padding(12, 14).gap(8).alignItems(Align.CENTER).children(() -> {

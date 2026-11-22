@@ -33,7 +33,7 @@ public final class Avatar {
 
     /** The hover lift of a face. */
     public static Color tintHover(Context c, String name) {
-        return KitMotion.mix(face(name), Color.rgb(0x000000), 0.08f);
+        return Kit.mix(face(name), Color.rgb(0x000000), 0.08f);
     }
 
     static Color face(String name) {
@@ -60,7 +60,7 @@ public final class Avatar {
                 0xFF);
     }
 
-    /** The presence dot colors jui-kit marks a status with. */
+    /** The presence dot colors a status carries. */
     public static Color presence(String status) {
         return switch (status == null ? "online" : status) {
             case "away" -> Color.rgb(0xF76B15);

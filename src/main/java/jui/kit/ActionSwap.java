@@ -74,7 +74,7 @@ public final class ActionSwap {
         String word = st.failed ? failureLabel : cur.label();
         float w = pad * 2 + textWidth(c, word, fs) + (cur.icon() != null ? 16 + 7 : 0);
         // The width, padding and tone move on one morph run.
-        float animW = KitMotion.spring(host, "w", w, KitMotion.MORPH);
+        float animW = Kit.spring(host, "w", w, Kit.MORPH);
         Element b = buttonBase(c).height(h).width(animW).radius(h / 2).shrink(0)
                 .label("kit-swap-face").background(tone.fill());
         if (b.hovered() && !st.busy) {
@@ -83,7 +83,7 @@ public final class ActionSwap {
         if (st.busy) {
             b.disabled(true);
         }
-        float dip = KitMotion.press(b);
+        float dip = Kit.press(b);
         b.children(() -> {
             if (cur.icon() != null) {
                 box(c).size(16, 16).shrink(0).opacity(1 - 0.1f * dip).draw(Icon.draw(cur.icon(), tone.text()));

@@ -31,9 +31,9 @@ public final class Rating {
             if (star.hovered() && !disabled) {
                 hover[0] = ii;
             }
-            float fill = KitMotion.spring(host, "s" + ii, ii <= Math.max(hover[0], v) ? 1 : 0, KitMotion.SNAPPY);
+            float fill = Kit.spring(host, "s" + ii, ii <= Math.max(hover[0], v) ? 1 : 0, Kit.SNAPPY);
             star.children(() -> box(c).size(size - 4, size - 4).shrink(0).draw((p, b) -> {
-                Color col = KitMotion.mix(c.theme().border(), Color.rgb(0xF5A623), fill);
+                Color col = Kit.mix(c.theme().border(), Color.rgb(0xF5A623), fill);
                 drawStar(p, b, col, fill);
             }));
             if (!disabled && star.clicked()) {

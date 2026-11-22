@@ -39,7 +39,7 @@ public final class SignaturePad {
         Ref<St> ref = local(host, "st", St::new);
         St st = ref.get();
         Element pad = box(c).size(width, height).radius(Kit.RADIUS + 2).clip()
-                .background(c.theme().background()).border(1, KitMotion.hairline(c))
+                .background(c.theme().background()).border(1, Kit.hairline(c))
                 .label("kit-signature-pad").draggable();
         if (disabled) {
             pad.disabled(true);
@@ -48,7 +48,7 @@ public final class SignaturePad {
         pad.draw((Painter p, Rect bx) -> {
             // The writing line.
             p.line(bx.x() + 20, bx.y() + bx.height() - 34, bx.x() + bx.width() - 20,
-                    bx.y() + bx.height() - 34, 1, KitMotion.mix(c.theme().border(), c.theme().text(), 0.15f));
+                    bx.y() + bx.height() - 34, 1, Kit.mix(c.theme().border(), c.theme().text(), 0.15f));
             // The ink.
             Color ink = c.theme().text();
             for (Stroke s : st.strokes) {
@@ -100,7 +100,7 @@ public final class SignaturePad {
             Element clear = buttonBase(c).height(26).padding(0, 9).radius(Kit.RADIUS_XS)
                     .label("kit-signature-clear");
             clear.children(() -> text(c, "Clear").singleLine().fontSize(11.5f)
-                    .textColor(KitMotion.danger(c)));
+                    .textColor(Kit.danger(c)));
             if (clear.clicked() && !st.strokes.isEmpty()) {
                 st.strokes.clear();
                 c.invalidate();

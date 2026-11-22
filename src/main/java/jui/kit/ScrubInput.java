@@ -32,9 +32,9 @@ public final class ScrubInput {
             box.disabled(true);
         }
         boolean focused = box.focused();
-        float k = KitMotion.spring(box, "edge", focused ? 1 : 0, KitMotion.SNAPPY);
-        box.background(KitMotion.surface(c));
-        box.border(1, focused ? KitMotion.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
+        float k = Kit.spring(box, "edge", focused ? 1 : 0, Kit.SNAPPY);
+        box.background(Kit.surface(c));
+        box.border(1, focused ? Kit.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
         // The label rides the leading edge as the scrub handle.
         box.children(() -> {
             Element handle = box(c).absolute().left(0).top(0).bottom(0).gap(4).padding(0, 9)

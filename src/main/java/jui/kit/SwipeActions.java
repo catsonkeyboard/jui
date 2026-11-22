@@ -39,7 +39,7 @@ public final class SwipeActions {
         row(c).absolute().right(0).top(0).bottom(0).gap(1).children(() -> {
             for (Action a : actions) {
                 Element b = buttonBase(c).size(actW, rowHeight).shrink(0).label("kit-swipe-act")
-                        .background(a.destructive() ? KitMotion.danger(c) : c.theme().accent());
+                        .background(a.destructive() ? Kit.danger(c) : c.theme().accent());
                 b.children(() -> {
                     column(c).gap(3).alignItems(Align.CENTER).children(() -> {
                         box(c).size(16, 16).shrink(0).draw(Icon.draw(a.icon(), Color.rgb(0xFFFFFF)));
@@ -65,7 +65,7 @@ public final class SwipeActions {
             st.open = st.offset < -actW / 2;
             target = st.open ? -actW : 0;
         }
-        float x = KitMotion.spring(host, "x", target, KitMotion.MORPH);
+        float x = Kit.spring(host, "x", target, Kit.MORPH);
         contentBox.left(x);
         contentBox.children(content);
         return host;

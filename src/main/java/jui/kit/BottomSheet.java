@@ -50,9 +50,9 @@ public final class BottomSheet {
                     .background(t.background()).clip().label("kit-sheet-panel");
             sheet.onClick(() -> { });
             float target = on ? fullHeight : peekHeight;
-            float h = KitMotion.spring(sheet, "h", target, KitMotion.MORPH);
+            float h = Kit.spring(sheet, "h", target, Kit.MORPH);
             sheet.height(Math.max(peekHeight, h));
-            KitMotion.floatShadow(sheet);
+            Kit.floatShadow(sheet);
             sheet.radius(Kit.RADIUS + 4, Kit.RADIUS + 4, 0, 0);
             sheet.children(() -> {
                 // The grab handle doubles as the drag surface.

@@ -81,9 +81,9 @@ public final class ButtonGroup {
         float pad = small ? 9 : 12;
         float fs = small ? 12 : 12.5f;
         float icon = small ? 14 : 16;
-        Color fill = solid ? ButtonBase.faceFill(c, Button.Variant.PRIMARY) : KitMotion.surface(c);
+        Color fill = solid ? ButtonBase.faceFill(c, Button.Variant.PRIMARY) : Kit.surface(c);
         Color text = solid ? ButtonBase.faceText(c, Button.Variant.PRIMARY) : c.theme().text();
-        Color hl = solid ? KitMotion.mix(fill, Color.rgb(0x000000), 0.14f) : c.theme().surfaceHover();
+        Color hl = solid ? Kit.mix(fill, Color.rgb(0x000000), 0.14f) : c.theme().surfaceHover();
         int n = items.length + (menu != null ? 1 : 0);
         float[] widths = new float[n];
         for (int i = 0; i < items.length; i++) {
@@ -104,15 +104,15 @@ public final class ButtonGroup {
         }
         Element host = vertical ? column(c) : row(c);
         host.label("kit-button-group").alignItems(Align.STRETCH)
-                .background(fill).border(1, solid ? fill : KitMotion.hairline(c))
+                .background(fill).border(1, solid ? fill : Kit.hairline(c))
                 .radius(Kit.RADIUS + 1).clip();
         Ref<Integer> hoverRef = local(host, "hover", () -> -1);
         // The gliding highlight, from last frame's hover: each segment's fill
         // takes the share of the highlight box that covers it.
         int last = hoverRef.get() != null && hoverRef.get() >= 0 && hoverRef.get() < n ? hoverRef.get() : -1;
-        float a = KitMotion.spring(host, "hla", disabled ? 0 : last >= 0 ? 1 : 0, KitMotion.FADE);
-        float hx = KitMotion.spring(host, "hlx", last >= 0 ? start(last, widths) : 0, KitMotion.SNAPPY);
-        float hw = KitMotion.spring(host, "hlw", last >= 0 ? widths[last] : 0, KitMotion.SNAPPY);
+        float a = Kit.spring(host, "hla", disabled ? 0 : last >= 0 ? 1 : 0, Kit.FADE);
+        float hx = Kit.spring(host, "hlx", last >= 0 ? start(last, widths) : 0, Kit.SNAPPY);
+        float hw = Kit.spring(host, "hlw", last >= 0 ? widths[last] : 0, Kit.SNAPPY);
         float[] share = new float[n];
         if (a > 0.01f && hw > 0.01f && !disabled) {
             float run = 0;
@@ -137,8 +137,8 @@ public final class ButtonGroup {
                 if (seg.focusVisible()) {
                     hoverBox[0] = i;
                 }
-                float dip = KitMotion.press(seg);
-                Color bg = KitMotion.mix(KitMotion.mix(fill, hl, sh), Color.rgb(0x000000), 0.12f * dip);
+                float dip = Kit.press(seg);
+                Color bg = Kit.mix(Kit.mix(fill, hl, sh), Color.rgb(0x000000), 0.12f * dip);
                 if (!s.disabled && !disabled) {
                     seg.background(bg);
                 }
@@ -170,9 +170,9 @@ public final class ButtonGroup {
                 if (chev.focusVisible()) {
                     hoverBox[0] = mi;
                 }
-                float dip = KitMotion.press(chev);
+                float dip = Kit.press(chev);
                 if (!disabled) {
-                    chev.background(KitMotion.mix(KitMotion.mix(fill, hl, sh), Color.rgb(0x000000), 0.12f * dip));
+                    chev.background(Kit.mix(Kit.mix(fill, hl, sh), Color.rgb(0x000000), 0.12f * dip));
                 }
                 jui.ui.BoolRef open = localBool(chev, "open", false);
                 chev.children(() -> {
@@ -192,7 +192,7 @@ public final class ButtonGroup {
                         if (r.hovered() && !it.disabled()) {
                             r.background(c.theme().surfaceHover());
                         }
-                        Color tone = it.destructive() ? KitMotion.danger(c) : c.theme().text();
+                        Color tone = it.destructive() ? Kit.danger(c) : c.theme().text();
                         r.children(() -> {
                             if (it.icon() != null) {
                                 box(c).size(15, 15).shrink(0).draw(Icon.draw(it.icon(), tone));

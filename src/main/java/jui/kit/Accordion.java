@@ -46,7 +46,7 @@ public final class Accordion {
                         text(c, it.title()).fontSize(12.5f).textColor(c.theme().text());
                         spacer(c).grow(1);
                         // The chevron turns while the section opens.
-                        float t = KitMotion.spring(host, "chev" + idx, open[idx].get() ? 1 : 0, KitMotion.SNAPPY);
+                        float t = Kit.spring(host, "chev" + idx, open[idx].get() ? 1 : 0, Kit.SNAPPY);
                         box(c).size(14, 14).shrink(0).draw((p, b) -> {
                             float u = Math.min(b.width(), b.height()) / 16;
                             float a = (float) Math.PI * t;
@@ -70,7 +70,7 @@ public final class Accordion {
                     }
                     // The section's height glides open and shut; the body
                     // builds as soon as it is open, clipped by the height.
-                    float h = KitMotion.spring(host, "h" + idx, open[idx].get() ? 1 : 0, KitMotion.MORPH);
+                    float h = Kit.spring(host, "h" + idx, open[idx].get() ? 1 : 0, Kit.MORPH);
                     if (open[idx].get() || h > 0.01f) {
                         Element body = box(c).fillWidth().clip().padding(0, 12, 10, 12)
                                 .children(it.content());

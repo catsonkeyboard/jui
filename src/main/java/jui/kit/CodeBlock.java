@@ -18,7 +18,7 @@ public final class CodeBlock {
     /** The block: language name, the code text, and a max height. */
     public static Element codeBlock(Context c, String language, String code, float maxHeight) {
         Element host = column(c).fillWidth().radius(Kit.RADIUS + 2).clip()
-                .background(c.theme().surface()).border(1, KitMotion.hairline(c))
+                .background(c.theme().surface()).border(1, Kit.hairline(c))
                 .label("kit-code-block");
         host.children(() -> {
             row(c).padding(6, 12).gap(8).alignItems(Align.CENTER).children(() -> {

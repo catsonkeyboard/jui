@@ -47,7 +47,7 @@ public final class CopyButton {
             b.disabled(true);
         }
         if (outline) {
-            b.border(1, KitMotion.hairline(c)).background(KitMotion.surface(c)).padding(0, 10);
+            b.border(1, Kit.hairline(c)).background(Kit.surface(c)).padding(0, 10);
             if (b.hovered() && !disabled) {
                 b.background(c.theme().surfaceHover());
             }
@@ -59,17 +59,17 @@ public final class CopyButton {
         }
         b.width(iconOnly ? 30 : w + (outline ? 20 : 12) + 16 + 6);
         b.children(() -> {
-            float t = KitMotion.spring(host, "swap", st.state == 0 ? 0 : 1, KitMotion.FADE);
+            float t = Kit.spring(host, "swap", st.state == 0 ? 0 : 1, Kit.FADE);
             box(c).size(15, 15).shrink(0).draw((p, bx) -> {
                 if (st.state == 0) {
                     drawCopyGlyph(p, bx, c.theme().text(), 1 - t);
                 } else {
-                    drawCheckGlyph(p, bx, st.state == 1 ? KitMotion.success(c) : KitMotion.danger(c), t);
+                    drawCheckGlyph(p, bx, st.state == 1 ? Kit.success(c) : Kit.danger(c), t);
                 }
             });
             if (!iconOnly) {
                 Element l = text(c, word).singleLine().fontSize(fs);
-                l.textColor(st.state == 1 ? KitMotion.success(c) : st.state == 2 ? KitMotion.danger(c) : c.theme().text());
+                l.textColor(st.state == 1 ? Kit.success(c) : st.state == 2 ? Kit.danger(c) : c.theme().text());
             }
         });
         if (!disabled && b.clicked()) {

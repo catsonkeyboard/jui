@@ -55,7 +55,7 @@ public final class CommentThread {
                     text(c, cm.time).singleLine().fontSize(10).textColor(c.theme().textMuted());
                     spacer(c).grow(1);
                     if (cm.resolved) {
-                        box(c).size(12, 12).shrink(0).draw(Icon.draw("check", KitMotion.success(c)));
+                        box(c).size(12, 12).shrink(0).draw(Icon.draw("check", Kit.success(c)));
                     }
                 });
                 Element body = text(c, cm.body).fontSize(11.5f);
@@ -65,13 +65,13 @@ public final class CommentThread {
                             .label("kit-comment-heart");
                     heart.children(() -> {
                         boolean on = cm.mine;
-                        final float t = KitMotion.spring(heart, "h", on ? 1 : 0, KitMotion.SNAPPY);
+                        final float t = Kit.spring(heart, "h", on ? 1 : 0, Kit.SNAPPY);
                         box(c).size(12, 12).shrink(0).draw(
                                 (p, b) -> IconMorph.paint(p, b, IconMorph.HEART, t,
-                                        c.theme().textMuted(), KitMotion.danger(c), c.theme().surface(), 12));
+                                        c.theme().textMuted(), Kit.danger(c), c.theme().surface(), 12));
                         if (cm.hearts > 0 || on) {
                             text(c, String.valueOf(cm.hearts + (on ? 1 : 0))).singleLine().fontSize(10.5f)
-                                    .textColor(on ? KitMotion.danger(c) : c.theme().textMuted());
+                                    .textColor(on ? Kit.danger(c) : c.theme().textMuted());
                         }
                     });
                     if (heart.clicked()) {
@@ -84,7 +84,7 @@ public final class CommentThread {
                     Element resolve = buttonBase(c).padding(2, 4).radius(6).label("kit-comment-resolve");
                     resolve.children(() -> text(c, cm.resolved ? "Reopen" : "Resolve").singleLine()
                             .fontSize(10.5f).textColor(cm.resolved ? c.theme().textMuted()
-                                    : KitMotion.success(c)));
+                                    : Kit.success(c)));
                     if (resolve.clicked()) {
                         cm.resolved = !cm.resolved;
                         c.invalidate();

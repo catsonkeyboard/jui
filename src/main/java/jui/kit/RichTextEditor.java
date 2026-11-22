@@ -41,9 +41,9 @@ public final class RichTextEditor {
                 box.disabled(true);
             }
             boolean focused = box.focused();
-            float k = KitMotion.spring(box, "edge", focused ? 1 : 0, KitMotion.SNAPPY);
-            box.background(KitMotion.surface(c));
-            box.border(1, focused ? KitMotion.mix(c.theme().border(), c.theme().accent(), k) : KitMotion.hairline(c));
+            float k = Kit.spring(box, "edge", focused ? 1 : 0, Kit.SNAPPY);
+            box.background(Kit.surface(c));
+            box.border(1, focused ? Kit.mix(c.theme().border(), c.theme().accent(), k) : Kit.hairline(c));
             text(c, "Markdown in, markdown out").fontSize(10.5f).textColor(c.theme().textMuted());
         });
         return host;

@@ -36,13 +36,13 @@ public final class IconMorph {
     public static Element icon(Context c, String name, boolean state, Color color, float size, Color likeColor,
                                Color moonBg) {
         Element e = box(c).size(size, size).shrink(0).label("kit-icon-" + name);
-        float p = KitMotion.spring(e, "kit-icon", state ? 1 : 0, KitMotion.SNAPPY);
+        float p = Kit.spring(e, "kit-icon", state ? 1 : 0, Kit.SNAPPY);
         e.draw((painter, b) -> paint(painter, b, name, p, color, likeColor, moonBg, size));
         return e;
     }
 
     public static Element icon(Context c, String name, boolean state, Color color, float size) {
-        return icon(c, name, state, color, size, KitMotion.danger(c), c.theme().surface());
+        return icon(c, name, state, color, size, Kit.danger(c), c.theme().surface());
     }
 
     /** Draws one morphing glyph at progress p on a 24 unit grid. */
@@ -144,7 +144,7 @@ public final class IconMorph {
                 // The heart fills with a pop and sparks burst once.
                 float pop = 1 + 0.18f * (float) Math.sin(Math.min(1, t) * Math.PI);
                 float uu = u * pop;
-                Color fill = KitMotion.mix(color, like, t);
+                Color fill = Kit.mix(color, like, t);
                 float cx = 12 * uu, cy = 12.4f * uu;
                 p.circle(ox + (12 - 2.6f) * uu, oy + (12.4f - 1.8f) * uu, 2.7f * uu, fill);
                 p.circle(ox + (12 + 2.6f) * uu, oy + (12.4f - 1.8f) * uu, 2.7f * uu, fill);

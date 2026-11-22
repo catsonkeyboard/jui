@@ -40,14 +40,14 @@ public final class Tabs {
             if (disabled && !on) {
                 tab.disabled(true);
             }
-            float t = KitMotion.spring(host, "t" + ii, on ? 1 : 0, KitMotion.SNAPPY);
+            float t = Kit.spring(host, "t" + ii, on ? 1 : 0, Kit.SNAPPY);
             tab.children(() -> {
                 if (icons != null && icons[ii] != null) {
                     box(c).size(14, 14).shrink(0)
-                            .draw(Icon.draw(icons[ii], KitMotion.mix(c.theme().textMuted(), c.theme().text(), t)));
+                            .draw(Icon.draw(icons[ii], Kit.mix(c.theme().textMuted(), c.theme().text(), t)));
                 }
                 Element l = text(c, titles[ii]).singleLine().fontSize(fs);
-                l.textColor(KitMotion.mix(c.theme().textMuted(), c.theme().text(), t));
+                l.textColor(Kit.mix(c.theme().textMuted(), c.theme().text(), t));
                 l.fontWeight(on ? 500 : 400);
                 // The gliding underline, one per tab by coverage.
                 box(c).absolute().left(10).bottom(0).right(10).height(2).radius(1)

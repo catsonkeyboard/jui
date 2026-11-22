@@ -29,13 +29,13 @@ public final class Select {
                     .justify(jui.ui.Justify.START).label("kit-select-trigger");
             if (disabled) {
                 trigger.disabled(true);
-                trigger.background(Color.rgba(KitMotion.surface(c).rgba() >>> 8, 0.5f));
+                trigger.background(Color.rgba(Kit.surface(c).rgba() >>> 8, 0.5f));
             } else {
-                trigger.background(KitMotion.surface(c));
+                trigger.background(Kit.surface(c));
                 if (trigger.hovered() || open.get()) {
                     trigger.background(c.theme().surfaceHover());
                 }
-                trigger.border(1, open.get() ? c.theme().accent() : KitMotion.hairline(c));
+                trigger.border(1, open.get() ? c.theme().accent() : Kit.hairline(c));
             }
             trigger.children(() -> {
                 String shown = options.length == 0 ? (placeholder == null ? "Select" : placeholder)
@@ -59,7 +59,7 @@ public final class Select {
                     if (r.hovered()) {
                         r.background(c.theme().surfaceHover());
                     }
-                    float rise = KitMotion.spring(panel, "rise" + ii, 1, KitMotion.SNAPPY);
+                    float rise = Kit.spring(panel, "rise" + ii, 1, Kit.SNAPPY);
                     r.opacity(Math.min(1, 0.4f + 0.6f * rise));
                     r.children(() -> {
                         text(c, options[ii]).singleLine().fontSize(12.5f)

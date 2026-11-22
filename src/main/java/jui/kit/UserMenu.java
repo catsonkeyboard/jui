@@ -64,7 +64,7 @@ public final class UserMenu {
                 if (r.hovered()) {
                     r.background(c.theme().surfaceHover());
                 }
-                Color tone = it.destructive() ? KitMotion.danger(c) : c.theme().text();
+                Color tone = it.destructive() ? Kit.danger(c) : c.theme().text();
                 r.children(() -> {
                     box(c).size(15, 15).shrink(0).draw(Icon.draw(it.icon(), tone));
                     text(c, it.label()).singleLine().fontSize(12.5f).textColor(tone);

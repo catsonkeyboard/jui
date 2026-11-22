@@ -18,8 +18,8 @@ public final class Progress {
         Element host = box(c).width(width).height(6).radius(3).background(c.theme().surfaceHover())
                 .clip().label("kit-progress");
         double v = Math.max(0, Math.min(1, value.get()));
-        float fill = KitMotion.spring(host, "fill", (float) v, KitMotion.MORPH);
-        Color tone = v > 0.9 ? KitMotion.danger(c) : c.theme().accent();
+        float fill = Kit.spring(host, "fill", (float) v, Kit.MORPH);
+        Color tone = v > 0.9 ? Kit.danger(c) : c.theme().accent();
         host.children(() -> {
             if (fill > 0) {
                 box(c).absolute().left(0).top(0).bottom(0)

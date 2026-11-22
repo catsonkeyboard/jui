@@ -33,8 +33,8 @@ public final class BillingToggle {
             if (disabled) {
                 track.disabled(true);
             }
-            float pos = KitMotion.spring(track, "knob", yearly.get() ? 1 : 0, KitMotion.SNAPPY);
-            track.background(KitMotion.mix(c.theme().border(), c.theme().accent(), pos));
+            float pos = Kit.spring(track, "knob", yearly.get() ? 1 : 0, Kit.SNAPPY);
+            track.background(Kit.mix(c.theme().border(), c.theme().accent(), pos));
             track.children(() -> box(c).size(18, 18).radius(9).background(Color.rgb(0xFFFFFF))
                     .shadow(0, 1, 3, 0, Color.rgba(0x000000, 0.25f))
                     .margin(0, 0, 0, 18 * pos));
@@ -53,9 +53,9 @@ public final class BillingToggle {
                 }
                 if (badge != null && !badge.isEmpty()) {
                     Element chip = box(c).padding(2, 6).radius(8)
-                            .background(Color.rgba(KitMotion.success(c).rgba() >>> 8, 0.16f))
+                            .background(Color.rgba(Kit.success(c).rgba() >>> 8, 0.16f))
                             .children(() -> text(c, badge).singleLine().fontSize(10)
-                                    .textColor(KitMotion.success(c)));
+                                    .textColor(Kit.success(c)));
                 }
             });
         });

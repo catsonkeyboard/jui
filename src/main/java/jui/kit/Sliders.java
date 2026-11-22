@@ -56,7 +56,7 @@ public final class Sliders {
         boolean held = track.pressed() && !disabled;
         if (held) {
             // The track follows the pointer: the value sits under it, drag
-            // or fresh press alike, as the slider does.
+            // or fresh press alike, as the elastic slider does.
             double v = lo + Math.max(0, Math.min(1, track.pointerInX()
                     / Math.max(1, track.contentWidth()))) * (hi - lo);
             if (step > 0) {
@@ -71,12 +71,12 @@ public final class Sliders {
         Rect b = track.bounds();
         float w = b == null ? 0 : b.width();
         float f = hi > lo ? (float) ((value.get() - lo) / (hi - lo)) : 0;
-        float animF = KitMotion.spring(track, "f", f, KitMotion.SNAPPY);
+        float animF = Kit.spring(track, "f", f, Kit.SNAPPY);
         track.children(() -> {
             box(c).fillWidth().height(6).radius(3).background(c.theme().surfacePressed());
             box(c).absolute().left(0).top(7).bottom(7).width(Math.max(6, w * animF))
                     .radius(3).background(disabled ? c.theme().textMuted() : c.theme().accent());
-            float swell = KitMotion.spring(track, "swell", held ? 1 : 0, KitMotion.SNAPPY);
+            float swell = Kit.spring(track, "swell", held ? 1 : 0, Kit.SNAPPY);
             Element thumb = box(c).absolute().left(w * animF - 8 - 2 * swell).top(2)
                     .size(16 + 4 * swell, 16 + 4 * swell).radius(9 + 2 * swell)
                     .background(Color.rgb(0xFFFFFF))
@@ -84,7 +84,7 @@ public final class Sliders {
             thumb.shadow(0, 1, 3, 0, Color.rgba(0x000000, 0.2f));
             if (format != null && !disabled) {
                 Element tag = box(c).absolute().left(w * animF - 18).top(-24).padding(2, 6).radius(5)
-                        .background(c.theme().background()).border(1, KitMotion.hairline(c))
+                        .background(c.theme().background()).border(1, Kit.hairline(c))
                         .children(() -> text(c, format.apply(value.get())).singleLine().fontSize(10.5f)
                                 .textColor(c.theme().text()));
                 tag.opacity(held || track.hovered() ? 1 : 0);
@@ -147,8 +147,8 @@ public final class Sliders {
         Rect b = track.bounds();
         float w = b == null ? 0 : b.width();
         float f = hi > lo ? (float) ((value.get() - lo) / (hi - lo)) : 0;
-        float rubber = KitMotion.spring(track, "over", over.get(), KitMotion.MORPH);
-        float animF = KitMotion.spring(track, "f", f, KitMotion.SNAPPY);
+        float rubber = Kit.spring(track, "over", over.get(), Kit.MORPH);
+        float animF = Kit.spring(track, "f", f, Kit.SNAPPY);
         track.children(() -> {
             box(c).fillWidth().height(6).radius(3).background(c.theme().surfacePressed());
             float extend = (f > 0.5f ? rubber : -rubber) / (float) Math.max(1, hi - lo);
@@ -158,10 +158,10 @@ public final class Sliders {
             Element thumb = box(c).absolute().left(w * animF - 8).top(4).size(16, 16).radius(8)
                     .background(Color.rgb(0xFFFFFF)).border(1, c.theme().accent());
             thumb.shadow(0, 1, 3, 0, Color.rgba(0x000000, 0.2f));
-            float sway = KitMotion.spring(track, "sway", held ? (float) Math.max(-1, Math.min(1,
-                    (value.get() - lo) / (hi - lo) - f)) : 0f, KitMotion.MORPH);
+            float sway = Kit.spring(track, "sway", held ? (float) Math.max(-1, Math.min(1,
+                    (value.get() - lo) / (hi - lo) - f)) : 0f, Kit.MORPH);
             Element tag = box(c).absolute().left(w * animF - 16 + sway * 4).top(-26).padding(2, 6).radius(5)
-                    .background(c.theme().background()).border(1, KitMotion.hairline(c))
+                    .background(c.theme().background()).border(1, Kit.hairline(c))
                     .children(() -> text(c, String.format("%.0f", value.get())).singleLine().fontSize(10.5f)
                             .textColor(c.theme().text()));
             tag.opacity(held ? 1 : 0);
@@ -215,8 +215,8 @@ public final class Sliders {
         float w = b == null ? 0 : b.width();
         float fLo = hi > lo ? (float) ((loRef.get() - lo) / (hi - lo)) : 0;
         float fHi = hi > lo ? (float) ((hiRef.get() - lo) / (hi - lo)) : 0;
-        float aLo = KitMotion.spring(track, "lo", fLo, KitMotion.SNAPPY);
-        float aHi = KitMotion.spring(track, "hi", fHi, KitMotion.SNAPPY);
+        float aLo = Kit.spring(track, "lo", fLo, Kit.SNAPPY);
+        float aHi = Kit.spring(track, "hi", fHi, Kit.SNAPPY);
         track.children(() -> {
             box(c).fillWidth().height(6).radius(3).background(c.theme().surfacePressed());
             box(c).absolute().left(w * aLo).top(9).bottom(9).width(Math.max(0, w * (aHi - aLo)))
@@ -264,7 +264,7 @@ public final class Sliders {
             }
         }
         float center = (float) (value.get() - lo) * pxPerUnit;
-        float animCenter = KitMotion.spring(window, "c", center, KitMotion.MORPH);
+        float animCenter = Kit.spring(window, "c", center, Kit.MORPH);
         window.children(() -> {
             int ticks = (int) (span / Math.max(tickStep, 0.01)) + 2;
             for (int i = 0; i <= ticks; i++) {

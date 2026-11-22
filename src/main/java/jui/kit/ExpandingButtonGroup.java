@@ -105,7 +105,7 @@ public final class ExpandingButtonGroup {
                     : textWidth(c, word, fs) + gap;
             // The width runs between icon-only and icon+label on the morph spring.
             float target = hot ? iconW + labelW + pad : iconW;
-            float w = KitMotion.spring(host, "w" + i, target, KitMotion.MORPH);
+            float w = Kit.spring(host, "w" + i, target, Kit.MORPH);
             Element b = buttonBase(c).width(w).height(h).shrink(0).radius(Kit.RADIUS_XS + 2)
                     .label("kit-exp-" + it.label).clip();
             if (disabled || it.disabled) {
@@ -120,8 +120,8 @@ public final class ExpandingButtonGroup {
             if (b.focusVisible()) {
                 expandedRef.set(i);
             }
-            float dip = KitMotion.press(b);
-            Color t = it.danger ? KitMotion.danger(c) : c.theme().text();
+            float dip = Kit.press(b);
+            Color t = it.danger ? Kit.danger(c) : c.theme().text();
             int ii = i;
             b.children(() -> {
                 box(c).size(icon, icon).shrink(0).margin(0, (w - h) / 2)
@@ -129,7 +129,7 @@ public final class ExpandingButtonGroup {
                         .draw(confirming ? Icon.draw("check", t) : Icon.draw(it.icon, t));
                 if (hot) {
                     // The label slides out from behind the icon with a short rise.
-                    float open = KitMotion.spring(host, "o" + ii, 1, KitMotion.MORPH);
+                    float open = Kit.spring(host, "o" + ii, 1, Kit.MORPH);
                     Element l = text(c, word).singleLine().fontSize(fs).textColor(t);
                     l.opacity(open).margin(0, -gap * (1 - open));
                 }

@@ -128,6 +128,7 @@ demo_class() {
   local name
   name=$(example_name "$@")
   if [[ "$name" == lobe-jui || "$name" == Lobe ]]; then echo "jui.examples.LobeDemo"; return; fi
+  if [[ "$name" == Motion ]]; then echo "jui.examples.MotionGallery"; return; fi
   if [[ "$name" == QSpace || "$name" == jspace ]]; then echo "jui.jspace.JspaceApp"; else echo "jui.examples.${name}Demo"; fi
 }
 

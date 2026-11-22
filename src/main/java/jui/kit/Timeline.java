@@ -37,10 +37,10 @@ public final class Timeline {
                     box(c).size(22, 22).alignItems(Align.CENTER).children(() -> {
                         if (ii < n - 1) {
                             box(c).absolute().left(10).top(10).bottom(-10).width(1)
-                                    .background(KitMotion.hairline(c));
+                                    .background(Kit.hairline(c));
                         }
                         box(c).size(8, 8).radius(4)
-                                .background(ii == 0 ? c.theme().accent() : KitMotion.hairline(c));
+                                .background(ii == 0 ? c.theme().accent() : Kit.hairline(c));
                     });
                     column(c).gap(1).children(() -> {
                         row(c).gap(6).alignItems(Align.CENTER).children(() -> {

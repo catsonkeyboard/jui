@@ -26,8 +26,8 @@ public final class InlineEdit {
             Element box = textInput(c, value).height(fontSize + 12).padding(0, 7)
                     .radius(Kit.RADIUS_XS).minWidth(80).maxWidth(maxWidth).singleLine()
                     .label("kit-inline-field");
-            box.background(KitMotion.surface(c));
-            box.border(1, box.focused() ? c.theme().accent() : KitMotion.hairline(c));
+            box.background(Kit.surface(c));
+            box.border(1, box.focused() ? c.theme().accent() : Kit.hairline(c));
             box.autoFocus();
             if (box.submitted()) {
                 editing.set(false);

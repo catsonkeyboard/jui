@@ -47,10 +47,10 @@ public final class PasswordStrength {
 
     private static Color level(Context c, int score) {
         return switch (score) {
-            case 1 -> KitMotion.danger(c);
-            case 2 -> KitMotion.warning(c);
+            case 1 -> Kit.danger(c);
+            case 2 -> Kit.warning(c);
             case 3 -> Color.rgb(0x30A46C);
-            default -> KitMotion.success(c);
+            default -> Kit.success(c);
         };
     }
 
@@ -70,7 +70,7 @@ public final class PasswordStrength {
         Element host = column(c).fillWidth().gap(5).label("kit-strength").alignItems(Align.STRETCH);
         float[] fill = new float[4];
         for (int i = 0; i < 4; i++) {
-            fill[i] = KitMotion.spring(host, "seg" + i, i < s ? 1 : 0, KitMotion.SNAPPY);
+            fill[i] = Kit.spring(host, "seg" + i, i < s ? 1 : 0, Kit.SNAPPY);
         }
         host.children(() -> {
             row(c).gap(5).children(() -> {

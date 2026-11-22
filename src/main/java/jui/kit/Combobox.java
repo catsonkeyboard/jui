@@ -25,10 +25,10 @@ public final class Combobox {
             field.disabled(true);
         }
         boolean focused = field.focused();
-        float k = KitMotion.spring(field, "edge", focused || open.get() ? 1 : 0, KitMotion.SNAPPY);
-        field.background(KitMotion.surface(c));
+        float k = Kit.spring(field, "edge", focused || open.get() ? 1 : 0, Kit.SNAPPY);
+        field.background(Kit.surface(c));
         field.border(1, focused || open.get()
-                ? KitMotion.mix(c.theme().border(), c.theme().accent(), k) : KitMotion.hairline(c));
+                ? Kit.mix(c.theme().border(), c.theme().accent(), k) : Kit.hairline(c));
         if (field.changed() && !query.get().isEmpty()) {
             open.set(true);
         }
@@ -52,7 +52,7 @@ public final class Combobox {
                 if (r.hovered()) {
                     r.background(c.theme().surfaceHover());
                 }
-                float rise = KitMotion.spring(panel, "st" + i, 1, KitMotion.SNAPPY);
+                float rise = Kit.spring(panel, "st" + i, 1, Kit.SNAPPY);
                 r.opacity(Math.min(1, 0.4f + 0.6f * rise));
                 r.children(() -> text(c, option).singleLine().fontSize(12.5f).textColor(c.theme().text()));
                 if (r.clicked()) {

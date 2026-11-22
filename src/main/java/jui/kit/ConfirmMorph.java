@@ -95,16 +95,16 @@ public final class ConfirmMorph {
             case ERROR -> wError;
             default -> wIdle;
         };
-        float w = KitMotion.spring(host, "w", target, st.state >= PENDING ? KitMotion.MORPH : KitMotion.SMOOTH);
-        Color dangerFill = KitMotion.danger(c);
+        float w = Kit.spring(host, "w", target, st.state >= PENDING ? Kit.MORPH : Kit.SMOOTH);
+        Color dangerFill = Kit.danger(c);
         Color accent = c.theme().accent();
         Color confirmFill = danger ? dangerFill : accent;
         Element pill = row(c).height(h).width(w).radius(h / 2).shrink(0).clip()
                 .label("kit-confirm-pill").background(st.state == ASK || st.state == HOLD
-                        ? KitMotion.surface(c) : st.state == DONE ? KitMotion.mix(KitMotion.success(c), Color.rgb(0xFFFFFF), 0.92f)
-                        : KitMotion.surface(c));
+                        ? Kit.surface(c) : st.state == DONE ? Kit.mix(Kit.success(c), Color.rgb(0xFFFFFF), 0.92f)
+                        : Kit.surface(c));
         pill.border(1, st.state == IDLE || st.state == ASK || st.state == HOLD
-                ? KitMotion.hairline(c) : st.state == DONE ? KitMotion.success(c) : KitMotion.hairline(c));
+                ? Kit.hairline(c) : st.state == DONE ? Kit.success(c) : Kit.hairline(c));
         if (disabled && st.state == IDLE) {
             pill.disabled(true);
         }
@@ -118,7 +118,7 @@ public final class ConfirmMorph {
         pill.children(() -> {
             switch (st.state) {
                 case IDLE -> {
-                    float dip = KitMotion.press(pill);
+                    float dip = Kit.press(pill);
                     if (icon != null) {
                         box(c).size(16, 16).shrink(0).opacity(1 - 0.1f * dip)
                                 .draw(Icon.draw(icon, c.theme().text()));
@@ -177,12 +177,12 @@ public final class ConfirmMorph {
                     spacer(c).width(7);
                     Element ok = buttonBase(c).height(22).width(textWidth(c, confirmLabel, 11.5f) + 16)
                             .radius(11).shrink(0).clip().label("kit-confirm-hold").background(c.theme().surface());
-                    float held = KitMotion.spring(host, "hold", st.held, Duration0());
+                    float held = Kit.spring(host, "hold", st.held, Duration0());
                     ok.children(() -> {
                         box(c).absolute().left(0).top(0).bottom(0).width(textWidth(c, confirmLabel, 11.5f) + 16)
                                 .background(dangerFill).opacity(held);
                         Element t = text(c, confirmLabel).singleLine().fontSize(11.5f);
-                        t.textColor(KitMotion.mix(c.theme().text(), Color.rgb(0xFFFFFF), held));
+                        t.textColor(Kit.mix(c.theme().text(), Color.rgb(0xFFFFFF), held));
                     });
                     st.held = ok.pressed() ? Math.min(1, st.held + 0.05f) : Math.max(0, st.held - 0.12f);
                     if (st.held >= 1) {
@@ -198,9 +198,9 @@ public final class ConfirmMorph {
                     l.textColor(c.theme().textMuted());
                 }
                 case DONE -> {
-                    IconMorph.icon(c, IconMorph.COPY, true, KitMotion.success(c), 16);
+                    IconMorph.icon(c, IconMorph.COPY, true, Kit.success(c), 16);
                     Element l = text(c, doneLabel).singleLine().fontSize(fs);
-                    l.textColor(KitMotion.success(c));
+                    l.textColor(Kit.success(c));
                     spacer(c).width(7);
                     Element undo = buttonBase(c).height(22).padding(0, 7).radius(11).shrink(0)
                             .label("kit-confirm-undo");
@@ -221,11 +221,11 @@ public final class ConfirmMorph {
                 }
                 case ERROR -> {
                     Element l = text(c, errorLabel).singleLine().fontSize(fs);
-                    l.textColor(KitMotion.danger(c));
+                    l.textColor(Kit.danger(c));
                     spacer(c).width(7);
                     Element retry = buttonBase(c).height(22).padding(0, 7).radius(11).shrink(0)
-                            .label("kit-confirm-retry").background(KitMotion.surface(c));
-                    retry.border(1, KitMotion.hairline(c));
+                            .label("kit-confirm-retry").background(Kit.surface(c));
+                    retry.border(1, Kit.hairline(c));
                     retry.children(() -> text(c, "Retry").singleLine().fontSize(11.5f)
                             .textColor(c.theme().text()));
                     if (retry.clicked()) {
@@ -266,7 +266,7 @@ public final class ConfirmMorph {
     }
 
     private static java.time.Duration Duration0() {
-        return KitMotion.SNAPPY;
+        return Kit.SNAPPY;
     }
 
     public static Element confirmMorph(Context c, String label,

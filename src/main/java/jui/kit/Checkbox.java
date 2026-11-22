@@ -28,12 +28,12 @@ public final class Checkbox {
         }
         boolean hot = row.hovered() && !disabled;
         boolean on = ref.get() && !indeterminate;
-        float fill = KitMotion.spring(row, "fill", on || indeterminate ? 1 : 0, KitMotion.SNAPPY);
+        float fill = Kit.spring(row, "fill", on || indeterminate ? 1 : 0, Kit.SNAPPY);
         row.children(() -> {
             Element box = box(c).size(17, 17).radius(5).shrink(0);
-            box.background(KitMotion.mix(c.theme().background(), c.theme().accent(), fill));
+            box.background(Kit.mix(c.theme().background(), c.theme().accent(), fill));
             box.border(1, on || indeterminate ? c.theme().accent()
-                    : hot ? c.theme().accent() : KitMotion.mix(c.theme().border(), c.theme().text(), 0.25f));
+                    : hot ? c.theme().accent() : Kit.mix(c.theme().border(), c.theme().text(), 0.25f));
             box.children(() -> {
                 if (indeterminate && fill > 0.2f) {
                     box(c).absolute().width(9 * fill).height(2).radius(1)

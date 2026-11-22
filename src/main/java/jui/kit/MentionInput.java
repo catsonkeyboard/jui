@@ -33,9 +33,9 @@ public final class MentionInput {
             Element box = textArea(c, value).placeholder(placeholder).fillWidth().minHeight(minHeight)
                     .padding(8, 11).radius(Kit.RADIUS_XS + 2).label("kit-mention-box");
             boolean focused = box.focused();
-            float k = KitMotion.spring(box, "edge", focused ? 1 : 0, KitMotion.SNAPPY);
-            box.background(KitMotion.surface(c));
-            box.border(1, focused ? KitMotion.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
+            float k = Kit.spring(box, "edge", focused ? 1 : 0, Kit.SNAPPY);
+            box.background(Kit.surface(c));
+            box.border(1, focused ? Kit.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
             // The partial token at the end decides whether suggestions show.
             String t = value.get() == null ? "" : value.get();
             String partial = partialToken(t);

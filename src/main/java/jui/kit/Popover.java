@@ -25,9 +25,9 @@ public final class Popover {
         Element panel = jui.ui.Ui.popover(c, anchor, open, () -> {
             Element p = box(c).padding(12).gap(6).minWidth(minWidth)
                     .background(c.theme().background()).radius(Kit.RADIUS + 2)
-                    .border(1, KitMotion.hairline(c)).label("kit-popover");
-            KitMotion.floatShadow(p);
-            float a = KitMotion.spring(p, "in", 1, KitMotion.MORPH);
+                    .border(1, Kit.hairline(c)).label("kit-popover");
+            Kit.floatShadow(p);
+            float a = Kit.spring(p, "in", 1, Kit.MORPH);
             p.opacity(a);
             content.run();
         });
