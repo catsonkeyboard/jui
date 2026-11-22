@@ -72,27 +72,70 @@ public final class TextEffects {
         return host;
     }
 
+    // The sweep: the band crosses the box in 1.4 s and rests the rest of the
+    // 2 s cycle, as the "pausing briefly between passes".
+    private static final long PASS_MS = 1_400, CYCLE_MS = 2_000;
+    // Stepped bands that read as one soft bell edge over the glyphs: widest
+    // and faintest first, the bright core last. Each is a plain clip over a
+    // second bright draw of the same glyphs, so only glyph pixels lighten —
+    // the framework's per-instance clip rect is the text mask.
+    private static final float[] BAND_HALF = {3.2f, 2.2f, 1.5f, 0.8f};
+    private static final float[] BAND_ALPHA = {0.14f, 0.26f, 0.45f, 0.75f};
+
+    /**
+     * The summed band brightness at x for a sweep phase, pure for tests: a
+     * stepped bell centered on the band, zero outside the box, and zero for
+     * any phase past 1 — the inter-pass pause.
+     */
+    static float bandAlpha(double phase, float width, float x) {
+        float p = (float) Math.min(phase, 1.0);
+        float half = (float) (width * 0.12 + 6);
+        float center = -half + (width + 2 * half) * p;
+        float d = Math.abs(x - center);
+        float over = 1f;                                     // the layers composite, not add:
+        for (int i = 0; i < BAND_HALF.length; i++) {         // 1 - Π(1 - a), always <= 1
+            if (d <= BAND_HALF[i]) {
+                over *= 1 - BAND_ALPHA[i];
+            }
+        }
+        return 1 - over;
+    }
+
     /**
      * The text shimmer: show ongoing work with a calm light across the
-     * words — a light band sweeping the text's box, the text itself dimmed
-     * until the band passes.
+     * words — after the background-clip sweep, drawn here as the same
+     * glyphs in the text color under a moving clip band over a muted base,
+     * so only glyph pixels lighten and the gaps between them stay dark.
+     * One short line of status text; the sweep asks for frames while it
+     * runs and reduced motion shows plain steady text.
      */
     public static Element textShimmer(Context c, String text, float fontSize, boolean running) {
-        Element host = box(c).clip().label("kit-text-shimmer");
+        jui.text.TextLayout layout = c.layoutText(text, fontSize, 500,
+                Math.max(40, c.windowWidth() - 80));
+        Element host = box(c).width(Math.max(1, layout.width))
+                .height(Math.max(fontSize, layout.height)).clip()
+                .label("kit-text-shimmer");
+        if (!running || KitMotion.reducedMotion) {
+            host.draw((p, b) -> p.text(layout, b.x(), b.y(),
+                    running ? c.theme().text() : c.theme().textMuted()));
+            return host;
+        }
         long t0 = c.now();
-        host.children(() -> {
-            Element l = text(c, text).singleLine().fontSize(fontSize)
-                    .textColor(c.theme().textMuted());
-            if (running) {
-                c.after(java.time.Duration.ofMillis(32));
-                host.draw((p, b) -> {
-                    float phase = ((c.now() - t0) / 1_400_000_000L) % 1f;
-                    float x = b.x() + (b.width() + 40) * phase - 20;
-                    p.roundedBox(x, b.y() + 2, 18, b.height() - 4, 9,
-                            Color.rgba(0xFFFFFF, 0.28f));
-                });
-                l.opacity(0.7f);
+        Color bright = c.theme().text();
+        host.draw((p, b) -> {
+            double phase = ((c.now() - t0) % CYCLE_MS) / (double) PASS_MS;
+            float half = (float) (b.width() * 0.12 + 6);
+            float center = b.x() - half + (float) ((b.width() + 2 * half)
+                    * Math.min(phase, 1.0));
+            p.text(layout, b.x(), b.y(), c.theme().textMuted());
+            for (int i = 0; i < BAND_HALF.length; i++) {
+                float bh = half * BAND_HALF[i] / 3.2f;
+                p.clip(center - bh, b.y(), bh * 2, b.height());
+                p.text(layout, b.x(), b.y(),
+                        Color.rgba(bright.rgba() >>> 8, BAND_ALPHA[i]));
+                p.popClip();
             }
+            c.after(java.time.Duration.ofMillis(32));
         });
         return host;
     }
