@@ -79,7 +79,7 @@ public final class WinSigs {
             JAVA_INT, JAVA_LONG, ADDRESS));
     /** SetTimer(hwnd, id, ms, proc). */
     public static final FunctionDescriptor SET_TIMER = down(FunctionDescriptor.of(
-            JAVA_LONG, JAVA_LONG, JAVA_LONG, ADDRESS));
+            JAVA_LONG, JAVA_LONG, JAVA_LONG, JAVA_LONG, ADDRESS));
     /** KillTimer(hwnd, id); also GetKeyState-like (short, int) shapes live below. */
     public static final FunctionDescriptor INT_LONG_LONG = down(FunctionDescriptor.of(
             JAVA_INT, JAVA_LONG, JAVA_LONG));
