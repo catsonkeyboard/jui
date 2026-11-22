@@ -675,6 +675,40 @@ public final class Engine {
         return m.value;
     }
 
+    /**
+     * The node's spring value under key: a damped spring toward the target
+     * that keeps its velocity across retargets, so a morph reversing
+     * mid-flight glides through instead of restarting; while it moves it
+     * asks for frames, and at rest it folds away. Stiffness ~170 with
+     * damping ~20 reads as the morph; damping at or above twice the
+     * square root of stiffness settles with no overshoot.
+     */
+    public float animateSpring(int index, String key, float target, double stiffness, double damping) {
+        ElementState s = state(index);
+        if (s.motions == null) {
+            s.motions = new java.util.HashMap<>();
+        }
+        Motion m = s.motions.get(key);
+        if (m == null) {
+            m = new Motion();
+            m.mode = Motion.SPRING;
+            m.from = m.to = m.value = target;
+            m.stiffness = stiffness;
+            m.damping = damping;
+            m.springLast = now;
+            s.motions.put(key, m);
+            return target;
+        }
+        m.springAdvance(now);
+        if (target != m.to) {
+            m.springTo(now, target, stiffness, damping);
+        }
+        if (m.moving) {
+            requestFrame.run();
+        }
+        return m.value;
+    }
+
     /** Passes the last frame built. */
     public int passes() {
         return passes;

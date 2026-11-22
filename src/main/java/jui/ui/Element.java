@@ -908,6 +908,18 @@ public final class Element {
         return node() == null ? target : c.engine().animate(index, key, target, Math.max(1_000_000, d.toNanos()));
     }
 
+    /**
+     * The node's spring value under key: a damped spring toward the target
+     * that keeps its velocity across retargets, so a width morph reversing
+     * mid-flight glides through instead of restarting. Stiffness ~170 with
+     * damping ~20 reads as a UI morph spring (a slight overshoot); damping
+     * at or above twice the square root of stiffness settles with none.
+     */
+    public float spring(String key, float target, double stiffness, double damping) {
+        return node() == null ? target
+                : c.engine().animateSpring(index, key, target, stiffness, damping);
+    }
+
     /** Whether Enter was pressed in the element's text input (never while composing). */
     public boolean submitted() {
         return node() != null && c.engine().submitted(index);

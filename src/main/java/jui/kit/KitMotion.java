@@ -28,9 +28,24 @@ public final class KitMotion {
     /** The duration to use for a preset, honoring reduced motion. */
     public static Duration d(Duration preset) { return reducedMotion ? Duration.ZERO : preset; }
 
-    /** An eased run toward target on the element's named channel. */
+    /**
+     * A spring run toward target on the element's named channel, the preset
+     * mapping to stiffness/damping: morph and smooth keep a little
+     * overshoot, snappy stays tight, fade stays a plain tween. Reversing
+     * mid-flight keeps the velocity, so widths glide through instead of
+     * restarting.
+     */
     public static float spring(Element e, String key, float target, Duration preset) {
-        return e.animate(key, target, d(preset));
+        if (reducedMotion || preset == FADE) {
+            return e.animate(key, target, d(preset));
+        }
+        if (preset == SNAPPY) {
+            return e.spring(key, target, 320, 26);
+        }
+        if (preset == MORPH) {
+            return e.spring(key, target, 170, 20);
+        }
+        return e.spring(key, target, 120, 24);               // smooth
     }
 
     /** 1 while the element is pressed, eased; for press dips and fills. */
