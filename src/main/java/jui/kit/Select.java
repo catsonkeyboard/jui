@@ -1,51 +1,88 @@
 package jui.kit;
 
-import jui.ui.Align;
+import jui.ui.BoolRef;
+import jui.ui.Color;
 import jui.ui.Context;
 import jui.ui.Element;
-import jui.ui.Justify;
+import jui.ui.IntRef;
 
 import static jui.ui.Ui.*;
 
 /**
- * The kit's select: a closed trigger opening a single-choice list below, the
- * selection held by an IntRef — gpui-kit's Select over the kit's dropdown.
+ * The kit's select, after the Select: a compact choice field with a
+ * keyboard friendly menu. The trigger reads the current option with a
+ * chevron that turns; the menu rows arrive with a short stagger, the
+ * picked row keeps a quiet check, and the panel clips at its max height.
  */
 public final class Select {
-    public static Element select(Context c, jui.ui.IntRef selected, jui.ui.BoolRef open,
-                                 String... options) {
-        String current = selected.get() >= 0 && selected.get() < options.length
-                ? options[selected.get()] : "请选择";
-        Element anchor = buttonBase(c).fillWidth().height(28).padding(0, 10).radius(Kit.RADIUS_SM)
-                .border(1, Kit.line(c))
-                .label("kit-select-" + current)
-                .justify(Justify.START).gap(6)
-                .children(() -> {
-                    text(c, current).fontSize(12).textColor(c.theme().text());
-                    spacer(c).grow(1);
-                    box(c).size(12, 12).draw(Icon.draw("chevron-down", c.theme().textMuted()));
-                });
-                if (anchor.clicked()) open.set(true);
-        popover(c, anchor, open, () -> column(c).width(180).padding(4).gap(2).children(() -> {
-            for (int i = 0; i < options.length; i++) {
-                int idx = i;
-                boolean on = idx == selected.get();
-                Element b = buttonBase(c).fillWidth().height(26).padding(0, 10).radius(Kit.RADIUS_XS)
-                        .label("kit-select-opt-" + options[idx])
-                        .justify(Justify.START).gap(6)
-                        .children(() -> {
-                            box(c).size(12, 12).draw(Icon.draw(on ? "check" : "circle",
-                                    on ? c.theme().accent() : c.theme().border()));
-                            text(c, options[idx]).fontSize(12).textColor(c.theme().text());
-                        });
-                if (b.hovered()) b.background(c.theme().surfaceHover());
-                if (b.clicked()) {
-                    selected.set(idx);
-                    open.set(false);
-                }
+
+    /** The trigger + menu. The caller owns open so the menu can be driven. */
+    public static Element select(Context c, IntRef selected, BoolRef open, String[] options,
+                                 String label, String placeholder, boolean disabled, float width) {
+        Element host = column(c).gap(4).label("kit-select-" + label);
+        host.children(() -> {
+            if (label != null && !label.isEmpty()) {
+                text(c, label).fontSize(12).fontWeight(500).textColor(c.theme().text());
             }
-        }));
-        return anchor;
+            int idx = Math.max(0, Math.min(selected.get(), Math.max(0, options.length - 1)));
+            Element trigger = buttonBase(c).width(width).height(34).padding(0, 11).gap(6).radius(Kit.RADIUS_XS + 2)
+                    .justify(jui.ui.Justify.START).label("kit-select-trigger");
+            if (disabled) {
+                trigger.disabled(true);
+                trigger.background(Color.rgba(KitMotion.surface(c).rgba() >>> 8, 0.5f));
+            } else {
+                trigger.background(KitMotion.surface(c));
+                if (trigger.hovered() || open.get()) {
+                    trigger.background(c.theme().surfaceHover());
+                }
+                trigger.border(1, open.get() ? c.theme().accent() : KitMotion.hairline(c));
+            }
+            trigger.children(() -> {
+                String shown = options.length == 0 ? (placeholder == null ? "Select" : placeholder)
+                        : options[idx];
+                text(c, shown).singleLine().fontSize(12.5f)
+                        .textColor(options.length == 0 ? c.theme().textMuted() : c.theme().text());
+                spacer(c).grow(1);
+                IconMorph.icon(c, IconMorph.CHEVRON, open.get(), c.theme().textMuted(), 14);
+            });
+            if (!disabled && trigger.clicked()) {
+                open.set(!open.get());
+            }
+            popover(c, trigger, open, () -> {
+                Element panel = box(c).padding(4).gap(1).minWidth(width).maxHeight(280).clip()
+                        .label("kit-select-menu");
+                for (int i = 0; i < options.length; i++) {
+                    int ii = i;
+                    boolean on = ii == selected.get();
+                    Element r = row(c).gap(8).padding(7, 9).radius(Kit.RADIUS_XS).fillWidth()
+                            .label("kit-select-row");
+                    if (r.hovered()) {
+                        r.background(c.theme().surfaceHover());
+                    }
+                    float rise = KitMotion.spring(panel, "rise" + ii, 1, KitMotion.SNAPPY);
+                    r.opacity(Math.min(1, 0.4f + 0.6f * rise));
+                    r.children(() -> {
+                        text(c, options[ii]).singleLine().fontSize(12.5f)
+                                .textColor(on ? c.theme().accent() : c.theme().text());
+                        spacer(c).grow(1);
+                        if (on) {
+                            box(c).size(13, 13).shrink(0).draw(Icon.draw("check", c.theme().accent()));
+                        }
+                    });
+                    if (r.clicked()) {
+                        selected.set(ii);
+                        open.set(false);
+                        c.invalidate();
+                    }
+                }
+            });
+        });
+        return host;
+    }
+
+    /** The legacy shape: trigger + menu over the given options. */
+    public static Element select(Context c, IntRef selected, BoolRef open, String... options) {
+        return select(c, selected, open, options, null, "请选择", false, 190);
     }
 
     private Select() {}

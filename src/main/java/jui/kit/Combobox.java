@@ -1,46 +1,76 @@
 package jui.kit;
 
+import jui.ui.BoolRef;
+import jui.ui.Color;
 import jui.ui.Context;
 import jui.ui.Element;
-import jui.ui.Justify;
 import jui.ui.TextRef;
 
 import static jui.ui.Ui.*;
 
 /**
- * The kit's combobox: a type-to-filter input whose matches list beneath it;
- * picking one fills the field, after gpui-kit's Combobox.
+ * The kit's combobox, after the Combobox: search and select from a list
+ * without leaving the field. The query filters as it types, matches list
+ * under the field with a short stagger, the picked match fills the field,
+ * and an empty result reads "No matches" in the muted tone.
  */
 public final class Combobox {
-    public static Element combobox(Context c, TextRef query, jui.ui.BoolRef open,
-                                   String... allOptions) {
-        Element field = textInput(c, query).placeholder("搜索…").fillWidth()
-                .label("kit-combo");
-        if (field.changed() && !query.get().isEmpty()) open.set(true);
-        java.util.List<String> matches = new java.util.ArrayList<>();
-        String q = query.get().toLowerCase();
-        for (String option : allOptions) {
-            if (q.isEmpty() || option.toLowerCase().contains(q)) matches.add(option);
+
+    public static Element combobox(Context c, TextRef query, BoolRef open, String[] allOptions,
+                                   String placeholder, boolean disabled, float width) {
+        Element host = box(c).label("kit-combobox");
+        Element field = textInput(c, query).placeholder(placeholder).width(width).height(34)
+                .padding(0, 11).radius(Kit.RADIUS_XS + 2).singleLine().label("kit-combo-field");
+        if (disabled) {
+            field.disabled(true);
         }
-                if (field.clicked()) open.set(true);
-        popover(c, field, open, () -> column(c).fillWidth().padding(4).gap(2).children(() -> {
+        boolean focused = field.focused();
+        float k = KitMotion.spring(field, "edge", focused || open.get() ? 1 : 0, KitMotion.SNAPPY);
+        field.background(KitMotion.surface(c));
+        field.border(1, focused || open.get()
+                ? KitMotion.mix(c.theme().border(), c.theme().accent(), k) : KitMotion.hairline(c));
+        if (field.changed() && !query.get().isEmpty()) {
+            open.set(true);
+        }
+        if (field.clicked() && !disabled) {
+            open.set(true);
+        }
+        java.util.List<String> matches = new java.util.ArrayList<>();
+        String q = query.get() == null ? "" : query.get().toLowerCase();
+        for (String option : allOptions) {
+            if (q.isEmpty() || option.toLowerCase().contains(q)) {
+                matches.add(option);
+            }
+        }
+        popover(c, field, open, () -> {
+            Element panel = box(c).padding(4).gap(1).minWidth(width).maxHeight(260).clip()
+                    .label("kit-combo-menu");
             for (int i = 0; i < Math.min(8, matches.size()); i++) {
                 String option = matches.get(i);
-                Element b = buttonBase(c).fillWidth().height(26).padding(0, 10).radius(Kit.RADIUS_XS)
-                        .label("kit-combo-opt-" + option)
-                        .justify(Justify.START)
-                        .children(() -> text(c, option).fontSize(12).textColor(c.theme().text()));
-                if (b.hovered()) b.background(c.theme().surfaceHover());
-                if (b.clicked()) {
+                Element r = row(c).padding(7, 9).radius(Kit.RADIUS_XS).fillWidth()
+                        .label("kit-combo-row");
+                if (r.hovered()) {
+                    r.background(c.theme().surfaceHover());
+                }
+                float rise = KitMotion.spring(panel, "st" + i, 1, KitMotion.SNAPPY);
+                r.opacity(Math.min(1, 0.4f + 0.6f * rise));
+                r.children(() -> text(c, option).singleLine().fontSize(12.5f).textColor(c.theme().text()));
+                if (r.clicked()) {
                     query.set(option);
                     open.set(false);
+                    c.invalidate();
                 }
             }
             if (matches.isEmpty()) {
-                text(c, "无匹配项").fontSize(11).textColor(c.theme().textMuted());
+                text(c, "No matches").fontSize(11.5f).textColor(c.theme().textMuted()).padding(6, 8);
             }
-        }));
-        return field;
+        });
+        return host;
+    }
+
+    /** The legacy shape. */
+    public static Element combobox(Context c, TextRef query, BoolRef open, String... allOptions) {
+        return combobox(c, query, open, allOptions, "Search…", false, 200);
     }
 
     private Combobox() {}

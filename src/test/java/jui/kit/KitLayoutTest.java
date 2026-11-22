@@ -28,14 +28,14 @@ public final class KitLayoutTest {
                 ok -> confirmed.set(ok)), 400, 300);
         tt.frame();
         tt.frame();
-        tt.click("kit-btn-取消");
+        tt.click("Cancel");
         tt.frame();
         Check.isTrue(!open.get(), "closed");
         Check.isTrue(!confirmed.get(), "cancelled");
         open.set(true);
         tt.frame();
         tt.frame();
-        tt.click("kit-btn-确定");
+        tt.click("OK");
         tt.frame();
         Check.isTrue(confirmed.get(), "ok reported");
     }

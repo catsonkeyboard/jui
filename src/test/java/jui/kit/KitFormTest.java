@@ -44,7 +44,7 @@ public final class KitFormTest {
         Tester tt = Tester.of(c -> Select.select(c, sel, open, "北京", "上海"), 220, 180);
         tt.frame();
         tt.frame();
-        tt.click("kit-select-opt-上海");
+        tt.click("上海");
         tt.frame();
         Check.equal(1, sel.get());
         Check.isTrue(!open.get(), "closed after pick");
@@ -57,13 +57,13 @@ public final class KitFormTest {
                 "Beijing", "Boston", "Berlin"), 260, 220);
         tt.frame();
         tt.frame();
-        Check.isTrue(tt.find("kit-combo-opt-Beijing").width() > 0, "all options shown");
-        tt.click("kit-combo");
+        Check.isTrue(tt.find("Beijing").width() > 0, "all options shown");
+        tt.click("kit-combo-field");
         tt.type("ber");
         tt.frame();
         tt.frame();
-        Check.isTrue(tt.find("kit-combo-opt-Berlin").width() > 0, "filtered match");
-        tt.click("kit-combo-opt-Berlin");
+        Check.isTrue(tt.find("Berlin").width() > 0, "filtered match");
+        tt.click("Berlin");
         tt.frame();
         Check.equal("Berlin", query.get());
     }

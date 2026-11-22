@@ -9,20 +9,24 @@ import jui.ui.Justify;
 import static jui.ui.Ui.*;
 
 /**
- * The kit's progress: a linear bar or a ring, driven by a 0..1 value ref,
- * after gpui-kit's Progress and ProgressCircle.
+ * The kit's progress: a linear bar or a ring, driven by a 0..1 value ref.
+ * The bar's fill glides on the morph run as the value moves, and its tone
+ * warms past ninety percent; the ring reads as ticks around the circle.
  */
 public final class Progress {
     public static Element bar(Context c, jui.ui.DoubleRef value, float width) {
-        return box(c).width(width).height(6).radius(3).background(c.theme().surfaceHover())
-                .label("kit-progress")
-                .children(() -> {
-                    double v = Math.max(0, Math.min(1, value.get()));
-                    if (v > 0) {
-                        box(c).width((float) Math.max(6, width * v)).fillHeight().radius(3)
-                                .background(c.theme().accent());
-                    }
-                });
+        Element host = box(c).width(width).height(6).radius(3).background(c.theme().surfaceHover())
+                .clip().label("kit-progress");
+        double v = Math.max(0, Math.min(1, value.get()));
+        float fill = KitMotion.spring(host, "fill", (float) v, KitMotion.MORPH);
+        Color tone = v > 0.9 ? KitMotion.danger(c) : c.theme().accent();
+        host.children(() -> {
+            if (fill > 0) {
+                box(c).absolute().left(0).top(0).bottom(0)
+                        .width((float) Math.max(6, width * fill)).radius(3).background(tone);
+            }
+        });
+        return host;
     }
 
     /** A progress ring of the given square size, the fill as tick marks around the circle. */
