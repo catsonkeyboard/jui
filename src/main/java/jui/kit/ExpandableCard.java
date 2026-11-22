@@ -27,6 +27,7 @@ public final class ExpandableCard {
         Ref<St> ref = local(host, "st", St::new);
         St st = ref.get();
         float h = Kit.spring(host, "h", st.expanded ? expandedHeight : collapsedHeight, Kit.MORPH);
+        host.children(() -> {
         Element card = column(c).height(h).clip().radius(Kit.RADIUS + 2).background(Kit.surface(c))
                 .border(1, Kit.hairline(c)).padding(12).gap(8).label("kit-expandable-body");
         Kit.cardShadow(card);
@@ -56,6 +57,7 @@ public final class ExpandableCard {
                 st.expanded = !st.expanded;
                 c.invalidate();
             }
+        });
         });
         return host;
     }

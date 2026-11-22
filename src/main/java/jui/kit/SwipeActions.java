@@ -35,6 +35,7 @@ public final class SwipeActions {
         Element host = box(c).height(rowHeight).clip().label("kit-swipe-row").alignItems(Align.STRETCH);
         Ref<St> ref = local(host, "st", St::new);
         St st = ref.get();
+        host.children(() -> {
         // The actions live under the content, on the trailing edge.
         row(c).absolute().right(0).top(0).bottom(0).gap(1).children(() -> {
             for (Action a : actions) {
@@ -68,6 +69,7 @@ public final class SwipeActions {
         float x = Kit.spring(host, "x", target, Kit.MORPH);
         contentBox.left(x);
         contentBox.children(content);
+        });
         return host;
     }
 
