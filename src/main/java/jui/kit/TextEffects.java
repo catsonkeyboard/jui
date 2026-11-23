@@ -29,8 +29,11 @@ public final class TextEffects {
             int ii = i;
             host.children(() -> {
                 float t = Kit.spring(host, "w" + ii, show ? 1 : 0, Kit.MORPH);
-                Element w = text(c, words[ii]).singleLine().fontSize(fontSize)
-                        .textColor(c.theme().text());
+                // A shrink-0 wrapper keeps each word on one line: a bare word
+                // in a wrapping flex row is squeezed to one character.
+                Element w = box(c).shrink(0).children(() ->
+                        text(c, words[ii]).singleLine().fontSize(fontSize)
+                                .textColor(c.theme().text()));
                 w.opacity(t);
                 w.top((1 - t) * fontSize * 0.4f);
             });

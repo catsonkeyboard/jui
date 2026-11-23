@@ -29,8 +29,12 @@ public final class RadioCards {
             int ii = i;
             boolean on = ii == sel;
             Card card = cards[ii];
-            Element cell = buttonBase(c).width(cardWidth).padding(10).gap(6).radius(Kit.RADIUS)
-                    .alignItems(Align.START).label("kit-card-" + card.title());
+            // A card is a column: a buttonBase is a row, which would pack the
+            // title, description and price onto one line and squeeze them into
+            // single characters at this width.
+            Element cell = column(c).width(cardWidth).padding(10).gap(6).radius(Kit.RADIUS)
+                    .alignItems(Align.STRETCH).label("kit-card-" + card.title())
+                    .focusable().cursor(jui.ui.Cursor.POINTER);
             if (disabled) {
                 cell.disabled(true);
             }

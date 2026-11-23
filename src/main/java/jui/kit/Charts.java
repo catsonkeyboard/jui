@@ -627,12 +627,21 @@ public final class Charts {
                                 Color.rgba(col.rgba() >>> 8, 0.35f * (1 - u)));
                     }
                 }
+                // Text sits inside the band; on a narrow band the value
+                // moves to its right so neither string is squeezed into a
+                // per-character wrap by the text engine.
                 String label = stages[i];
-                p.text(label, b.x() - label.length() * 6.4f, b.y() + i * bandH + bandH2 / 2 - 6,
-                        10.5f, 500, c.theme().textMuted(), 120);
                 String value = String.valueOf(Math.round(values[i]));
-                p.text(value, b.x() + (b.width() - w0) / 2 + 8, b.y() + i * bandH + bandH2 / 2 - 6,
-                        10.5f, 600, Color.rgb(0xFFFFFF), 80);
+                float bx = b.x() + (b.width() - w0) / 2;
+                float by = b.y() + i * bandH + bandH2 / 2 - 6;
+                p.text(label, bx + 8, by, 10.5f, 500, Color.rgb(0xFFFFFF), w0 - 16);
+                float valueW = value.length() * 6.4f + 6;
+                if (w0 >= valueW + 24) {
+                    p.text(value, bx + w0 - valueW, by, 10.5f, 600,
+                            Color.rgba(0xFFFFFF, 0.85f), valueW);
+                } else {
+                    p.text(value, bx + w0 + 6, by, 10.5f, 600, c.theme().textMuted(), 60);
+                }
             }
         });
         return host;

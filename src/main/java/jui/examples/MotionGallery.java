@@ -127,7 +127,7 @@ public final class MotionGallery implements View {
     }
 
     private List<Section> sections() {
-        return List.of(
+        java.util.List<Section> all = java.util.List.of(
                 new Section("Buttons & actions", this::buttons),
                 new Section("Button groups", this::groups),
                 new Section("Icon morph", this::iconMorphs),
@@ -140,6 +140,23 @@ public final class MotionGallery implements View {
                 new Section("Overlays", this::overlays),
                 new Section("Messages & threads", this::messages),
                 new Section("Disclosure & gestures", this::disclosure));
+        // JUI_SECTION=<title substring> puts a section first, for screenshot QA.
+        String first = System.getenv("JUI_SECTION");
+        if (first == null || first.isBlank()) {
+            return all;
+        }
+        java.util.List<Section> out = new java.util.ArrayList<>();
+        for (Section s : all) {
+            if (s.title().toLowerCase().contains(first.toLowerCase())) {
+                out.add(s);
+            }
+        }
+        for (Section s : all) {
+            if (!out.contains(s)) {
+                out.add(s);
+            }
+        }
+        return out;
     }
 
     private void buttons(Context c) {
