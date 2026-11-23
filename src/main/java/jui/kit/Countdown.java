@@ -36,12 +36,14 @@ public final class Countdown {
             c.invalidate();
         }
         if (live) {
-            Element pill = row(c).gap(6).padding(4, 10).radius(Kit.RADIUS + 2)
-                    .background(Color_r(c, Kit.success(c))).label("kit-countdown-live");
-            pill.children(() -> {
-                box(c).size(13, 13).shrink(0).draw(Icon.draw("bolt", Kit.success(c)));
-                text(c, liveLabel == null ? "Live now" : liveLabel).singleLine().fontSize(12)
-                        .textColor(Kit.success(c));
+            host.children(() -> {
+                Element pill = row(c).gap(6).padding(4, 10).radius(Kit.RADIUS + 2)
+                        .background(Color_r(c, Kit.success(c))).label("kit-countdown-live");
+                pill.children(() -> {
+                    box(c).size(13, 13).shrink(0).draw(Icon.draw("bolt", Kit.success(c)));
+                    text(c, liveLabel == null ? "Live now" : liveLabel).singleLine().fontSize(12)
+                            .textColor(Kit.success(c));
+                });
             });
             return host;
         }

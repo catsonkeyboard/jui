@@ -26,47 +26,51 @@ public final class ExpandingSearch {
         Element host = box(c).label("kit-expanding-search");
         BoolRef open = localBool(host, "open", false);
         float w = Kit.spring(host, "w", open.get() ? openWidth : 32, Kit.MORPH);
-        Element shell = row(c).size(w, 32).radius(16).shrink(0).clip().label("kit-es-shell")
-                .alignItems(jui.ui.Align.CENTER);
-        shell.background(Kit.surface(c)).border(1, open.get() && shell.focused()
-                ? c.theme().accent() : Kit.hairline(c));
-        if (disabled) {
-            shell.disabled(true);
-        }
-        shell.children(() -> {
-            if (open.get()) {
-                Element input = textInput(c, query).placeholder("Search").fillWidth().height(30)
-                        .padding(0, 28).radius(14).label("kit-es-input");
-                input.background(Color.rgba(0x808080, 0));
-                input.border(0, Color.rgba(0x808080, 0));
-                input.autoFocus();
-                box(c).absolute().left(9).top(0).bottom(0).width(16).alignItems(jui.ui.Align.CENTER)
-                        .children(() -> box(c).size(14, 14)
-                                .draw(Icon.draw("magnifyingglass", c.theme().textMuted())));
-                Element close = buttonBase(c).absolute().right(4).top(4).size(24, 24).radius(12)
-                        .label("kit-es-close");
-                if (close.hovered()) {
-                    close.background(c.theme().surfaceHover());
+        host.children(() -> {
+            host.children(() -> {
+                Element shell = row(c).size(w, 32).radius(16).shrink(0).clip().label("kit-es-shell")
+                        .alignItems(jui.ui.Align.CENTER);
+                shell.background(Kit.surface(c)).border(1, open.get() && shell.focused()
+                        ? c.theme().accent() : Kit.hairline(c));
+                if (disabled) {
+                    shell.disabled(true);
                 }
-                close.children(() -> box(c).size(11, 11).shrink(0)
-                        .draw(Icon.draw("xmark", c.theme().textMuted())));
-                if (close.clicked()) {
-                    open.set(false);
-                    query.set("");
-                    c.invalidate();
-                }
-            } else {
-                Element icon = buttonBase(c).size(32, 32).radius(16).shrink(0).label("kit-es-icon");
-                if (icon.hovered()) {
-                    icon.background(c.theme().surfaceHover());
-                }
-                icon.children(() -> box(c).size(15, 15).shrink(0)
-                        .draw(Icon.draw("magnifyingglass", c.theme().text())));
-                if (icon.clicked()) {
-                    open.set(true);
-                    c.invalidate();
-                }
-            }
+                shell.children(() -> {
+                    if (open.get()) {
+                        Element input = textInput(c, query).placeholder("Search").fillWidth().height(30)
+                                .padding(0, 28).radius(14).label("kit-es-input");
+                        input.background(Color.rgba(0x808080, 0));
+                        input.border(0, Color.rgba(0x808080, 0));
+                        input.autoFocus();
+                        box(c).absolute().left(9).top(0).bottom(0).width(16).alignItems(jui.ui.Align.CENTER)
+                                .children(() -> box(c).size(14, 14)
+                                        .draw(Icon.draw("magnifyingglass", c.theme().textMuted())));
+                        Element close = buttonBase(c).absolute().right(4).top(4).size(24, 24).radius(12)
+                                .label("kit-es-close");
+                        if (close.hovered()) {
+                            close.background(c.theme().surfaceHover());
+                        }
+                        close.children(() -> box(c).size(11, 11).shrink(0)
+                                .draw(Icon.draw("xmark", c.theme().textMuted())));
+                        if (close.clicked()) {
+                            open.set(false);
+                            query.set("");
+                            c.invalidate();
+                        }
+                    } else {
+                        Element icon = buttonBase(c).size(32, 32).radius(16).shrink(0).label("kit-es-icon");
+                        if (icon.hovered()) {
+                            icon.background(c.theme().surfaceHover());
+                        }
+                        icon.children(() -> box(c).size(15, 15).shrink(0)
+                                .draw(Icon.draw("magnifyingglass", c.theme().text())));
+                        if (icon.clicked()) {
+                            open.set(true);
+                            c.invalidate();
+                        }
+                    }
+        });
+            });
         });
         if (open.get() && results != null && query.get() != null && !query.get().isEmpty()) {
             host.children(() -> {

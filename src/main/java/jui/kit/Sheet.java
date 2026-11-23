@@ -23,14 +23,16 @@ public final class Sheet {
             return root;
         }
         root.background(Color.rgba(0x000000, 0.4f));
-        Element catcher = buttonBase(c).fill().label("kit-sheet-catcher");
-        if (catcher.clicked()) open.set(false);
-        if (c.shortcut(Shortcut.of(Key.ESCAPE))) open.set(false);
-        box(c).absolute().right(0).top(0).bottom(0).width(width)
-                .background(c.theme().surface())
-                .shadow(-6, 0, 24, 0, Color.rgba(0x000000, 0.3f))
-                .label("kit-sheet")
-                .children(content);
+        root.children(() -> {
+            Element catcher = buttonBase(c).fill().label("kit-sheet-catcher");
+            if (catcher.clicked()) open.set(false);
+            if (c.shortcut(Shortcut.of(Key.ESCAPE))) open.set(false);
+            box(c).absolute().right(0).top(0).bottom(0).width(width)
+                    .background(c.theme().surface())
+                    .shadow(-6, 0, 24, 0, Color.rgba(0x000000, 0.3f))
+                    .label("kit-sheet")
+                    .children(content);
+        });
         return root;
     }
 

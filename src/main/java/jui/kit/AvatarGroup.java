@@ -26,12 +26,14 @@ public final class AvatarGroup {
                 a.border(2, c.theme().background());
             });
         }
-        if (names.length > shown) {
-            Element more = box(c).size(28, 28).radius(14).shrink(0).background(c.theme().surface())
-                    .border(2, c.theme().background()).alignItems(Align.CENTER)
-                    .children(() -> text(c, "+" + (names.length - shown)).singleLine().fontSize(9.5f)
-                            .textColor(c.theme().textMuted()));
-        }
+        host.children(() -> {
+            if (names.length > shown) {
+                Element more = box(c).size(28, 28).radius(14).shrink(0).background(c.theme().surface())
+                        .border(2, c.theme().background()).alignItems(Align.CENTER)
+                        .children(() -> text(c, "+" + (names.length - shown)).singleLine().fontSize(9.5f)
+                                .textColor(c.theme().textMuted()));
+            }
+        });
         return host;
     }
 

@@ -22,29 +22,31 @@ public final class Rating {
         Element host = row(c).gap(3).label("kit-rating").alignItems(Align.CENTER);
         int v = Math.max(0, Math.min(value.get(), max));
         int[] hover = {v};
-        for (int i = 0; i < max; i++) {
-            int ii = i + 1;
-            Element star = buttonBase(c).size(size, size).radius(3).shrink(0).label("kit-star-" + ii);
-            if (disabled) {
-                star.disabled(true);
+        host.children(() -> {
+            for (int i = 0; i < max; i++) {
+                int ii = i + 1;
+                Element star = buttonBase(c).size(size, size).radius(3).shrink(0).label("kit-star-" + ii);
+                if (disabled) {
+                    star.disabled(true);
+                }
+                if (star.hovered() && !disabled) {
+                    hover[0] = ii;
+                }
+                float fill = Kit.spring(host, "s" + ii, ii <= Math.max(hover[0], v) ? 1 : 0, Kit.SNAPPY);
+                star.children(() -> box(c).size(size - 4, size - 4).shrink(0).draw((p, b) -> {
+                    Color col = Kit.mix(c.theme().border(), Color.rgb(0xF5A623), fill);
+                    drawStar(p, b, col, fill);
+                }));
+                if (!disabled && star.clicked()) {
+                    value.set(v == ii ? 0 : ii);
+                    c.invalidate();
+                }
             }
-            if (star.hovered() && !disabled) {
-                hover[0] = ii;
+            if (labels != null && v > 0 && v <= labels.length) {
+                text(c, labels[v - 1]).singleLine().fontSize(11.5f).textColor(c.theme().textMuted())
+                        .margin(0, 6);
             }
-            float fill = Kit.spring(host, "s" + ii, ii <= Math.max(hover[0], v) ? 1 : 0, Kit.SNAPPY);
-            star.children(() -> box(c).size(size - 4, size - 4).shrink(0).draw((p, b) -> {
-                Color col = Kit.mix(c.theme().border(), Color.rgb(0xF5A623), fill);
-                drawStar(p, b, col, fill);
-            }));
-            if (!disabled && star.clicked()) {
-                value.set(v == ii ? 0 : ii);
-                c.invalidate();
-            }
-        }
-        if (labels != null && v > 0 && v <= labels.length) {
-            text(c, labels[v - 1]).singleLine().fontSize(11.5f).textColor(c.theme().textMuted())
-                    .margin(0, 6);
-        }
+        });
         return host;
     }
 

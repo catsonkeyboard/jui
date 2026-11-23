@@ -77,22 +77,26 @@ public final class DropdownMenu {
     public static Element dropdown(Context c, String label, String icon, Item[] items) {
         Element host = row(c).label("kit-dropdown-host");
         BoolRef open = localBool(host, "open", false);
-        Element b = buttonBase(c).height(30).padding(0, 10).gap(6).radius(Kit.RADIUS_XS + 2)
-                .label("kit-dropdown-trigger");
-        if (b.hovered() || open.get()) {
-            b.background(c.theme().surfaceHover());
-        }
-        b.children(() -> {
-            if (icon != null) {
-                box(c).size(15, 15).shrink(0).draw(Icon.draw(icon, c.theme().text()));
-            }
-            text(c, label).singleLine().fontSize(12.5f).textColor(c.theme().text());
-            IconMorph.icon(c, IconMorph.CHEVRON, open.get(), c.theme().textMuted(), 12);
+        host.children(() -> {
+            host.children(() -> {
+                Element b = buttonBase(c).height(30).padding(0, 10).gap(6).radius(Kit.RADIUS_XS + 2)
+                        .label("kit-dropdown-trigger");
+                if (b.hovered() || open.get()) {
+                    b.background(c.theme().surfaceHover());
+                }
+                b.children(() -> {
+                    if (icon != null) {
+                        box(c).size(15, 15).shrink(0).draw(Icon.draw(icon, c.theme().text()));
+                    }
+                    text(c, label).singleLine().fontSize(12.5f).textColor(c.theme().text());
+                    IconMorph.icon(c, IconMorph.CHEVRON, open.get(), c.theme().textMuted(), 12);
+                });
+                if (b.clicked()) {
+                    open.set(!open.get());
+                }
+                menu(c, b, open, items);
+            });
         });
-        if (b.clicked()) {
-            open.set(!open.get());
-        }
-        menu(c, b, open, items);
         return host;
     }
 

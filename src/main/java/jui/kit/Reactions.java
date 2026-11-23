@@ -45,44 +45,46 @@ public final class Reactions {
                 st.counts[i] = reactions[i].count();
             }
         }
-        for (int i = 0; i < reactions.length; i++) {
-            int idx = i;
-            boolean on = st.picked == idx;
-            Element pill = buttonBase(c).height(26).padding(0, 9).gap(5).radius(13).shrink(0)
-                    .label("kit-reaction-" + idx);
-            if (on) {
-                pill.background(Color.rgba(c.theme().accent().rgba() >>> 8, 0.16f))
-                        .border(1, c.theme().accent());
-            } else {
-                pill.background(Kit.surface(c)).border(1, Kit.hairline(c));
-                if (pill.hovered()) {
-                    pill.background(c.theme().surfaceHover());
-                }
-            }
-            int shown = st.counts[idx] + (on && reactions[idx].count() == st.counts[idx] ? 1 : 0)
-                    - (!on && reactions[idx].mine() && reactions[idx].count() == st.counts[idx] ? 1 : 0);
-            pill.children(() -> {
-                text(c, reactions[idx].emoji()).singleLine().fontSize(12.5f);
-                // The count rolls: digits rise as the value changes.
-                float roll = Kit.spring(host, "r" + idx, shown, Kit.MORPH);
-                Element num = text(c, String.valueOf(shown)).singleLine().fontSize(11.5f);
-                num.textColor(on ? c.theme().accent() : c.theme().textMuted());
-                num.opacity(0.6f + 0.4f * (1 - Math.abs(roll - shown)));
-            });
-            if (pill.clicked()) {
+        host.children(() -> {
+            for (int i = 0; i < reactions.length; i++) {
+                int idx = i;
+                boolean on = st.picked == idx;
+                Element pill = buttonBase(c).height(26).padding(0, 9).gap(5).radius(13).shrink(0)
+                        .label("kit-reaction-" + idx);
                 if (on) {
-                    st.picked = -1;
-                    st.counts[idx] = Math.max(0, st.counts[idx] - 1);
+                    pill.background(Color.rgba(c.theme().accent().rgba() >>> 8, 0.16f))
+                            .border(1, c.theme().accent());
                 } else {
-                    if (st.picked >= 0) {
-                        st.counts[st.picked] = Math.max(0, st.counts[st.picked] - 1);
+                    pill.background(Kit.surface(c)).border(1, Kit.hairline(c));
+                    if (pill.hovered()) {
+                        pill.background(c.theme().surfaceHover());
                     }
-                    st.picked = idx;
-                    st.counts[idx] = st.counts[idx] + 1;
                 }
-                c.invalidate();
+                int shown = st.counts[idx] + (on && reactions[idx].count() == st.counts[idx] ? 1 : 0)
+                        - (!on && reactions[idx].mine() && reactions[idx].count() == st.counts[idx] ? 1 : 0);
+                pill.children(() -> {
+                    text(c, reactions[idx].emoji()).singleLine().fontSize(12.5f);
+                    // The count rolls: digits rise as the value changes.
+                    float roll = Kit.spring(host, "r" + idx, shown, Kit.MORPH);
+                    Element num = text(c, String.valueOf(shown)).singleLine().fontSize(11.5f);
+                    num.textColor(on ? c.theme().accent() : c.theme().textMuted());
+                    num.opacity(0.6f + 0.4f * (1 - Math.abs(roll - shown)));
+                });
+                if (pill.clicked()) {
+                    if (on) {
+                        st.picked = -1;
+                        st.counts[idx] = Math.max(0, st.counts[idx] - 1);
+                    } else {
+                        if (st.picked >= 0) {
+                            st.counts[st.picked] = Math.max(0, st.counts[st.picked] - 1);
+                        }
+                        st.picked = idx;
+                        st.counts[idx] = st.counts[idx] + 1;
+                    }
+                    c.invalidate();
+                }
             }
-        }
+        });
         return host;
     }
 

@@ -26,44 +26,46 @@ public final class ScrubInput {
     public static Element scrubInput(Context c, String label, jui.ui.DoubleRef value, TextRef text,
                                      double min, double max, double step, String unit, boolean disabled) {
         Element host = box(c).fillWidth().label("kit-scrub");
-        Element box = textInput(c, text).fillWidth().height(30).padding(0, 10).radius(Kit.RADIUS_XS + 2)
-                .label("kit-scrub-box");
-        if (disabled) {
-            box.disabled(true);
-        }
-        boolean focused = box.focused();
-        float k = Kit.spring(box, "edge", focused ? 1 : 0, Kit.SNAPPY);
-        box.background(Kit.surface(c));
-        box.border(1, focused ? Kit.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
-        // The label rides the leading edge as the scrub handle.
-        box.children(() -> {
-            Element handle = box(c).absolute().left(0).top(0).bottom(0).gap(4).padding(0, 9)
-                    .alignItems(jui.ui.Align.CENTER).label("kit-scrub-handle");
-            if (!disabled) {
-                handle.cursor(Cursor.RESIZE_EW).draggable();
+        host.children(() -> {
+            Element box = textInput(c, text).fillWidth().height(30).padding(0, 10).radius(Kit.RADIUS_XS + 2)
+                    .label("kit-scrub-box");
+            if (disabled) {
+                box.disabled(true);
             }
-            handle.children(() -> text(c, label).singleLine().fontSize(11)
-                    .textColor(c.theme().textMuted()));
-            if (!disabled && handle.pressed()) {
-                double v = Math.max(min, Math.min(max, value.get() + handle.dragX() * step));
-                if (v != value.get()) {
+            boolean focused = box.focused();
+            float k = Kit.spring(box, "edge", focused ? 1 : 0, Kit.SNAPPY);
+            box.background(Kit.surface(c));
+            box.border(1, focused ? Kit.mix(c.theme().border(), c.theme().accent(), k) : c.theme().border());
+            // The label rides the leading edge as the scrub handle.
+            box.children(() -> {
+                Element handle = box(c).absolute().left(0).top(0).bottom(0).gap(4).padding(0, 9)
+                        .alignItems(jui.ui.Align.CENTER).label("kit-scrub-handle");
+                if (!disabled) {
+                    handle.cursor(Cursor.RESIZE_EW).draggable();
+                }
+                handle.children(() -> text(c, label).singleLine().fontSize(11)
+                        .textColor(c.theme().textMuted()));
+                if (!disabled && handle.pressed()) {
+                    double v = Math.max(min, Math.min(max, value.get() + handle.dragX() * step));
+                    if (v != value.get()) {
+                        value.set(v);
+                        text.set(FMT.format(v) + (unit != null ? unit : ""));
+                        c.invalidate();
+                    }
+                }
+            });
+            if (box.submitted()) {
+                String t = (text.get() == null ? "" : text.get()).replace(unit == null ? "\u0000" : unit, "").trim();
+                try {
+                    double v = Math.max(min, Math.min(max, Double.parseDouble(t.replace(",", "."))));
                     value.set(v);
                     text.set(FMT.format(v) + (unit != null ? unit : ""));
-                    c.invalidate();
+                } catch (NumberFormatException e) {
+                    text.set(FMT.format(value.get()) + (unit != null ? unit : ""));
                 }
+                c.invalidate();
             }
         });
-        if (box.submitted()) {
-            String t = (text.get() == null ? "" : text.get()).replace(unit == null ? "\u0000" : unit, "").trim();
-            try {
-                double v = Math.max(min, Math.min(max, Double.parseDouble(t.replace(",", "."))));
-                value.set(v);
-                text.set(FMT.format(v) + (unit != null ? unit : ""));
-            } catch (NumberFormatException e) {
-                text.set(FMT.format(value.get()) + (unit != null ? unit : ""));
-            }
-            c.invalidate();
-        }
         return host;
     }
 

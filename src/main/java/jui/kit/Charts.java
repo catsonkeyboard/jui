@@ -115,14 +115,16 @@ public final class Charts {
             }
         });
         // The legend.
-        row(c).gap(10).children(() -> {
-            for (int s = 0; s < names.length; s++) {
-                int ss = s;
-                row(c).gap(5).children(() -> {
-                    box(c).size(9, 9).radius(2).background(series(ss));
-                    text(c, names[ss]).singleLine().fontSize(10.5f).textColor(c.theme().textMuted());
-                });
-            }
+        host.children(() -> {
+            row(c).gap(10).children(() -> {
+                for (int s = 0; s < names.length; s++) {
+                    int ss = s;
+                    row(c).gap(5).children(() -> {
+                        box(c).size(9, 9).radius(2).background(series(ss));
+                        text(c, names[ss]).singleLine().fontSize(10.5f).textColor(c.theme().textMuted());
+                    });
+                }
+            });
         });
         return host;
     }
@@ -338,15 +340,17 @@ public final class Charts {
                 at++;
             }
         });
-        row(c).gap(10).children(() -> {
-            for (int s = 0; s < names.length && s < shares.length; s++) {
-                int ss = s;
-                row(c).gap(5).children(() -> {
-                    box(c).size(9, 9).radius(2).background(series(ss));
-                    text(c, names[ss] + " " + Math.round(shares[ss]) + "%").singleLine().fontSize(10.5f)
-                            .textColor(c.theme().textMuted());
-                });
-            }
+        host.children(() -> {
+            row(c).gap(10).children(() -> {
+                for (int s = 0; s < names.length && s < shares.length; s++) {
+                    int ss = s;
+                    row(c).gap(5).children(() -> {
+                        box(c).size(9, 9).radius(2).background(series(ss));
+                        text(c, names[ss] + " " + Math.round(shares[ss]) + "%").singleLine().fontSize(10.5f)
+                                .textColor(c.theme().textMuted());
+                    });
+                }
+            });
         });
         return host;
     }
@@ -530,7 +534,10 @@ public final class Charts {
             totalSum += v;
         }
         final float total = totalSum;
-        // Squarify-lite: rows of tiles whose areas read like the shares.
+        // Squarify-lite, computed at method depth: the tile rects first, so
+        // the children lambda below only places them.
+        java.util.List<float[]> rects = new java.util.ArrayList<>();
+        java.util.List<Integer> ks = new java.util.ArrayList<>();
         float x = 0, y = 0;
         float w = width, h = height;
         int i = 0;
@@ -547,24 +554,13 @@ public final class Charts {
             float along = 0;
             float alongSize = rowFirst ? w : h;
             for (int k = i; k < Math.min(names.length, i + count); k++) {
-                int kk = k;
-                float a = alongSize * values[kk] / Math.max(shareSum, 0.0001f);
+                float a = alongSize * values[k] / Math.max(shareSum, 0.0001f);
                 float tw = rowFirst ? a : thickness;
                 float th = rowFirst ? thickness : a;
                 float tx = rowFirst ? x + along : x;
                 float ty = rowFirst ? y : y + along;
-                Element tile = box(c).absolute().left(tx).top(ty).width(tw - 2).height(th - 2)
-                        .radius(4).background(series(kk % SERIES.length)).clip()
-                        .padding(6).label("kit-tile-" + names[kk]);
-                tile.children(() -> {
-                    text(c, names[kk]).singleLine().fontSize(10).textColor(Color.rgb(0xFFFFFF));
-                    text(c, Math.round(values[kk] / total * 100) + "%").singleLine().fontSize(9)
-                            .textColor(Color.rgba(0xFFFFFF, 0.75f));
-                });
-                if (tile.clicked() && drill != null) {
-                    drill.set(kk);
-                    c.invalidate();
-                }
+                rects.add(new float[]{tx, ty, tw - 2, th - 2});
+                ks.add(k);
                 along += a;
             }
             if (rowFirst) {
@@ -579,6 +575,24 @@ public final class Charts {
                 break;
             }
         }
+        host.children(() -> {
+            for (int t = 0; t < rects.size(); t++) {
+                int kk = ks.get(t);
+                float[] r = rects.get(t);
+                Element tile = box(c).absolute().left(r[0]).top(r[1]).width(r[2]).height(r[3])
+                        .radius(4).background(series(kk % SERIES.length)).clip()
+                        .padding(6).label("kit-tile-" + names[kk]);
+                tile.children(() -> {
+                    text(c, names[kk]).singleLine().fontSize(10).textColor(Color.rgb(0xFFFFFF));
+                    text(c, Math.round(values[kk] / total * 100) + "%").singleLine().fontSize(9)
+                            .textColor(Color.rgba(0xFFFFFF, 0.75f));
+                });
+                if (tile.clicked() && drill != null) {
+                    drill.set(kk);
+                    c.invalidate();
+                }
+            }
+        });
         return host;
     }
 

@@ -38,21 +38,23 @@ public final class Popover {
     public static Element info(Context c, String label, String text) {
         Element host = row(c).label("kit-popover-info");
         BoolRef open = localBool(host, "open", false);
-        Element trigger = buttonBase(c).height(28).padding(0, 9).gap(5).radius(Kit.RADIUS_XS + 2)
-                .label("kit-popover-trigger");
-        if (trigger.hovered() || open.get()) {
-            trigger.background(c.theme().surfaceHover());
-        }
-        trigger.children(() -> {
-            box(c).size(13, 13).shrink(0).draw(Icon.draw("info-circle",
-                    open.get() ? c.theme().accent() : c.theme().textMuted()));
-            text(c, label).singleLine().fontSize(12).textColor(c.theme().text());
+        host.children(() -> {
+            Element trigger = buttonBase(c).height(28).padding(0, 9).gap(5).radius(Kit.RADIUS_XS + 2)
+                    .label("kit-popover-trigger");
+            if (trigger.hovered() || open.get()) {
+                trigger.background(c.theme().surfaceHover());
+            }
+            trigger.children(() -> {
+                box(c).size(13, 13).shrink(0).draw(Icon.draw("info-circle",
+                        open.get() ? c.theme().accent() : c.theme().textMuted()));
+                text(c, label).singleLine().fontSize(12).textColor(c.theme().text());
+            });
+            if (trigger.clicked()) {
+                open.set(!open.get());
+            }
+            popover(c, trigger, open, () -> text(c, text).fontSize(11.5f)
+                    .textColor(c.theme().textMuted()));
         });
-        if (trigger.clicked()) {
-            open.set(!open.get());
-        }
-        popover(c, trigger, open, () -> text(c, text).fontSize(11.5f)
-                .textColor(c.theme().textMuted()));
         return host;
     }
 

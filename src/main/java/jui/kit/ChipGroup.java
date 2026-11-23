@@ -25,76 +25,78 @@ public final class ChipGroup {
         int[] sel = picked.get();
         boolean all = sel == null || sel.length == 0;
         // "All" resets when any chip is picked.
-        Element allChip = buttonBase(c).height(28).padding(0, 10).radius(14).shrink(0)
-                .label("kit-chip-all");
-        if (all) {
-            allChip.background(c.theme().accent());
-            allChip.children(() -> text(c, "All").singleLine().fontSize(11.5f)
-                    .textColor(c.theme().accentText()));
-        } else {
-            allChip.background(Kit.surface(c)).border(1, Kit.hairline(c));
-            allChip.children(() -> text(c, "All").singleLine().fontSize(11.5f)
-                    .textColor(c.theme().textMuted()));
-            if (allChip.hovered()) {
-                allChip.background(c.theme().surfaceHover());
-            }
-            if (allChip.clicked()) {
-                picked.set(new int[0]);
-                c.invalidate();
-            }
-        }
-        for (int i = 0; i < chips.length; i++) {
-            int ii = i;
-            boolean isOn = false;
-            if (sel != null) {
-                for (int s : sel) {
-                    isOn |= s == ii;
-                }
-            }
-            final boolean on = isOn;
-            Chip ch = chips[ii];
-            Element chip = buttonBase(c).height(28).padding(0, 10).gap(5).radius(14).shrink(0)
-                    .label("kit-chip-" + ch.label());
-            if (on) {
-                chip.background(Color.rgba(c.theme().accent().rgba() >>> 8, 0.16f))
-                        .border(1, c.theme().accent());
+        host.children(() -> {
+            Element allChip = buttonBase(c).height(28).padding(0, 10).radius(14).shrink(0)
+                    .label("kit-chip-all");
+            if (all) {
+                allChip.background(c.theme().accent());
+                allChip.children(() -> text(c, "All").singleLine().fontSize(11.5f)
+                        .textColor(c.theme().accentText()));
             } else {
-                chip.background(Kit.surface(c)).border(1, Kit.hairline(c));
-                if (chip.hovered()) {
-                    chip.background(c.theme().surfaceHover());
+                allChip.background(Kit.surface(c)).border(1, Kit.hairline(c));
+                allChip.children(() -> text(c, "All").singleLine().fontSize(11.5f)
+                        .textColor(c.theme().textMuted()));
+                if (allChip.hovered()) {
+                    allChip.background(c.theme().surfaceHover());
+                }
+                if (allChip.clicked()) {
+                    picked.set(new int[0]);
+                    c.invalidate();
                 }
             }
-            chip.children(() -> {
-                text(c, ch.label()).singleLine().fontSize(11.5f)
-                        .textColor(on ? c.theme().accent() : c.theme().text());
-                if (ch.count() >= 0) {
-                    Element n = text(c, String.valueOf(ch.count())).singleLine().fontSize(10.5f);
-                    n.textColor(on ? c.theme().accent() : c.theme().textMuted());
-                    n.opacity(0.75f + 0.25f * Kit.spring(host, "cnt" + ii, ch.count(), Kit.MORPH));
-                }
-                if (on) {
-                    box(c).size(11, 11).shrink(0).draw(Icon.draw("check", c.theme().accent()));
-                }
-            });
-            if (chip.clicked()) {
-                if (multiple) {
-                    int[] next = new int[on ? sel.length - 1 : sel.length + 1];
-                    int at = 0;
+            for (int i = 0; i < chips.length; i++) {
+                int ii = i;
+                boolean isOn = false;
+                if (sel != null) {
                     for (int s : sel) {
-                        if (s != ii) {
-                            next[at++] = s;
-                        }
+                        isOn |= s == ii;
                     }
-                    if (!on) {
-                        next[at] = ii;
-                    }
-                    picked.set(next);
-                } else {
-                    picked.set(on ? new int[0] : new int[]{ii});
                 }
-                c.invalidate();
+                final boolean on = isOn;
+                Chip ch = chips[ii];
+                Element chip = buttonBase(c).height(28).padding(0, 10).gap(5).radius(14).shrink(0)
+                        .label("kit-chip-" + ch.label());
+                if (on) {
+                    chip.background(Color.rgba(c.theme().accent().rgba() >>> 8, 0.16f))
+                            .border(1, c.theme().accent());
+                } else {
+                    chip.background(Kit.surface(c)).border(1, Kit.hairline(c));
+                    if (chip.hovered()) {
+                        chip.background(c.theme().surfaceHover());
+                    }
+                }
+                chip.children(() -> {
+                    text(c, ch.label()).singleLine().fontSize(11.5f)
+                            .textColor(on ? c.theme().accent() : c.theme().text());
+                    if (ch.count() >= 0) {
+                        Element n = text(c, String.valueOf(ch.count())).singleLine().fontSize(10.5f);
+                        n.textColor(on ? c.theme().accent() : c.theme().textMuted());
+                        n.opacity(0.75f + 0.25f * Kit.spring(host, "cnt" + ii, ch.count(), Kit.MORPH));
+                    }
+                    if (on) {
+                        box(c).size(11, 11).shrink(0).draw(Icon.draw("check", c.theme().accent()));
+                    }
+                });
+                if (chip.clicked()) {
+                    if (multiple) {
+                        int[] next = new int[on ? sel.length - 1 : sel.length + 1];
+                        int at = 0;
+                        for (int s : sel) {
+                            if (s != ii) {
+                                next[at++] = s;
+                            }
+                        }
+                        if (!on) {
+                            next[at] = ii;
+                        }
+                        picked.set(next);
+                    } else {
+                        picked.set(on ? new int[0] : new int[]{ii});
+                    }
+                    c.invalidate();
+                }
             }
-        }
+        });
         return host;
     }
 

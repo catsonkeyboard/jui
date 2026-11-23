@@ -33,31 +33,33 @@ public final class Tabs {
         }
         int sel2 = sel;
         float x = start(sel2, widths);
-        for (int i = 0; i < n; i++) {
-            int ii = i;
-            boolean on = ii == sel2;
-            Element tab = buttonBase(c).width(widths[ii]).height(34).shrink(0).label("kit-tab-" + titles[ii]);
-            if (disabled && !on) {
-                tab.disabled(true);
-            }
-            float t = Kit.spring(host, "t" + ii, on ? 1 : 0, Kit.SNAPPY);
-            tab.children(() -> {
-                if (icons != null && icons[ii] != null) {
-                    box(c).size(14, 14).shrink(0)
-                            .draw(Icon.draw(icons[ii], Kit.mix(c.theme().textMuted(), c.theme().text(), t)));
+        host.children(() -> {
+            for (int i = 0; i < n; i++) {
+                int ii = i;
+                boolean on = ii == sel2;
+                Element tab = buttonBase(c).width(widths[ii]).height(34).shrink(0).label("kit-tab-" + titles[ii]);
+                if (disabled && !on) {
+                    tab.disabled(true);
                 }
-                Element l = text(c, titles[ii]).singleLine().fontSize(fs);
-                l.textColor(Kit.mix(c.theme().textMuted(), c.theme().text(), t));
-                l.fontWeight(on ? 500 : 400);
-                // The gliding underline, one per tab by coverage.
-                box(c).absolute().left(10).bottom(0).right(10).height(2).radius(1)
-                        .background(Color.rgba(c.theme().accent().rgba() >>> 8, t));
-            });
-            if (!disabled && tab.clicked()) {
-                selected.set(ii);
-                c.invalidate();
+                float t = Kit.spring(host, "t" + ii, on ? 1 : 0, Kit.SNAPPY);
+                tab.children(() -> {
+                    if (icons != null && icons[ii] != null) {
+                        box(c).size(14, 14).shrink(0)
+                                .draw(Icon.draw(icons[ii], Kit.mix(c.theme().textMuted(), c.theme().text(), t)));
+                    }
+                    Element l = text(c, titles[ii]).singleLine().fontSize(fs);
+                    l.textColor(Kit.mix(c.theme().textMuted(), c.theme().text(), t));
+                    l.fontWeight(on ? 500 : 400);
+                    // The gliding underline, one per tab by coverage.
+                    box(c).absolute().left(10).bottom(0).right(10).height(2).radius(1)
+                            .background(Color.rgba(c.theme().accent().rgba() >>> 8, t));
+                });
+                if (!disabled && tab.clicked()) {
+                    selected.set(ii);
+                    c.invalidate();
+                }
             }
-        }
+        });
         return host;
     }
 

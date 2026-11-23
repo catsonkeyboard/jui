@@ -47,33 +47,35 @@ public final class SegmentedControl {
                 run += widths[i] + 2;
             }
         }
-        for (int i = 0; i < n; i++) {
-            int ii = i;
-            boolean on = ii == sel;
-            Element seg = buttonBase(c).width(widths[ii]).height(h).radius(h / 2).shrink(0)
-                    .label("kit-seg-" + options[ii]);
-            if (disabled && !on) {
-                seg.disabled(true);
-            }
-            if (cover[ii] > 0.01f) {
-                seg.background(Kit.mix(Color.rgba(0x808080, 0), c.theme().background(), cover[ii]));
-                seg.shadow(0, 1, 2, 0, Color.rgba(0x000000, 0.08f * cover[ii]));
-            }
-            seg.children(() -> {
-                float t = Kit.spring(host, "t" + ii, on ? 1 : 0, Kit.SNAPPY);
-                if (icons != null && icons[ii] != null) {
-                    box(c).size(small ? 13 : 15, small ? 13 : 15).shrink(0)
-                            .draw(Icon.draw(icons[ii], Kit.mix(c.theme().textMuted(), c.theme().text(), t)));
+        host.children(() -> {
+            for (int i = 0; i < n; i++) {
+                int ii = i;
+                boolean on = ii == sel;
+                Element seg = buttonBase(c).width(widths[ii]).height(h).radius(h / 2).shrink(0)
+                        .label("kit-seg-" + options[ii]);
+                if (disabled && !on) {
+                    seg.disabled(true);
                 }
-                Element l = text(c, options[ii]).singleLine().fontSize(fs);
-                l.textColor(Kit.mix(c.theme().textMuted(), c.theme().text(), t));
-                l.fontWeight(on ? 500 : 400);
-            });
-            if (!disabled && seg.clicked()) {
-                selected.set(ii);
-                c.invalidate();
+                if (cover[ii] > 0.01f) {
+                    seg.background(Kit.mix(Color.rgba(0x808080, 0), c.theme().background(), cover[ii]));
+                    seg.shadow(0, 1, 2, 0, Color.rgba(0x000000, 0.08f * cover[ii]));
+                }
+                seg.children(() -> {
+                    float t = Kit.spring(host, "t" + ii, on ? 1 : 0, Kit.SNAPPY);
+                    if (icons != null && icons[ii] != null) {
+                        box(c).size(small ? 13 : 15, small ? 13 : 15).shrink(0)
+                                .draw(Icon.draw(icons[ii], Kit.mix(c.theme().textMuted(), c.theme().text(), t)));
+                    }
+                    Element l = text(c, options[ii]).singleLine().fontSize(fs);
+                    l.textColor(Kit.mix(c.theme().textMuted(), c.theme().text(), t));
+                    l.fontWeight(on ? 500 : 400);
+                });
+                if (!disabled && seg.clicked()) {
+                    selected.set(ii);
+                    c.invalidate();
+                }
             }
-        }
+        });
         return host;
     }
 

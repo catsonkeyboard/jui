@@ -204,28 +204,30 @@ public final class Tables {
     public static Element reorderableList(Context c, List<String> items, Ref<Integer> dragging) {
         Element host = column(c).fillWidth().gap(2).label("kit-reorderable");
         int drag = dragging.get();
-        for (int i = 0; i < items.size(); i++) {
-            int ii = i;
-            Element row = row(c).fillWidth().height(40).padding(0, 12).gap(8).alignItems(Align.CENTER)
-                    .radius(Kit.RADIUS_XS).background(c.theme().surface())
-                    .label("kit-reorder-row").draggable();
-            if (ii == drag) {
-                Kit.floatShadow(row);
+        host.children(() -> {
+            for (int i = 0; i < items.size(); i++) {
+                int ii = i;
+                Element row = row(c).fillWidth().height(40).padding(0, 12).gap(8).alignItems(Align.CENTER)
+                        .radius(Kit.RADIUS_XS).background(c.theme().surface())
+                        .label("kit-reorder-row").draggable();
+                if (ii == drag) {
+                    Kit.floatShadow(row);
+                }
+                row.children(() -> {
+                    box(c).size(12, 12).shrink(0).draw(Icon.draw("list-bullet", c.theme().textMuted()));
+                    text(c, items.get(ii)).singleLine().fontSize(12).textColor(c.theme().text());
+                    spacer(c).grow(1);
+                    box(c).size(13, 13).shrink(0).draw(Icon.draw("share", c.theme().textMuted()));
+                });
+                if (row.pressed() && drag < 0) {
+                    dragging.set(ii);
+                    c.invalidate();
+                }
             }
-            row.children(() -> {
-                box(c).size(12, 12).shrink(0).draw(Icon.draw("list-bullet", c.theme().textMuted()));
-                text(c, items.get(ii)).singleLine().fontSize(12).textColor(c.theme().text());
-                spacer(c).grow(1);
-                box(c).size(13, 13).shrink(0).draw(Icon.draw("share", c.theme().textMuted()));
-            });
-            if (row.pressed() && drag < 0) {
-                dragging.set(ii);
-                c.invalidate();
+            if (drag >= 0) {
+                c.after(java.time.Duration.ofMillis(16));
             }
-        }
-        if (drag >= 0) {
-            c.after(java.time.Duration.ofMillis(16));
-        }
+        });
         return host;
     }
 
@@ -243,48 +245,50 @@ public final class Tables {
      */
     public static Element filterToolbar(Context c, String[] names, Ref<int[]> picked, String[] values) {
         Element host = row(c).gap(6).wrap().alignContent(Align.START).label("kit-filter-bar");
-        int[] sel = picked.get();
-        boolean any = false;
-        for (int i = 0; i < names.length; i++) {
-            int ii = i;
-            boolean active = sel != null && ii < sel.length && sel[ii] >= 0;
-            any |= active;
-            Element chip = buttonBase(c).height(28).padding(0, 10).gap(5).radius(Kit.RADIUS_XS + 2)
-                    .label("kit-filter-" + names[ii]);
-            if (active) {
-                chip.background(Color.rgba(c.theme().accent().rgba() >>> 8, 0.12f))
-                        .border(1, c.theme().accent());
-            } else {
-                chip.background(Kit.surface(c)).border(1, Kit.hairline(c));
-                if (chip.hovered()) {
-                    chip.background(c.theme().surfaceHover());
+        host.children(() -> {
+            int[] sel = picked.get();
+            boolean any = false;
+            for (int i = 0; i < names.length; i++) {
+                int ii = i;
+                boolean active = sel != null && ii < sel.length && sel[ii] >= 0;
+                any |= active;
+                Element chip = buttonBase(c).height(28).padding(0, 10).gap(5).radius(Kit.RADIUS_XS + 2)
+                        .label("kit-filter-" + names[ii]);
+                if (active) {
+                    chip.background(Color.rgba(c.theme().accent().rgba() >>> 8, 0.12f))
+                            .border(1, c.theme().accent());
+                } else {
+                    chip.background(Kit.surface(c)).border(1, Kit.hairline(c));
+                    if (chip.hovered()) {
+                        chip.background(c.theme().surfaceHover());
+                    }
+                }
+                chip.children(() -> {
+                    text(c, names[ii] + (active ? ": " + values[sel[ii]] : "")).singleLine().fontSize(11.5f)
+                            .textColor(active ? c.theme().accent() : c.theme().text());
+                    IconMorph.icon(c, IconMorph.CHEVRON, active, c.theme().textMuted(), 10);
+                });
+                if (chip.clicked()) {
+                    int[] next = sel == null ? new int[names.length] : sel.clone();
+                    if (ii >= next.length) {
+                        next = new int[names.length];
+                    }
+                    next[ii] = active ? -1 : (next[ii] + 1) % values.length;
+                    picked.set(next);
+                    c.invalidate();
                 }
             }
-            chip.children(() -> {
-                text(c, names[ii] + (active ? ": " + values[sel[ii]] : "")).singleLine().fontSize(11.5f)
-                        .textColor(active ? c.theme().accent() : c.theme().text());
-                IconMorph.icon(c, IconMorph.CHEVRON, active, c.theme().textMuted(), 10);
-            });
-            if (chip.clicked()) {
-                int[] next = sel == null ? new int[names.length] : sel.clone();
-                if (ii >= next.length) {
-                    next = new int[names.length];
+            if (any) {
+                Element reset = buttonBase(c).height(28).padding(0, 9).radius(Kit.RADIUS_XS + 2)
+                        .label("kit-filter-reset");
+                reset.children(() -> text(c, "Reset").singleLine().fontSize(11.5f)
+                        .textColor(c.theme().accent()));
+                if (reset.clicked()) {
+                    picked.set(new int[names.length]);
+                    c.invalidate();
                 }
-                next[ii] = active ? -1 : (next[ii] + 1) % values.length;
-                picked.set(next);
-                c.invalidate();
             }
-        }
-        if (any) {
-            Element reset = buttonBase(c).height(28).padding(0, 9).radius(Kit.RADIUS_XS + 2)
-                    .label("kit-filter-reset");
-            reset.children(() -> text(c, "Reset").singleLine().fontSize(11.5f)
-                    .textColor(c.theme().accent()));
-            if (reset.clicked()) {
-                picked.set(new int[names.length]);
-                c.invalidate();
-            }
-        }
+        });
         return host;
     }
 

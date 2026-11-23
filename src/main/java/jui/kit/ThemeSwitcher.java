@@ -55,54 +55,57 @@ public final class ThemeSwitcher {
                 c.after(java.time.Duration.ofNanos(16_000_000));
             }
         }
+        final float finalReveal = reveal;
+        host.children(() -> {
         Element b = buttonBase(c).size(34, 34).radius(17).shrink(0).label("kit-theme-btn").clip();
-        if (disabled) {
-            b.disabled(true);
-        }
-        if (b.hovered() && !disabled) {
-            b.background(c.theme().surfaceHover());
-        }
-        final float cover = reveal;
-        b.draw((Painter p, Rect bx) -> {
-            if (cover <= 0) {
-                return;
+            if (disabled) {
+                b.disabled(true);
             }
-            Color next = jui.ui.Theme.of(st.toDark).background();
-            Color col = Color.rgba(next.rgba() >>> 8, 0.85f);
-            switch (style) {
-                case ECLIPSE -> p.circle(bx.x() + bx.width() / 2, bx.y() + bx.height() / 2,
-                        40 * cover, col);
-                case SPLIT -> {
-                    float w = bx.width() / 2 * cover;
-                    p.box(bx.x() + bx.width() / 2 - w, bx.y(), w, bx.height(), col);
-                    p.box(bx.x() + bx.width() / 2, bx.y(), w, bx.height(), col);
+            if (b.hovered() && !disabled) {
+                b.background(c.theme().surfaceHover());
+            }
+            final float cover = finalReveal;
+            b.draw((Painter p, Rect bx) -> {
+                if (cover <= 0) {
+                    return;
                 }
-                case RISE -> {
-                    float h = bx.height() * cover;
-                    p.box(bx.x(), bx.y() + bx.height() - h, bx.width(), h, col);
+                Color next = jui.ui.Theme.of(st.toDark).background();
+                Color col = Color.rgba(next.rgba() >>> 8, 0.85f);
+                switch (style) {
+                    case ECLIPSE -> p.circle(bx.x() + bx.width() / 2, bx.y() + bx.height() / 2,
+                            40 * cover, col);
+                    case SPLIT -> {
+                        float w = bx.width() / 2 * cover;
+                        p.box(bx.x() + bx.width() / 2 - w, bx.y(), w, bx.height(), col);
+                        p.box(bx.x() + bx.width() / 2, bx.y(), w, bx.height(), col);
+                    }
+                    case RISE -> {
+                        float h = bx.height() * cover;
+                        p.box(bx.x(), bx.y() + bx.height() - h, bx.width(), h, col);
+                    }
+                    default -> { }
                 }
-                default -> { }
+            });
+            b.children(() -> {
+                boolean target = st.animating ? st.toDark : on.get();
+                float t = Kit.spring(host, "sun", target ? 1 : 0, Kit.MORPH);
+                box(c).size(18, 18).shrink(0).draw(
+                        (p, bx) -> IconMorph.paint(p, bx, IconMorph.THEME, t, c.theme().text(),
+                                c.theme().text(), c.theme().background(), 18));
+            });
+            if (!disabled && b.clicked()) {
+                st.toDark = !on.get();
+                if (style == Style.PLAIN) {
+                    c.setDark(st.toDark);
+                    on.set(st.toDark);
+                } else {
+                    st.animating = true;
+                    st.start = now;
+                    c.after(java.time.Duration.ofNanos(16_000_000));
+                }
+                c.invalidate();
             }
         });
-        b.children(() -> {
-            boolean target = st.animating ? st.toDark : on.get();
-            float t = Kit.spring(host, "sun", target ? 1 : 0, Kit.MORPH);
-            box(c).size(18, 18).shrink(0).draw(
-                    (p, bx) -> IconMorph.paint(p, bx, IconMorph.THEME, t, c.theme().text(),
-                            c.theme().text(), c.theme().background(), 18));
-        });
-        if (!disabled && b.clicked()) {
-            st.toDark = !on.get();
-            if (style == Style.PLAIN) {
-                c.setDark(st.toDark);
-                on.set(st.toDark);
-            } else {
-                st.animating = true;
-                st.start = now;
-                c.after(java.time.Duration.ofNanos(16_000_000));
-            }
-            c.invalidate();
-        }
         return host;
     }
 
