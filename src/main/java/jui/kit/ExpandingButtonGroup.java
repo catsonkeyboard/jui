@@ -109,6 +109,7 @@ public final class ExpandingButtonGroup {
             float target = hot ? iconW + labelW + pad : iconW;
             float w = Kit.spring(host, "w" + i, target, Kit.MORPH);
             Element b = buttonBase(c).width(w).height(h).shrink(0).radius(Kit.RADIUS_XS + 2)
+                    .padding(0, (h - icon) / 2)
                     .label("kit-exp-" + it.label).clip();
             if (disabled || it.disabled) {
                 b.disabled(true);
@@ -126,8 +127,9 @@ public final class ExpandingButtonGroup {
             Color t = it.danger ? Kit.danger(c) : c.theme().text();
             int ii = i;
             b.children(() -> {
-                box(c).size(icon, icon).shrink(0).margin(0, (w - h) / 2)
-                        .opacity(1 - 0.1f * dip)
+                // The icon stays at the leading edge: centering it in the
+                // expanded pill pushed the label out of the clipped box.
+                box(c).size(icon, icon).shrink(0).opacity(1 - 0.1f * dip)
                         .draw(confirming ? Icon.draw("check", t) : Icon.draw(it.icon, t));
                 if (hot) {
                     // The label slides out from behind the icon with a short rise.

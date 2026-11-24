@@ -437,15 +437,15 @@ public final class Charts {
      * as columns; the level reads through four steps of the accent.
      */
     public static Element activityHeatmap(Context c, float[] days, float max, float width) {
-        Element host = box(c).width(width).height(96).label("kit-chart-heatmap");
+        Element host = box(c).width(width).height(116).label("kit-chart-heatmap");
         host.draw((Painter p, Rect b) -> {
-            float cell = 10, gap = 3;
+            float cell = 10, gap = 3, top = 16;   // a clear row for the month labels
             int weeks = (int) ((b.width() - 24) / (cell + gap));
             Color base = c.theme().surfacePressed();
             for (int i = 0; i < days.length && i < weeks * 7; i++) {
                 int col = i / 7, row = i % 7;
                 float x = b.x() + 20 + col * (cell + gap);
-                float y = b.y() + 4 + row * (cell + gap);
+                float y = b.y() + top + row * (cell + gap);
                 float f = max > 0 ? days[i] / max : 0;
                 Color col2 = f <= 0 ? base
                         : Color.rgba(c.theme().accent().rgba() >>> 8, Math.max(0.25f, Math.min(1, f)));
@@ -453,6 +453,7 @@ public final class Charts {
             }
             String[] monthLabels = {"Jan", "Mar", "May", "Jul", "Sep", "Nov"};
             for (int m = 0; m < monthLabels.length; m++) {
+                // The clear row above the grid: a label over a lit cell was unreadable.
                 drawLabel(p, b.x() + 20 + weeks * (cell + gap) * m / 6f, b.y() + 8,
                         monthLabels[m], c.theme().textMuted(), false);
             }
