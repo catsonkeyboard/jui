@@ -627,20 +627,22 @@ public final class Charts {
                                 Color.rgba(col.rgba() >>> 8, 0.35f * (1 - u)));
                     }
                 }
-                // Text sits inside the band; on a narrow band the value
-                // moves to its right so neither string is squeezed into a
-                // per-character wrap by the text engine.
+                // Wide bands hold their text inside; a narrow band would
+                // squeeze each string into one character per line, so both
+                // the label and the value go to the right of the band.
                 String label = stages[i];
                 String value = String.valueOf(Math.round(values[i]));
                 float bx = b.x() + (b.width() - w0) / 2;
                 float by = b.y() + i * bandH + bandH2 / 2 - 6;
-                p.text(label, bx + 8, by, 10.5f, 500, Color.rgb(0xFFFFFF), w0 - 16);
+                float labelW = label.length() * 10.5f + 8;
                 float valueW = value.length() * 6.4f + 6;
-                if (w0 >= valueW + 24) {
+                if (w0 >= labelW + valueW + 16) {
+                    p.text(label, bx + 8, by, 10.5f, 500, Color.rgb(0xFFFFFF), labelW);
                     p.text(value, bx + w0 - valueW, by, 10.5f, 600,
                             Color.rgba(0xFFFFFF, 0.85f), valueW);
                 } else {
-                    p.text(value, bx + w0 + 6, by, 10.5f, 600, c.theme().textMuted(), 60);
+                    p.text(label, bx + w0 + 6, by, 10.5f, 500, c.theme().text(), 80);
+                    p.text(value, bx + w0 + 6 + labelW, by, 10.5f, 600, c.theme().textMuted(), 60);
                 }
             }
         });
